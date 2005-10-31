@@ -1,0 +1,7 @@
+#!/bin/sh
+
+TESTPP=`dirname $0`/HTFpp
+CPP=cpphs.compat
+GHCI=ghci
+
+exec "$GHCI" -fth -F -pgmF "$TESTPP" -optF "$CPP" -package template-haskell -package HUnit -package HTF $@
