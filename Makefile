@@ -7,6 +7,7 @@ all:
 
 install: 
 	$(CABAL) install -v2
+	$(CABAL) register -v2
 
 clean:
 	$(CABAL) clean
