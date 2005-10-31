@@ -11,15 +11,19 @@ $(tests "assertTests" [d|
 
  testAssertEqual = assertEqual 1 2
 
- testAssertEqual2 = assertEqual2 A B
+ testAssertEqualNoShow = assertEqualNoShow A B
 
- testAssertSeqEqual = assertSeqEqual [1,2] [2]
+ testAssertSetEqual = assertSetEqual [1,2] [2]
 
- testAssertSeqEqualSuccess = assertSeqEqual [1,2] [2,1]
+ testAssertSetEqualSuccess = assertSetEqual [1,2] [2,1]
 
  testAssertNotNull = assertNotNull []
 
  testAssertNull = assertNull [1]
+
+ testAssertThrows = assertThrows (return ()) (\_ -> True)
+
+ testAssertThrows' = assertThrows (error "ERROR") (\_ -> False)
  |])
 
 allTests = TestList [assertTests]

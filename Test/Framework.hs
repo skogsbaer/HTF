@@ -2,8 +2,10 @@
 
 module Test.Framework (
 
-  assert_, assertEqual_, assertEqual2_, assertNotNull_, assertNull_,
-  assertSeqEqual_, assertFailure,
+  assertBool_, assertEqual_, assertEqualNoShow_, assertNotNull_, assertNull_,
+  assertSetEqual_, assertThrows_,
+
+  assertFailure,
 
   tests,
 
@@ -28,51 +30,59 @@ assertFailure s =
     do HU.assertFailure s
        error "should never reach this point"
 
-assert_ :: Location -> Bool -> HU.Assertion
-assert_ loc False = HU.assertFailure ("assert failed at " ++ showLoc loc)
-assert_ loc True = return ()
+assertBool_ :: Location -> Bool -> HU.Assertion
+assertBool_ loc False = assertFailure ("assert failed at " ++ showLoc loc)
+assertBool_ loc True = return ()
 
 assertEqual_ :: (Eq a, Show a) => Location -> a -> a -> HU.Assertion
 assertEqual_ loc expected actual = 
     if expected /= actual
-       then HU.assertFailure msg
+       then assertFailure msg
        else return ()
     where msg = "assertEqual failed at " ++ showLoc loc ++ 
                 "\n expected: " ++ show expected ++ "\n but got:  " ++ show actual
 
-assertEqual2_ :: Eq a => Location -> a -> a -> HU.Assertion
-assertEqual2_ loc expected actual = 
+assertEqualNoShow_ :: Eq a => Location -> a -> a -> HU.Assertion
+assertEqualNoShow_ loc expected actual = 
     if expected /= actual
-       then HU.assertFailure ("assertEqual2' failed at " ++ showLoc loc)
+       then assertFailure ("assertEqualNoShow failed at " ++ showLoc loc)
        else return ()
 
-assertSeqEqual_ :: (Eq a, Show a) => Location -> [a] -> [a] -> HU.Assertion
-assertSeqEqual_ loc expected actual = 
+assertSetEqual_ :: (Eq a, Show a) => Location -> [a] -> [a] -> HU.Assertion
+assertSetEqual_ loc expected actual = 
     let ne = length expected
         na = length actual
         in case () of
             _| ne /= na ->
-                 HU.assertFailure ("assertSeqEqual failed at " ++ showLoc loc
-                                   ++ "\n expected length: " ++ show ne
-                                   ++ "\n actual length: " ++ show na)
+                 assertFailure ("assertSetEqual failed at " ++ showLoc loc
+                                ++ "\n expected length: " ++ show ne
+                                ++ "\n actual length: " ++ show na)
              | not (unorderedEq expected actual) ->
-                 HU.assertFailure ("assertSeqEqual failed at " ++ showLoc loc
-                                   ++ "\n expected: " ++ show expected
-                                   ++ "\n actual: " ++ show actual)
+                 assertFailure ("assertSetEqual failed at " ++ showLoc loc
+                                ++ "\n expected: " ++ show expected
+                                ++ "\n actual: " ++ show actual)
              | otherwise -> return ()
     where unorderedEq l1 l2 = 
               null (l1 \\ l2) && null (l2 \\ l1)
               
 
 assertNotNull_ :: Location -> [a] -> HU.Assertion
-assertNotNull_ loc [] = HU.assertFailure ("assertNotNull failed at " ++ showLoc loc)
+assertNotNull_ loc [] = assertFailure ("assertNotNull failed at " ++ showLoc loc)
 assertNotNull_ _ (_:_) = return ()
 
 assertNull_ :: Location -> [a] -> HU.Assertion
-assertNull_ loc (_:_) = HU.assertFailure ("assertNull failed at " ++ showLoc loc)
+assertNull_ loc (_:_) = assertFailure ("assertNull failed at " ++ showLoc loc)
 assertNull_ loc [] = return ()
 
-
+assertThrows_ :: Location -> IO a -> (Exception -> Bool) -> HU.Assertion
+assertThrows_ loc io f = 
+    do res <- try io
+       case res of
+         Right _ -> assertFailure ("assertThrows failed at " ++ showLoc loc ++ 
+                                   ": no exception was thrown")
+         Left e -> if f e then return ()
+                   else assertFailure ("assertThrows failed at " ++ showLoc loc ++
+                                       ": wrong exception was thrown: " ++ show e)
 tests :: String -> Q [Dec] -> Q [Dec]
 tests name decs = 
     do decs' <- decs

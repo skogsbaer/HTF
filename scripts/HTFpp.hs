@@ -4,14 +4,19 @@ import IO
 import System
 import Process
 
-macros = unlines
-         [ "#define SRC_LOC_ (__FILE__, __LINE__)"
-         , "#define assert (assert_ SRC_LOC_)"
-         , "#define assertEqual (assertEqual_ SRC_LOC_)"
-         , "#define assertEqual2 (assertEqual2_ SRC_LOC_)"
-         , "#define assertSeqEqual (assertSeqEqual_ SRC_LOC_)"
-         , "#define assertNull (assertNull_ SRC_LOC_)"
-         , "#define assertNotNull (assertNotNull_ SRC_LOC_)" ]
+assertions = [ "assertBool"
+             , "assertEqual"
+             , "assertEqualNoShow"
+             , "assertSetEqual"
+             , "assertNull"
+             , "assertNotNull"
+             , "assertThrows"
+             ]
+
+macros = unlines $
+         "#define SRC_LOC_ (__FILE__, __LINE__)" :
+         map define assertions
+    where define s = "#define " ++ s ++ " (" ++ s ++ "_ SRC_LOC_)"
 
 main = 
     do prog <- getProgName
