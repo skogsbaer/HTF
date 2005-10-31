@@ -1,6 +1,6 @@
 BINS = test-unit-tests
 
-GHC = HTFghc
+GHC = htf-ghc
 
 .PHONY: all
 all: $(BINS)

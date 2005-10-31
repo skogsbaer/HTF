@@ -11,7 +11,7 @@ import Distribution.Simple.Utils
 import Distribution.Simple.LocalBuildInfo
 import Distribution.Compat.FilePath	
 
-bins = ["scripts/HTFghc", "scripts/HTFghci"]
+bins = ["scripts/htf-ghc", "scripts/htf-ghci"]
 binMode = foldr1 unionFileModes [ownerModes, groupReadMode, groupExecuteMode,
                                  otherReadMode, otherExecuteMode]
 

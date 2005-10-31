@@ -1,6 +1,6 @@
 #!/bin/sh
 
-TESTPP=`dirname $0`/HTFpp
+TESTPP=htf-pp
 CPP=cpphs.compat
 GHCI=ghci
 

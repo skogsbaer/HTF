@@ -1,6 +1,6 @@
 #!/bin/sh
 
-TESTPP=HTFpp
+TESTPP=htf-pp
 CPP=cpphs.compat
 GHC=ghc
 
