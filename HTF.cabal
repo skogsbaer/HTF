@@ -3,7 +3,7 @@ Version:          0.1
 License:          LGPL
 License-file:     LICENSE
 Author:           Stefan Wehr
-Synopsis:         The Haskell Testing Framework
+Synopsis:         The Haskell Test Framework
 Build-Depends:    HUnit, template-haskell, base, haskell98
 Exposed-Modules:  Test.Framework
 

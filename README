@@ -1,12 +1,16 @@
                     HTF - The Haskell Test Framework
                   ====================================
 
+This README file is still a very incomplete, sorry!
+
 
 Requirements:
 -------------
 
 - Cabal 1.1.3
-- GHC 6.4.1 (not tested with GHC 6.4.0, but should work)
+- GHC 6.4.1  (should compile but does not work properly with GHC 6.4.0 
+              because the HUnit package in GHC 6.4.0 has a bug)
+- cpphs 1.0 or cpp
 
 
 Installation instructions:
@@ -16,3 +20,6 @@ runhaskell setup.hs configure
 runhaskell setup.hs build
 runhaskell setup.hs install
 
+
+Author:  Stefan Wehr <mail AT stefanwehr.de>
+License: LGPL
