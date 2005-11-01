@@ -15,28 +15,29 @@ module Test.Framework (
 import IO ( stderr )
 import List ( (\\) )
 import Language.Haskell.TH
-import qualified Test.HUnit as HU
-import System.IO.Error (ioeGetErrorString)
-
 import Control.Exception
-import System.IO.Error ( userError )
+import Data.Version
+import qualified Test.HUnit as HU
+
+import Test.Configuration
 
 type Location = (String, Int)
 
 showLoc :: Location -> String
 showLoc (f,n) = f ++ ":" ++ show n
 
-hunitPrefix = "HUnit:"
 
-assertFailure :: String -> IO a
--- Important: because of a bug in HUnit shipped with GHC 6.4.1, we must
--- throw an exception e such that (show e) does not have a prefix
--- like `user error'.
-assertFailure s = error (hunitPrefix ++ s)
-{-
-    do HU.assertFailure s
-       error "should never reach this point"
--}
+
+assertFailure :: String -> IO ()
+assertFailure s = 
+    if ghcVersion <= buggyVersion
+       then -- because of a bug in HUnit shipped with GHC 6.4.1, we must
+            -- throw an exception e such that (show e) does not have a prefix
+            -- like `user error'.
+            error (hunitPrefix ++ s)
+       else HU.assertFailure s
+    where hunitPrefix = "HUnit:"
+          buggyVersion = Version [6,4,1] []
 
 assertBool_ :: Location -> Bool -> HU.Assertion
 assertBool_ loc False = assertFailure ("assert failed at " ++ showLoc loc)
@@ -116,35 +117,10 @@ tests name decs =
 
 
 --
--- We use our own test runner for two reasons:
+-- We use our own test runner because HUnit print test paths a bit unreadable:
+-- If a test list contains a named tests, then HUnit prints `i:n' where i
+-- is the index of the named tests and n is the name.
 --
--- (1) HUnit print test paths a bit unreadable:
---     If a test list contains a named tests, then HUnit prints `i:n' where i
---     is the index of the named tests and n is the name.
---
--- (2) HUnit does not catch all exceptions thrown by a testcase (HUnit
---     uses Prelude.try for catching exceptions). For example,
---     if you use `error' inside your testcase, the execution of the program
---     just aborts. The correct behaviour would be to catch the exception
---     and report it as an error.
---
--- (2) is caused by a BUG in the HUnit version for GHC
---
-
--- wraps a Test with Control.Exception.try. 
--- This is needed to circumvent a bug in the HUnit version for GHC which cause
--- the testrunner the handly only IO exceptions correctly
-wrapTest :: HU.Test -> HU.Test
-wrapTest (HU.TestCase io) = HU.TestCase $
-    do res <- try io
-       case res of
-         -- HUnit can handle IO exceptions:
-         Left exc@(IOException ioe) -> error (ioeGetErrorString ioe)--throwIO exc
-         -- but other exceptions have to be wrapped in an IO exception:
-         Left exc -> throw exc --throwIO $ IOException (userError (show exc))
-         Right _ -> return ()
-wrapTest (HU.TestList l) = HU.TestList $ map wrapTest l
-wrapTest (HU.TestLabel s t) = HU.TestLabel s (wrapTest t)
 
 {-
 `runTestText` executes a test, processing each report line according
@@ -157,7 +133,6 @@ runTestText :: HU.PutText st -> HU.Test -> IO (HU.Counts, st)
 runTestText (HU.PutText put us) t = do
   put allTestsStr True us
   (counts, us') <- HU.performTest reportStart reportError reportFailure us t
-                     -- (wrapTest t)
   us'' <- put (HU.showCounts counts) True us'
   return (counts, us'')
  where

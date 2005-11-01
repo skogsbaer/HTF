@@ -3,6 +3,7 @@ import System
 import System.Directory
 import Control.Exception
 import System.Posix.Files
+import Data.Version
 
 import Distribution.Simple
 import Distribution.Simple.Install
@@ -14,6 +15,8 @@ import Distribution.Compat.FilePath
 bins = ["scripts/htf-ghc", "scripts/htf-ghci"]
 binMode = foldr1 unionFileModes [ownerModes, groupReadMode, groupExecuteMode,
                                  otherReadMode, otherExecuteMode]
+requiredVersion = Version [6,4,1] []
+configurationFile = "Test/Configuration.hs"
 
 myInstHook pkgDscr lbi verb b =
     handle (\e -> do hPutStrLn stderr (show e)) $
@@ -31,6 +34,27 @@ myInstHook pkgDscr lbi verb b =
                                             binMode)
          mapM_ copy bins
 
-hooks = defaultUserHooks { instHook = myInstHook }
+myPostConfHook _ _ lbi = 
+    do let comp = compilerFlavor . compiler $ lbi
+           vers = compilerVersion . compiler $ lbi
+       if comp /= GHC || vers < requiredVersion
+          then do hPutStrLn stderr ("compiler not support: " ++ show comp ++ " " ++
+                                    show vers ++ ". At least GHC " ++ 
+                                    show requiredVersion ++ " is required")
+                  return (ExitFailure 1)
+          else do genConfiguration vers
+                  return ExitSuccess
+
+genConfiguration :: Version -> IO ()
+genConfiguration vers = 
+    let code = unlines
+               [ "-- GENERATED AUTOMATICALLY, DO NOT EDIT!!"
+               , "module Test.Configuration where"
+               , "import Data.Version"
+               , "ghcVersion = " ++ show vers
+               ]
+        in writeFile configurationFile code
+
+hooks = defaultUserHooks { instHook = myInstHook, postConf = myPostConfHook }
 
 main = defaultMainWithHooks hooks
