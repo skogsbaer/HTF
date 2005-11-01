@@ -16,6 +16,7 @@ import IO ( stderr )
 import List ( (\\) )
 import Language.Haskell.TH
 import qualified Test.HUnit as HU
+import System.IO.Error (ioeGetErrorString)
 
 import Control.Exception
 import System.IO.Error ( userError )
@@ -25,10 +26,17 @@ type Location = (String, Int)
 showLoc :: Location -> String
 showLoc (f,n) = f ++ ":" ++ show n
 
+hunitPrefix = "HUnit:"
+
 assertFailure :: String -> IO a
-assertFailure s = 
+-- Important: because of a bug in HUnit shipped with GHC 6.4.1, we must
+-- throw an exception e such that (show e) does not have a prefix
+-- like `user error'.
+assertFailure s = error (hunitPrefix ++ s)
+{-
     do HU.assertFailure s
        error "should never reach this point"
+-}
 
 assertBool_ :: Location -> Bool -> HU.Assertion
 assertBool_ loc False = assertFailure ("assert failed at " ++ showLoc loc)
@@ -131,9 +139,9 @@ wrapTest (HU.TestCase io) = HU.TestCase $
     do res <- try io
        case res of
          -- HUnit can handle IO exceptions:
-         Left exc@(IOException _) -> throwIO exc
+         Left exc@(IOException ioe) -> error (ioeGetErrorString ioe)--throwIO exc
          -- but other exceptions have to be wrapped in an IO exception:
-         Left exc -> throwIO $ IOException (userError (show exc))
+         Left exc -> throw exc --throwIO $ IOException (userError (show exc))
          Right _ -> return ()
 wrapTest (HU.TestList l) = HU.TestList $ map wrapTest l
 wrapTest (HU.TestLabel s t) = HU.TestLabel s (wrapTest t)
@@ -148,8 +156,8 @@ returned, along with final count values.
 runTestText :: HU.PutText st -> HU.Test -> IO (HU.Counts, st)
 runTestText (HU.PutText put us) t = do
   put allTestsStr True us
-  (counts, us') <- HU.performTest reportStart reportError reportFailure us 
-                     (wrapTest t)
+  (counts, us') <- HU.performTest reportStart reportError reportFailure us t
+                     -- (wrapTest t)
   us'' <- put (HU.showCounts counts) True us'
   return (counts, us'')
  where
