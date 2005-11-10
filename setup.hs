@@ -16,7 +16,7 @@ bins = ["scripts/htf-ghc", "scripts/htf-ghci"]
 binMode = foldr1 unionFileModes [ownerModes, groupReadMode, groupExecuteMode,
                                  otherReadMode, otherExecuteMode]
 requiredVersion = Version [6,4,1] []
-configurationFile = "Test/Configuration.hs"
+configurationFile = "Test/Framework/Configuration.hs"
 
 myInstHook pkgDscr lbi verb b =
     handle (\e -> do hPutStrLn stderr (show e)) $
@@ -49,7 +49,7 @@ genConfiguration :: Version -> IO ()
 genConfiguration vers = 
     let code = unlines
                [ "-- GENERATED AUTOMATICALLY, DO NOT EDIT!!"
-               , "module Test.Configuration where"
+               , "module Test.Framework.Configuration where"
                , "import Data.Version"
                , "ghcVersion = " ++ show vers
                ]

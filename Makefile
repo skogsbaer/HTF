@@ -1,13 +1,18 @@
-.PHONY: all clean
+.PHONY: all clean configure build install
 
 CABAL = runghc setup.hs
 
-all:
+all: install
+
+build:
 	$(CABAL) build
 
-install: 
-	$(CABAL) install -v2
-	$(CABAL) register -v2
+configure:
+	$(CABAL) configure --prefix=$(CURDIR)/usr
+
+install: build
+	$(CABAL) copy -v2
+	$(CABAL) register --user -v2
 
 clean:
 	$(CABAL) clean

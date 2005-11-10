@@ -1,11 +1,11 @@
-BINS = test-unit-tests
+BINS = tt
 
-GHC = htf-ghc
+GHC = PATH=../usr/bin:$$PATH htf-ghc 
 
 .PHONY: all
 all: $(BINS)
 
-test-unit-tests: TestUnitTests.hs
+tt: TestHTF.hs
 	$(GHC) -o $@ --make $<
 
 .PHONY: clean
