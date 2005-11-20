@@ -32,3 +32,6 @@
 (^|/)Thumbs\.db$
 (^|/)dist($|/)
 (^|/)usr($|/)
+tests/tt
+HTF\.cabal
+\.setup-config
