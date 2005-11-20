@@ -1,7 +1,22 @@
                     HTF - The Haskell Test Framework
                   ====================================
 
-This README file is still a very incomplete, sorry!
+Author:  Stefan Wehr <mail AT stefanwehr.de>
+License: LGPL
+
+The HTF lets you write HUnit tests (http://hunit.sourceforge.net/) and
+QuickCheck (http://www.cs.chalmers.se/~rjmh/QuickCheck/) properties in
+an easy and convenient way. Additionally, the HTF provides a facility
+for testing programs by running them and comparing the actual output
+with the expected output.
+
+The HTF uses Template Haskell to collect all tests and properties, so
+that you do not need to write boilerplate code for that
+purpose. Preprocessor macros provide you with file name and line
+number information for tests and properties that failed.
+
+Documentation is still work in progress. However, the file
+tests/TestHTF.hs is a good example for what is possible with the HTF.
 
 
 Requirements:
@@ -18,8 +33,4 @@ Installation instructions:
 
 runhaskell setup.hs configure
 runhaskell setup.hs build
-runhaskell setup.hs install
-
-
-Author:  Stefan Wehr <mail AT stefanwehr.de>
-License: LGPL
+runhaskell setup.hs install   (probably as root)
