@@ -10,7 +10,7 @@ module Test.Framework.FileBasedTest (
 
 import Prelude hiding ( catch )
 
-import Test.Framework.Process
+import System.IO
 import System.Exit
 import Control.Exception
 import System.Directory 
@@ -18,6 +18,7 @@ import Data.List ( mapAccumL )
 import qualified Data.Map as Map
 import Control.Monad
 
+import Test.Framework.Process
 import Test.Framework.HUnitWrapper as HU
 import Test.Framework.Utils
 
@@ -50,7 +51,11 @@ runFileBasedTest fbt =
          ExitSuccess | fbt_shouldFail fbt 
            -> HU.assertFailure ("test is supposed to fail but succeeded")
          ExitFailure i | not $ fbt_shouldFail fbt
-           -> HU.assertFailure ("test is supposed to succeed but failed with " ++
+           -> do hPutStrLn stderr $ "stderr for " ++ fbt_cmd fbt
+                 hPutStr stderr err
+                 putStrLn $ "stdout for " ++ fbt_cmd fbt
+                 putStr out
+                 HU.assertFailure ("test is supposed to succeed but failed with " ++
                                 "exit code " ++ show i)
          _ -> do cmpOut <- cmp (fbt_stdoutFile fbt) (fbt_stdoutCmp fbt)
                              out "Mismatch on stdout:\n"
