@@ -1,6 +1,6 @@
 module Test.Framework.QuickCheckWrapper (
 
-  Id, Config(..), makeVerbose,
+  Id, Config(..), makeVerbose, setMaxTest,
 
   testableAsAssertion,
  
@@ -42,6 +42,9 @@ verboseConfigEvery = hPutStr stderr
 
 makeVerbose :: Config -> Config
 makeVerbose cfg = cfg { configEvery = verboseConfigEvery }
+
+setMaxTest :: Int -> Config -> Config
+setMaxTest i cfg = cfg { configMaxTest = i }
 
 qcState :: MVar QCState
 qcState = unsafePerformIO (newMVar (QCState defaultConfig))
