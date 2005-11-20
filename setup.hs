@@ -1,4 +1,6 @@
-import IO
+#!/usr/bin/env runhaskell
+
+import System.IO
 import System
 import System.Directory
 import Control.Exception
@@ -12,11 +14,25 @@ import Distribution.Simple.Utils
 import Distribution.Simple.LocalBuildInfo
 import Distribution.Compat.FilePath	
 
+import DarcsPatchInfo
+
+--
+-- Version information
+--
+
+version = "0.1"
+
+-- set `isPre' to `False' for official releases
+isPre = True
+
+
+--
+-- Installation of scripts
+--
+ 
 bins = ["scripts/htf-ghc", "scripts/htf-ghci"]
 binMode = foldr1 unionFileModes [ownerModes, groupReadMode, groupExecuteMode,
                                  otherReadMode, otherExecuteMode]
-requiredVersion = Version [6,4,1] []
-configurationFile = "Test/Framework/Configuration.hs"
 
 myInstHook pkgDscr lbi verb b =
     handle (\e -> do hPutStrLn stderr (show e)) $
@@ -33,6 +49,14 @@ myInstHook pkgDscr lbi verb b =
                                                       (e `joinFileExt` exeExtension))
                                             binMode)
          mapM_ copy bins
+
+
+--
+-- Generate GHC version file
+--
+
+requiredVersion = Version [6,4,1] []
+configurationFile = "Test/Framework/Configuration.hs"
 
 myPostConfHook _ _ lbi = 
     do let comp = compilerFlavor . compiler $ lbi
@@ -55,6 +79,31 @@ genConfiguration vers =
                ]
         in writeFile configurationFile code
 
+
+--
+-- Generate .cabal file
+--
+
+genCabal = 
+    let from = "HTF.cabal.template"
+        to = "HTF.cabal"
+    in do s <- readFile from
+          vers <- getVersion
+          let s' = unlines $ "-- GENERATED AUTOMATICALLY, DO NOT EDIT!!" : 
+                             (map (setVersion vers) $ lines s)
+          writeFile to s'
+    where getVersion = if not isPre then return version else
+              do b <- isUnderDarcsControl
+                 if not b then return (version ++ "-pre") else
+                    do dpi <- getDarcsPatchInfo
+                       return (version ++ "-pre-" ++ formatDarcsPatchInfo dpi)
+          setVersion vers ('V':'e':'r':'s':'i':'o':'n':':':_) =
+              "Version: " ++ vers
+          setVersion _ s = s
+              
+
 hooks = defaultUserHooks { instHook = myInstHook, postConf = myPostConfHook }
 
-main = defaultMainWithHooks hooks
+main = 
+    do genCabal
+       defaultMainWithHooks hooks
