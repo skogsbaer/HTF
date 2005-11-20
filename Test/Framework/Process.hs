@@ -24,27 +24,28 @@
 -- | A Posix.popen compatibility mapping.
 -- Based on PosixCompat, originally written by Derek Elkins for lambdabot
 --
-module Process (popen) where
+module Test.Framework.Process ( popen, popenShell ) where
 
-#if __GLASGOW_HASKELL__ >= 604
 import System.IO
 import System.Process
+import System.Exit
 import Control.Concurrent       (forkIO)
-#else
-import qualified Posix as P
-#endif
-
 import qualified Control.Exception
 
-#if __GLASGOW_HASKELL__ >= 604
+popenShell :: String -> Maybe String -> IO (String,String,ExitCode)
+popenShell cmd = popen' $ runInteractiveCommand cmd
 
-type ProcessID = ProcessHandle
+popen :: FilePath -> [String] -> Maybe String -> IO (String,String,ExitCode)
+popen file args = 
+    popen' $ runInteractiveProcess file args Nothing Nothing
 
-popen :: FilePath -> [String] -> Maybe String -> IO (String,String,ProcessID)
-popen file args minput =
+popen' :: IO (Handle, Handle, Handle, ProcessHandle) 
+       -> Maybe String
+       -> IO (String,String,ExitCode)
+popen' run minput = 
     Control.Exception.handle (\e -> return ([],show e,error (show e))) $ do
 
-    (inp,out,err,pid) <- runInteractiveProcess file args Nothing Nothing
+    (inp,out,err,pid) <- run
 
     case minput of
         Just input -> hPutStr inp input >> hClose inp -- importante!
@@ -63,29 +64,8 @@ popen file args minput =
     forkIO (Control.Exception.evaluate (length errput) >> return ())
 
     -- And now we wait. We must wait after we read, unsurprisingly.
-    waitForProcess pid -- blocks without -threaded, you're warned.
+    ecode <- waitForProcess pid -- blocks without -threaded, you're warned.
 
     -- so what's the point of returning the pid then?
-    return (output,errput,pid)
+    return (output,errput,ecode)
 
-#else
-
---
--- catch so that we can deal with forkProcess failing gracefully.  and
--- getProcessStatus is needed so as not to get a bunch of zombies,
--- leading to forkProcess failing.
---
--- Large amounts of input will cause problems with blocking as we wait
--- on the process to finish. Make sure no lambdabot processes will
--- generate 1000s of lines of output.
---
-popen :: FilePath -> [String] -> Maybe String -> IO (String,String,P.ProcessID)
-popen f s m = 
-    Control.Exception.handle (\e -> return ([], show e, error $ show e )) $ do
-        x@(_,_,pid) <- P.popen f s m 
-        b <- P.getProcessStatus True False pid  -- wait
-        return $ case b of    
-            Nothing -> ([], "process has disappeared", pid)
-            _       -> x
-
-#endif

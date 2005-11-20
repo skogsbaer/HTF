@@ -2,7 +2,7 @@ module Main where
 
 import IO
 import System
-import Process
+import Test.Framework.Process
 
 assertions = [ "assertBool"
              , "assertEqual"
@@ -22,17 +22,19 @@ main =
     do prog <- getProgName
        args <- getArgs
        if length args /= 4 
-          then hPutStrLn stderr ("Usage: " ++ prog ++ 
-                                 " original-filename input-filename output-filename "
-                                 ++ "cpp-command")
+          then hPutStrLn stderr 
+                   ("Usage: " ++ prog ++ 
+                    " original-filename input-filename output-filename "
+                    ++ "cpp-command")
           else let orig = args!!0
                    infile = args!!1
                    outfile = args!!2
                    cpp = args!!3
                    fstLine = "#line 1 \"" ++ orig ++ "\"\n"
                    in do inString <- readFile infile
-                         (out,err,_) <- popen cpp ["-w"] (Just $ macros ++ fstLine ++
-                                                                 inString)
+                         (out,err,_) <- popen cpp ["-w"] 
+                                        (Just $ macros ++ fstLine ++
+                                                inString)
                          if null err 
                             then do writeFile outfile out
                                     exitWith ExitSuccess
