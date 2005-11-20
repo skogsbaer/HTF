@@ -2,7 +2,7 @@
 
 module Test.Framework (
 
-  module HU, module QC,
+  module HU, module QC, module FBT,
 
   tests
 
@@ -13,6 +13,7 @@ import Language.Haskell.TH
 
 import Test.Framework.HUnitWrapper as HU
 import Test.Framework.QuickCheckWrapper as QC
+import Test.Framework.FileBasedTest as FBT
 
 tests :: String -> Q [Dec] -> Q [Dec]
 tests name decs = 

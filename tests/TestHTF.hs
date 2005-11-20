@@ -62,6 +62,8 @@ $(tests "propTestsVerbose" [d|
 
  |])
 
-allTests = TestList [assertTests,propTests,propTestsVerbose]
+allTests fbts = TestList $ [assertTests,propTests,propTestsVerbose] ++ fbts
 
-main = runTestTT allTests
+main = 
+    do fbts <- fileBasedTests "fbts" "fbt" "./run-fbt.sh" ".x" defaultFBTConfig
+       runTestTT (allTests [fbts])

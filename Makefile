@@ -1,3 +1,8 @@
+# THIS MAKEFILE SHOULD NOT BE USED TO BUILD AND INSTALL THE HTF!!
+#
+# See the README for build information
+#
+ 
 .PHONY: all clean configure build install
 
 CABAL = runghc setup.hs

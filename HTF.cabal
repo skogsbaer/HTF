@@ -11,8 +11,12 @@ Other-Modules:
   Test.Framework.HUnitWrapper
   Test.Framework.QuickCheckWrapper
   Test.Framework.Configuration
+  Test.Framework.Process
+  Test.Framework.FileBasedTest
+  Test.Framework.Utils
 
 Executable:       htf-pp
 Main-Is:          HTFpp.hs
 Hs-Source-Dirs:   scripts
-Other-Modules:    Process
+Other-Modules:    Test.Framework.Process
+ghc-options:      -threaded
