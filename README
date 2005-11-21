@@ -18,6 +18,9 @@ number information for tests and properties that failed.
 Documentation is still work in progress. However, the file
 tests/TestHTF.hs is a good example for what is possible with the HTF.
 
+NOTE: If you use file-based tests, you have to compile your program
+with the `-threaded' option. Otherwise, your program just blocks
+indefinitely!
 
 Requirements:
 -------------
