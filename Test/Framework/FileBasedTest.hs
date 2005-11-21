@@ -51,9 +51,9 @@ runFileBasedTest fbt =
          ExitSuccess | fbt_shouldFail fbt 
            -> HU.assertFailure ("test is supposed to fail but succeeded")
          ExitFailure i | not $ fbt_shouldFail fbt
-           -> do hPutStrLn stderr $ "stderr for " ++ fbt_cmd fbt
+           -> do hPutStrLn stderr $ "stderr for " ++ show (fbt_cmd fbt) ++ ":"
                  hPutStr stderr err
-                 putStrLn $ "stdout for " ++ fbt_cmd fbt
+                 putStrLn $ "stdout for " ++ show (fbt_cmd fbt) ++ ":"
                  putStr out
                  HU.assertFailure ("test is supposed to succeed but failed with " ++
                                 "exit code " ++ show i)
