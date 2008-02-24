@@ -1,0 +1,39 @@
+Name:             HTF
+Version:          0.1
+License:          LGPL
+License-file:     LICENSE
+Author:           Stefan Wehr <wehr@informatik.uni-freiburg.de>
+Stability:        Beta
+Category:         Testing
+Synopsis:         The Haskell Test Framework
+Description:      The HTF lets you write HUnit tests (http://hunit.sourceforge.net)
+                  and QuickCheck (http://www.cs.chalmers.se/~rjmh/QuickCheck/) properties
+                  in an easy and convenient way. Additionally, the HTF provides a facility
+                  for testing programs by running them and comparing the actual output with
+                  the expected output (so called "file-based tests").
+
+                  The HTF uses Template Haskell to collect all tests and properties,
+                  so you do not need to write boilerplate code for that purpose.
+                  Preprocessor macros provide you with file name and line number information
+                  for tests and properties that failed.
+homepage:         http://www.informatik.uni-freiburg.de/~wehr/software/haskell/
+
+tested-with:      GHC==6.8.2
+Build-Depends:    HUnit, QuickCheck<2, template-haskell, base>3, random, containers, process, directory
+Build-Type:       Simple
+
+Exposed-Modules:  Test.Framework
+Other-Modules:
+  Test.Framework.Location
+  Test.Framework.HUnitWrapper
+  Test.Framework.QuickCheckWrapper
+  Test.Framework.Configuration
+  Test.Framework.Process
+  Test.Framework.FileBasedTest
+  Test.Framework.Utils
+
+Executable:       htf-pp
+Main-Is:          HTFpp.hs
+Hs-Source-Dirs:   scripts, .
+Other-Modules:    Test.Framework.Process
+ghc-options:      -threaded -Wall
