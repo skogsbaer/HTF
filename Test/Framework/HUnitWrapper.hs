@@ -1,11 +1,11 @@
--- 
+--
 -- Copyright (c) 2005   Stefan Wehr - http://www.stefanwehr.de
 --
 -- This library is free software; you can redistribute it and/or
 -- modify it under the terms of the GNU Lesser General Public
 -- License as published by the Free Software Foundation; either
 -- version 2.1 of the License, or (at your option) any later version.
--- 
+--
 -- This library is distributed in the hope that it will be useful,
 -- but WITHOUT ANY WARRANTY; without even the implied warranty of
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
@@ -31,8 +31,8 @@ module Test.Framework.HUnitWrapper (
 
 ) where
 
-import IO ( stderr )
-import List ( (\\) )
+import System.IO ( stderr )
+import Data.List ( (\\) )
 import Control.Exception
 import Data.Version
 import qualified Test.HUnit as HU
@@ -47,7 +47,7 @@ import Test.Framework.Configuration
 -- WARNING: do not forget to add a preprocessor macro for new assertions!!
 
 assertFailure :: String -> IO ()
-assertFailure s = 
+assertFailure s =
     if ghcVersion <= buggyVersion
        then -- because of a bug in HUnit shipped with GHC 6.4.1, we must
             -- throw an exception e such that (show e) does not have a prefix
@@ -62,21 +62,21 @@ assertBool_ loc False = assertFailure ("assert failed at " ++ showLoc loc)
 assertBool_ loc True = return ()
 
 assertEqual_ :: (Eq a, Show a) => Location -> a -> a -> HU.Assertion
-assertEqual_ loc expected actual = 
+assertEqual_ loc expected actual =
     if expected /= actual
        then assertFailure msg
        else return ()
-    where msg = "assertEqual failed at " ++ showLoc loc ++ 
+    where msg = "assertEqual failed at " ++ showLoc loc ++
                 "\n expected: " ++ show expected ++ "\n but got:  " ++ show actual
 
 assertEqualNoShow_ :: Eq a => Location -> a -> a -> HU.Assertion
-assertEqualNoShow_ loc expected actual = 
+assertEqualNoShow_ loc expected actual =
     if expected /= actual
        then assertFailure ("assertEqualNoShow failed at " ++ showLoc loc)
        else return ()
 
 assertSetEqual_ :: (Eq a, Show a) => Location -> [a] -> [a] -> HU.Assertion
-assertSetEqual_ loc expected actual = 
+assertSetEqual_ loc expected actual =
     let ne = length expected
         na = length actual
         in case () of
@@ -89,9 +89,9 @@ assertSetEqual_ loc expected actual =
                                 ++ "\n expected: " ++ show expected
                                 ++ "\n actual: " ++ show actual)
              | otherwise -> return ()
-    where unorderedEq l1 l2 = 
+    where unorderedEq l1 l2 =
               null (l1 \\ l2) && null (l2 \\ l1)
-              
+
 
 assertNotNull_ :: Location -> [a] -> HU.Assertion
 assertNotNull_ loc [] = assertFailure ("assertNotNull failed at " ++ showLoc loc)
@@ -102,15 +102,15 @@ assertNull_ loc (_:_) = assertFailure ("assertNull failed at " ++ showLoc loc)
 assertNull_ loc [] = return ()
 
 assertThrows_ :: Location -> IO a -> (Exception -> Bool) -> HU.Assertion
-assertThrows_ loc io f = 
+assertThrows_ loc io f =
     do res <- try io
        case res of
-         Right _ -> assertFailure ("assertThrows failed at " ++ showLoc loc ++ 
+         Right _ -> assertFailure ("assertThrows failed at " ++ showLoc loc ++
                                    ": no exception was thrown")
          Left e -> if f e then return ()
-                   else assertFailure ("assertThrows failed at " ++ 
+                   else assertFailure ("assertThrows failed at " ++
                                        showLoc loc ++
-                                       ": wrong exception was thrown: " ++ 
+                                       ": wrong exception was thrown: " ++
                                        show e)
 
 --
@@ -129,7 +129,7 @@ to the given reporting scheme.  The reporting scheme's state is
 threaded through calls to the reporting scheme's function and finally
 returned, along with final count values.
 -}
-                                               
+
 runTestText :: HU.PutText st -> HU.Test -> IO (HU.Counts, st)
 runTestText (HU.PutText put us) t = do
   put allTestsStr True us
@@ -160,8 +160,8 @@ showPath [] = ""
 showPath nodes = foldr1 joinPathElems
                    (map showNode (filterNodes (reverse nodes)))
  where showNode (HU.ListItem n) = show n
-       showNode (HU.Label label) = showPathLabel label 
-       filterNodes (HU.ListItem _ : l@(HU.Label _) : rest) = 
+       showNode (HU.Label label) = showPathLabel label
+       filterNodes (HU.ListItem _ : l@(HU.Label _) : rest) =
            l : filterNodes rest
        filterNodes [] = []
        filterNodes (x:rest) = x : filterNodes rest
@@ -170,8 +170,8 @@ joinPathElems :: String -> String -> String
 joinPathElems s1 s2 = s1 ++ ":" ++ s2
 
 showPathLabel :: String -> String
-showPathLabel s = 
-    let ss = show s 
+showPathLabel s =
+    let ss = show s
         in if ':' `elem` s || "\"" ++ s ++ "\"" /= ss then ss else s
 
 {-
