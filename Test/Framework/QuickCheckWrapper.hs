@@ -1,5 +1,7 @@
+{-# LANGUAGE FlexibleInstances,OverlappingInstances,ExistentialQuantification #-}
+
 -- 
--- Copyright (c) 2005   Stefan Wehr - http://www.stefanwehr.de
+-- Copyright (c) 2005,2009   Stefan Wehr - http://www.stefanwehr.de
 --
 -- This library is free software; you can redistribute it and/or
 -- modify it under the terms of the GNU Lesser General Public
@@ -18,124 +20,92 @@
 
 module Test.Framework.QuickCheckWrapper (
 
-  Id, Config(..), makeVerbose, setMaxTest,
-
   testableAsAssertion,
- 
-  module Test.QuickCheck
+
+  module Test.QuickCheck,
+
+  TestableWithArgs, withArgs, asTestableWithArgs
+
 ) where
 
 import qualified Data.Map as Map
 import Control.Concurrent.MVar
-import Control.Exception ( throw )
+import Prelude hiding ( catch )
+import Control.Exception ( throw, catch, SomeException )
 import System.IO
 import System.IO.Unsafe
 import System.Random
 import Data.List( group, sort, intersperse )
 import Data.Char
-import Test.QuickCheck hiding ( Config(..), defaultConfig,
-                                test, quickCheck, verboseCheck, check )
-import Test.QuickCheck.Batch
-import Test.Framework.HUnitWrapper
 
-type Id = String
+import Test.QuickCheck
+import Test.QuickCheck.Property
 
-data Config = Config
-  { configMaxTest :: Int
-  , configMaxFail :: Int
-  , configSize    :: Int -> Int
-  , configEvery   :: String -> IO ()
-  }
+import Test.Framework.TestManager
 
-data QCState = QCState { qc_config :: Config }
+data QCState = QCState { qc_args :: Args }
              
-defaultConfig =  Config
-                 { configMaxTest = 100
-                 , configMaxFail = 1000
-                 , configSize    = (+ 3) . (`div` 2)
-                 , configEvery   = \_ -> return ()
-                 }
-
-verboseConfigEvery = hPutStr stderr
-
-makeVerbose :: Config -> Config
-makeVerbose cfg = cfg { configEvery = verboseConfigEvery }
-
-setMaxTest :: Int -> Config -> Config
-setMaxTest i cfg = cfg { configMaxTest = i }
-
 qcState :: MVar QCState
-qcState = unsafePerformIO (newMVar (QCState defaultConfig))
+qcState = unsafePerformIO (newMVar (QCState defaultArgs))
+{-# NOINLINE qcState #-}
 
-testableAsAssertion :: Testable a => Id -> (Config -> Config, a) -> Assertion
-testableAsAssertion id (f, t) = 
+defaultArgs :: Args
+defaultArgs = stdArgs
+
+setDefaultArgs :: Args -> IO ()
+setDefaultArgs args = 
+    do withMVar qcState $ \state -> return (state { qc_args = args })
+       return ()
+
+getCurrentArgs :: IO Args
+getCurrentArgs = 
+    withMVar qcState $ \state -> return (qc_args state)
+
+testableAsAssertion :: (Testable t, WithArgs t) => t -> Assertion
+testableAsAssertion t = 
     withMVar qcState $ \state ->
-        do let cfg = f (qc_config state)
-           configEvery cfg (prop id ++ "\n")
-           res <- check cfg t
-           case res of
-             PropOk s -> do hPutStrLn stderr $ " * " ++ prop id  ++ (strip s)
-                            hPutStrLn stderr ""
-             PropFailure s -> assertFailure $ prop id ++ (strip s)
-             PropExhausted s -> assertFailure $ prop id ++ (strip s)
-           return ()
-    where prop s = "Property `" ++ s ++ "' "
-          strip = reverse . dropWhile isSpace . reverse . dropWhile isSpace
+        do eitherArgs <- 
+               (let a = (argsModifier t) (qc_args state)
+                in length (show a) `seq` return (Right a))
+               `catch`
+               (\e -> return $ Left (show (e :: SomeException)))
+           case eitherArgs of
+             Left err -> quickCheckTestError
+                            (Just ("Cannot evaluate custom arguments: " ++ err))
+             Right args ->
+                 do res <- quickCheckWithResult args t
+                    case res of
+                      Success _ -> return ()
+                      Failure gen size reason _ -> 
+                           do putStrLn ("Replay argument: " ++
+                                        (show (show (Just (gen, size)))))
+                              quickCheckTestFail Nothing
+                      _ -> quickCheckTestFail Nothing
+                    return ()
 
-data PropResult = PropOk String
-                | PropFailure String
-                | PropExhausted String
-         
-check :: Testable a => Config -> a -> IO PropResult
-check config a =
-  do rnd <- newStdGen
-     tests config (evaluate a) rnd 0 0 []
+data TestableWithArgs = forall a . Testable a => 
+                        TestableWithArgs (Args -> Args) a
 
-tests :: Config -> Gen Result -> StdGen 
-      -> Int -> Int -> [[String]] -> IO PropResult
-tests config gen rnd0 ntest nfail stamps
-  | ntest == configMaxTest config = 
-      return $ done PropOk "OK, passed" ntest stamps
-  | nfail == configMaxFail config = 
-      return $ done PropExhausted "Arguments exhausted after" ntest stamps
-  | otherwise               =
-      do configEvery config $ show ntest ++ ":\n" ++ unlines (arguments result)
-         case ok result of
-           Nothing    ->
-             tests config gen rnd1 ntest (nfail+1) stamps
-           Just True  ->
-             tests config gen rnd1 (ntest+1) nfail (stamp result:stamps)
-           Just False ->
-             return $ PropFailure  ("Falsifiable, after "
-                                    ++ show ntest
-                                    ++ " tests:\n"
-                                    ++ unlines (arguments result)
-                                   )
-     where
-      result      = generate (configSize config ntest) rnd2 gen
-      (rnd1,rnd2) = split rnd0
+instance Testable TestableWithArgs where
+    property (TestableWithArgs _ t) = property t
 
-done :: (String -> PropResult) -> String -> Int -> [[String]] -> PropResult
-done f mesg ntest stamps =
- f ( mesg ++ " " ++ show ntest ++ " tests" ++ table )
- where
-  table = display
-        . map entry
-        . reverse
-        . sort
-        . map pairLength
-        . group
-        . sort
-        . filter (not . null)
-        $ stamps
+class WithArgs a where
+    argsModifier :: a -> (Args -> Args)
+    original :: a -> Maybe TestableWithArgs
 
-  display []  = ".\n"
-  display [x] = " (" ++ x ++ ").\n"
-  display xs  = ".\n" ++ unlines (map (++ ".") xs)
+instance WithArgs a where
+    argsModifier _ = id
+    original _ = Nothing
 
-  pairLength xss@(xs:_) = (length xss, xs)
-  entry (n, xs)         = percentage n ntest
-                       ++ " "
-                       ++ concat (intersperse ", " xs)
+instance WithArgs TestableWithArgs where
+    argsModifier (TestableWithArgs f _) = f
+    original a = Just a
 
-  percentage n m        = show ((100 * n) `div` m) ++ "%"
+withArgs :: (WithArgs a, Testable a) => (Args -> Args) -> a -> TestableWithArgs
+withArgs = TestableWithArgs
+
+asTestableWithArgs :: (WithArgs a, Testable a) => a -> TestableWithArgs
+asTestableWithArgs a = 
+    case original a of
+      Just a' -> a'
+      Nothing -> TestableWithArgs id a

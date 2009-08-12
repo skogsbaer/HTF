@@ -46,6 +46,12 @@ endswith s suf =
     let n = length s - length suf
         in drop n s == suf
 
+dropPrefix :: String -> String -> String
+dropPrefix s pref = 
+    if startswith s pref
+       then drop (length pref) s
+       else s
+
 dropSuffix :: FilePath -> FilePath
 dropSuffix f = reverse . tail . dropWhile (/= '.') $ reverse f
 

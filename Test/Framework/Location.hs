@@ -16,11 +16,13 @@
 -- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
 --
 
-module Test.Framework.Location where
+module Test.Framework.Location ( Location, showLoc, makeLoc ) where
 
 
-type Location = (String, Int)
+data Location = Location String Int
 
 showLoc :: Location -> String
-showLoc (f,n) = f ++ ":" ++ show n
+showLoc (Location  f n) = f ++ ":" ++ show n
 
+makeLoc :: String -> Int -> Location
+makeLoc = Location

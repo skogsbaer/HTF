@@ -1,13 +1,11 @@
-BINS = tt
+.PHONY: configure build run
 
-GHC = PATH=../usr/bin:$$PATH htf-ghc 
+configure:
+	runhaskell Setup.hs configure --user
 
-.PHONY: all
-all: $(BINS)
+build:
+	runhaskell Setup.hs build
 
-tt: TestHTF.hs
-	$(GHC) -o $@ --make $<
+run:
+	dist/build/test/test
 
-.PHONY: clean
-clean:
-	rm -f $(BINS) $(wildcard *.o *.hi)

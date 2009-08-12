@@ -1,8 +1,8 @@
 Name:             HTF
-Version:          0.1
+Version:          0.2
 License:          LGPL
 License-file:     LICENSE
-Author:           Stefan Wehr <wehr@informatik.uni-freiburg.de>
+Author:           Stefan Wehr <mail@stefanwehr.de>
 Stability:        Beta
 Category:         Testing
 Synopsis:         The Haskell Test Framework
@@ -17,22 +17,28 @@ Description:
     Preprocessor macros provide you with file name and line number information
     for tests and properties that failed.
 Homepage:         http://www.informatik.uni-freiburg.de/~wehr/software/haskell/
-Tested-with:      GHC==6.8.2
-Build-Depends:    HUnit, QuickCheck<2, template-haskell, base>2, random,
-                  containers, process, directory
+Tested-with:      GHC==6.10.4
 Build-Type:       Simple
-Exposed-Modules:  Test.Framework
-Other-Modules:
-  Test.Framework.Location
-  Test.Framework.HUnitWrapper
-  Test.Framework.QuickCheckWrapper
-  Test.Framework.Configuration
-  Test.Framework.Process
-  Test.Framework.FileBasedTest
-  Test.Framework.Utils
+Cabal-version:    >= 1.6
 
-Executable:       htf-pp
-Main-Is:          HTFpp.hs
-Hs-Source-Dirs:   scripts, .
-Other-Modules:    Test.Framework.Process
-ghc-options:      -threaded -Wall
+Library
+  Build-Depends:    HUnit >= 1.2, 
+                    QuickCheck >= 2, 
+                    template-haskell, 
+                    base >= 4, 
+                    random,
+                    containers, 
+                    process, 
+                    directory,
+                    mtl
+  Exposed-Modules:  Test.Framework
+  Install-includes: HTF.h
+  Other-Modules:
+    Test.Framework.TestManager
+    Test.Framework.HUnitWrapper
+    Test.Framework.QuickCheckWrapper
+    Test.Framework.BlackBoxTest
+    Test.Framework.Location
+    Test.Framework.Syntax
+    Test.Framework.Utils
+    Test.Framework.Process

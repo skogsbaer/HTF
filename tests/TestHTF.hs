@@ -1,3 +1,5 @@
+{-# OPTIONS -XTemplateHaskell -cpp -pgmPcpphs -optP--cpp #-}
+
 -- 
 -- Copyright (c) 2005   Stefan Wehr - http://www.stefanwehr.de
 --
@@ -17,12 +19,21 @@
 -- 02111-1307, USA.
 -- 
 
+#include "HTF.h"
+
 import Test.Framework
+import Control.Exception
 
 data T = A | B deriving Eq
 
+{-
 stringGap = "hello \
             \world!"
+-}
+stringGap = "hello world!"
+
+handleExc :: a -> SomeException -> a
+handleExc x _ = x
 
 $(tests "assertTests" [d|
 
@@ -36,13 +47,13 @@ $(tests "assertTests" [d|
 
  test_assertSetEqualSuccess = assertSetEqual [1,2] [2,1]
 
- test_assertNotNull = assertNotNull []
+ test_assertNotEmpty = assertNotEmpty []
 
- test_assertNull = assertNull [1]
+ test_assertEmpty = assertEmpty [1]
 
- test_assertThrows = assertThrows (return ()) (\_ -> True)
+ test_assertThrows = assertThrows (return ()) (handleExc True)
 
- test_assertThrows' = assertThrows (error "ERROR") (\_ -> False)
+ test_assertThrows' = assertThrows (error "ERROR") (handleExc False)
 
  test_someError = error "Bart Simpson!!"
 
@@ -63,26 +74,28 @@ $(tests "propTests" [d|
 
  |])
 
-mkCfg cfg = makeVerbose $ cfg { configMaxTest = 5 }
+changeArgs args = args { maxSuccess = 1 }
 
 $(tests "propTestsVerbose" [d|
 
- prop_cfg_ok = (mkCfg, prop)
-     where prop xs = classify (null xs) "trivial" $ 
-                     xs == (reverse (reverse xs))
-               where types = xs::[Int]
+ prop_ok = withArgs (\a -> a { maxSuccess = 1}) $
+                    \xs -> classify (null xs) "trivial" $ 
+                           (xs::[Int]) == (reverse (reverse xs))
 
- prop_cfg_fail = (mkCfg, prop)
+ prop_fail = 
+     withArgs (\a -> a { replay = read "Just (1292732529 652912053,3)" }) prop
      where prop xs = xs == (reverse xs)
                where types = xs::[Int]
 
- prop_cfg_error :: (Config -> Config, Bool)
- prop_cfg_error = (mkCfg, error "Lisa")
+ prop_error :: TestableWithArgs
+ prop_error = withArgs changeArgs $ (error "Lisa" :: Bool)
 
  |])
 
-allTests fbts = TestList $ [assertTests,propTests,propTestsVerbose] ++ fbts
+allTests bbts = makeAnonTestSuite 
+                  $ [assertTests,propTests,propTestsVerbose] ++ bbts
 
 main = 
-    do fbts <- fileBasedTests "fbts" "fbt" "./run-fbt.sh" ".x" defaultFBTConfig
-       runTestTT (allTests [fbts])
+    do fbts <- blackBoxTests "bbts" "bbt" "./run-bbt.sh" ".x" 
+                 (defaultBBTArgs { bbtArgs_verbose = False })
+       runTest (allTests [fbts])

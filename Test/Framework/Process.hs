@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp #-}
+{-# LANGUAGE CPP,ScopedTypeVariables #-}
 -- 
 -- Copyright (c) 2005 Don Stewart - http://www.cse.unsw.edu.au/~dons
 --
@@ -42,7 +42,8 @@ popen' :: IO (Handle, Handle, Handle, ProcessHandle)
        -> Maybe String
        -> IO (String,String,ExitCode)
 popen' run minput = 
-    Control.Exception.handle (\e -> return ([],show e,error (show e))) $ do
+    Control.Exception.handle (\ (e :: Control.Exception.SomeException) -> 
+                                return ([],show e,error (show e))) $ do
 
     (inp,out,err,pid) <- run
 

@@ -1,5 +1,5 @@
 --
--- Copyright (c) 2005   Stefan Wehr - http://www.stefanwehr.de
+-- Copyright (c) 2005, 2009   Stefan Wehr - http://www.stefanwehr.de
 --
 -- This library is free software; you can redistribute it and/or
 -- modify it under the terms of the GNU Lesser General Public
@@ -18,27 +18,22 @@
 
 module Test.Framework.HUnitWrapper (
 
-  HU.Assertion,
-
-  assertBool_, assertEqual_, assertEqualNoShow_, assertNotNull_, assertNull_,
+  assertBool_, assertEqual_, assertEqualNoShow_, assertNotEmpty_, assertEmpty_,
   assertSetEqual_, assertThrows_,
 
-  assertFailure,
-
-  HU.Test(..), runTestTT,
-
-  joinPathElems, showPathLabel
+  assertFailure
 
 ) where
 
 import System.IO ( stderr )
 import Data.List ( (\\) )
 import Control.Exception
-import Data.Version
-import qualified Test.HUnit as HU
+import Control.Monad
+import qualified Test.HUnit as HU hiding ( assertFailure )
 
+import Test.Framework.TestManager
 import Test.Framework.Location
-import Test.Framework.Configuration
+import Test.Framework.Utils
 
 --
 -- Assertions
@@ -47,15 +42,7 @@ import Test.Framework.Configuration
 -- WARNING: do not forget to add a preprocessor macro for new assertions!!
 
 assertFailure :: String -> IO ()
-assertFailure s =
-    if ghcVersion <= buggyVersion
-       then -- because of a bug in HUnit shipped with GHC 6.4.1, we must
-            -- throw an exception e such that (show e) does not have a prefix
-            -- like `user error'.
-            error (hunitPrefix ++ s)
-       else HU.assertFailure s
-    where hunitPrefix = "HUnit:"
-          buggyVersion = Version [6,4,1] []
+assertFailure s = unitTestFail s
 
 assertBool_ :: Location -> Bool -> HU.Assertion
 assertBool_ loc False = assertFailure ("assert failed at " ++ showLoc loc)
@@ -67,7 +54,8 @@ assertEqual_ loc expected actual =
        then assertFailure msg
        else return ()
     where msg = "assertEqual failed at " ++ showLoc loc ++
-                "\n expected: " ++ show expected ++ "\n but got:  " ++ show actual
+                "\n expected: " ++ show expected ++ "\n but got:  " ++ 
+                show actual
 
 assertEqualNoShow_ :: Eq a => Location -> a -> a -> HU.Assertion
 assertEqualNoShow_ loc expected actual =
@@ -93,15 +81,16 @@ assertSetEqual_ loc expected actual =
               null (l1 \\ l2) && null (l2 \\ l1)
 
 
-assertNotNull_ :: Location -> [a] -> HU.Assertion
-assertNotNull_ loc [] = assertFailure ("assertNotNull failed at " ++ showLoc loc)
-assertNotNull_ _ (_:_) = return ()
+assertNotEmpty_ :: Location -> [a] -> HU.Assertion
+assertNotEmpty_ loc [] = 
+    assertFailure ("assertNotNull failed at " ++ showLoc loc)
+assertNotEmpty_ _ (_:_) = return ()
 
-assertNull_ :: Location -> [a] -> HU.Assertion
-assertNull_ loc (_:_) = assertFailure ("assertNull failed at " ++ showLoc loc)
-assertNull_ loc [] = return ()
+assertEmpty_ :: Location -> [a] -> HU.Assertion
+assertEmpty_ loc (_:_) = assertFailure ("assertNull failed at " ++ showLoc loc)
+assertEmpty_ loc [] = return ()
 
-assertThrows_ :: Location -> IO a -> (Exception -> Bool) -> HU.Assertion
+assertThrows_ :: Exception e => Location -> IO a -> (e -> Bool) -> HU.Assertion
 assertThrows_ loc io f =
     do res <- try io
        case res of
@@ -112,76 +101,3 @@ assertThrows_ loc io f =
                                        showLoc loc ++
                                        ": wrong exception was thrown: " ++
                                        show e)
-
---
--- Test runner
---
-
-{-
-We use our own test runner because HUnit print test paths a bit unreadable:
-If a test list contains a named tests, then HUnit prints `i:n' where i
-is the index of the named tests and n is the name.
--}
-
-{-
-`runTestText` executes a test, processing each report line according
-to the given reporting scheme.  The reporting scheme's state is
-threaded through calls to the reporting scheme's function and finally
-returned, along with final count values.
--}
-
-runTestText :: HU.PutText st -> HU.Test -> IO (HU.Counts, st)
-runTestText (HU.PutText put us) t = do
-  put allTestsStr True us
-  (counts, us') <- HU.performTest reportStart reportError reportFailure us t
-  us'' <- put (HU.showCounts counts) True us'
-  return (counts, us'')
- where
-  allTestsStr = unlines ("All tests:" :
-                         map (\p -> "  " ++ showPath p) (HU.testCasePaths t))
-  reportStart ss us = put (HU.showCounts (HU.counts ss)) False us
-  reportError   = reportProblem "Error:"   "Error in:   "
-  reportFailure = reportProblem "Failure:" "Failure in: "
-  reportProblem p0 p1 msg ss us = put line True us
-   where line  = "### " ++ kind ++ path' ++ '\n' : msg ++ "\n"
-         kind  = if null path' then p0 else p1
-         path' = showPath (HU.path ss)
-
-
-
-{-
-`showPath` converts a test case path to a string, separating adjacent
-elements by ':'.  An element of the path is quoted (as with `show`)
-when there is potential ambiguity.
--}
-
-showPath :: HU.Path -> String
-showPath [] = ""
-showPath nodes = foldr1 joinPathElems
-                   (map showNode (filterNodes (reverse nodes)))
- where showNode (HU.ListItem n) = show n
-       showNode (HU.Label label) = showPathLabel label
-       filterNodes (HU.ListItem _ : l@(HU.Label _) : rest) =
-           l : filterNodes rest
-       filterNodes [] = []
-       filterNodes (x:rest) = x : filterNodes rest
-
-joinPathElems :: String -> String -> String
-joinPathElems s1 s2 = s1 ++ ":" ++ s2
-
-showPathLabel :: String -> String
-showPathLabel s =
-    let ss = show s
-        in if ':' `elem` s || "\"" ++ s ++ "\"" /= ss then ss else s
-
-{-
-`runTestTT` provides the "standard" text-based test controller.
-Reporting is made to standard error, and progress reports are
-included.  For possible programmatic use, the final counts are
-returned.  The "TT" in the name suggests "Text-based reporting to the
-Terminal".
--}
-
-runTestTT :: HU.Test -> IO HU.Counts
-runTestTT t = do (counts, _) <- runTestText (HU.putTextToHandle stderr False) t
-                 return counts
