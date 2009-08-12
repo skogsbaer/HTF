@@ -1,7 +1,0 @@
-#!/bin/sh
-
-TESTPP=htf-pp
-CPP=cpphs.compat
-GHCI=ghci
-
-exec "$GHCI" -fth -F -pgmF "$TESTPP" -optF "$CPP" -package template-haskell -package HUnit -package HTF $@
