@@ -1,4 +1,5 @@
+* Support for selecting only certain tests on the command line.
+
 * Write proper documentation
 
-* Support for selecting only certain tests on the command line.
-  
+* LATER: Support for Smallcheck and/or Lazy Smallcheck  
