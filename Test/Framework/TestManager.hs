@@ -26,11 +26,13 @@ module Test.Framework.TestManager (
   makeQuickCheckTest, makeUnitTest, makeBlackBoxTest, makeTestSuite,
   makeAnonTestSuite,
 
-  runTest
+  runTest, runTestWithArgs, runTestWithFilter
 
 ) where
 
 import Control.Monad.State
+import Data.List ( isInfixOf )
+
 import Test.HUnit.Lang (performTestCase, assertFailure)
 
 type Assertion = IO ()
@@ -136,8 +138,18 @@ runFlatTests :: [FlatTest] -> TR ()
 runFlatTests = mapM_ runFlatTest
 
 runTest :: Test -> IO ()
-runTest t = 
-    do s <- execStateT (runFlatTests (flattenTest t)) initTestState
+runTest = runTestWithFilter (\_ -> True)
+
+runTestWithArgs :: [String] -> Test -> IO ()
+runTestWithArgs [] = runTest
+runTestWithArgs l = runTestWithFilter pred
+    where pred (FlatTest _ id _) = any (\s -> s `isInfixOf` id) l
+
+type Filter = FlatTest -> Bool
+
+runTestWithFilter :: Filter -> Test -> IO ()
+runTestWithFilter pred t =
+    do s <- execStateT (runFlatTests (filter pred (flattenTest t))) initTestState
        let total = ts_passed s + ts_failed s + ts_error s
        report ("* Tests:    " ++ show total ++ "\n" ++
                "* Passed:   " ++ show (ts_passed s) ++ "\n" ++

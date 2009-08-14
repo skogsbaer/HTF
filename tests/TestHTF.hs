@@ -23,6 +23,7 @@
 
 import Test.Framework
 import Control.Exception
+import System.Environment
 
 data T = A | B deriving Eq
 
@@ -78,17 +79,17 @@ changeArgs args = args { maxSuccess = 1 }
 
 $(tests "propTestsVerbose" [d|
 
- prop_ok = withArgs (\a -> a { maxSuccess = 1}) $
-                    \xs -> classify (null xs) "trivial" $ 
-                           (xs::[Int]) == (reverse (reverse xs))
+ prop_ok = withQCArgs (\a -> a { maxSuccess = 1}) $
+                      \xs -> classify (null xs) "trivial" $ 
+                             (xs::[Int]) == (reverse (reverse xs))
 
  prop_fail = 
-     withArgs (\a -> a { replay = read "Just (1292732529 652912053,3)" }) prop
+     withQCArgs (\a -> a { replay = read "Just (1292732529 652912053,3)" }) prop
      where prop xs = xs == (reverse xs)
                where types = xs::[Int]
 
- prop_error :: TestableWithArgs
- prop_error = withArgs changeArgs $ (error "Lisa" :: Bool)
+ prop_error :: TestableWithQCArgs
+ prop_error = withQCArgs changeArgs $ (error "Lisa" :: Bool)
 
  |])
 
@@ -96,6 +97,7 @@ allTests bbts = makeAnonTestSuite
                   $ [assertTests,propTests,propTestsVerbose] ++ bbts
 
 main = 
-    do fbts <- blackBoxTests "bbts" "bbt" "./run-bbt.sh" ".x" 
+    do args <- getArgs
+       fbts <- blackBoxTests "bbts" "bbt" "./run-bbt.sh" ".x" 
                  (defaultBBTArgs { bbtArgs_verbose = False })
-       runTest (allTests [fbts])
+       runTestWithArgs args (allTests [fbts])

@@ -24,7 +24,7 @@ import Data.Maybe
 import Language.Haskell.TH
 import Test.Framework.TestManager
 import Test.Framework.QuickCheckWrapper ( testableAsAssertion, 
-                                          asTestableWithArgs )
+                                          asTestableWithQCArgs )
 
 {-
 foo :: Q [Dec] -> Q [Dec]
@@ -80,4 +80,4 @@ tests name decs =
     mkPropExp :: String -> (Name, String) -> Q Exp
     mkPropExp testName (name, s) =
         [| makeQuickCheckTest s
-                    (testableAsAssertion (asTestableWithArgs $(varE name))) |]
+                    (testableAsAssertion (asTestableWithQCArgs $(varE name))) |]

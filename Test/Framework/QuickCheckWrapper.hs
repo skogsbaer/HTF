@@ -24,7 +24,7 @@ module Test.Framework.QuickCheckWrapper (
 
   module Test.QuickCheck,
 
-  TestableWithArgs, withArgs, asTestableWithArgs
+  TestableWithQCArgs, WithQCArgs, withQCArgs, asTestableWithQCArgs
 
 ) where
 
@@ -61,7 +61,7 @@ getCurrentArgs :: IO Args
 getCurrentArgs = 
     withMVar qcState $ \state -> return (qc_args state)
 
-testableAsAssertion :: (Testable t, WithArgs t) => t -> Assertion
+testableAsAssertion :: (Testable t, WithQCArgs t) => t -> Assertion
 testableAsAssertion t = 
     withMVar qcState $ \state ->
         do eitherArgs <- 
@@ -83,29 +83,30 @@ testableAsAssertion t =
                       _ -> quickCheckTestFail Nothing
                     return ()
 
-data TestableWithArgs = forall a . Testable a => 
-                        TestableWithArgs (Args -> Args) a
+data TestableWithQCArgs = forall a . Testable a => 
+                          TestableWithQCArgs (Args -> Args) a
 
-instance Testable TestableWithArgs where
-    property (TestableWithArgs _ t) = property t
+instance Testable TestableWithQCArgs where
+    property (TestableWithQCArgs _ t) = property t
 
-class WithArgs a where
+class WithQCArgs a where
     argsModifier :: a -> (Args -> Args)
-    original :: a -> Maybe TestableWithArgs
+    original :: a -> Maybe TestableWithQCArgs
 
-instance WithArgs a where
+instance WithQCArgs a where
     argsModifier _ = id
     original _ = Nothing
 
-instance WithArgs TestableWithArgs where
-    argsModifier (TestableWithArgs f _) = f
+instance WithQCArgs TestableWithQCArgs where
+    argsModifier (TestableWithQCArgs f _) = f
     original a = Just a
 
-withArgs :: (WithArgs a, Testable a) => (Args -> Args) -> a -> TestableWithArgs
-withArgs = TestableWithArgs
+withQCArgs :: (WithQCArgs a, Testable a) => (Args -> Args) -> a 
+           -> TestableWithQCArgs
+withQCArgs = TestableWithQCArgs
 
-asTestableWithArgs :: (WithArgs a, Testable a) => a -> TestableWithArgs
-asTestableWithArgs a = 
+asTestableWithQCArgs :: (WithQCArgs a, Testable a) => a -> TestableWithQCArgs
+asTestableWithQCArgs a = 
     case original a of
       Just a' -> a'
-      Nothing -> TestableWithArgs id a
+      Nothing -> TestableWithQCArgs id a
