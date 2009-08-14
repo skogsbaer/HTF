@@ -20,17 +20,21 @@
 
 module Test.Framework (
 
-  module HU, module QC, module BBT, module Syn, module TM,
+  module Test.Framework.HUnitWrapper,
+  module Test.Framework.QuickCheckWrapper,
+  module Test.Framework.BlackBoxTest,
+  module Test.Framework.Syntax,
+  module Test.Framework.TestManager,
 
   Loc.makeLoc
 
 ) where
 
-import Test.Framework.HUnitWrapper as HU
-import Test.Framework.QuickCheckWrapper as QC
-import Test.Framework.BlackBoxTest as BBT
-import Test.Framework.Syntax as Syn
-import Test.Framework.TestManager as TM
+import Test.Framework.HUnitWrapper
+import Test.Framework.QuickCheckWrapper
+import Test.Framework.BlackBoxTest
+import Test.Framework.Syntax
+import Test.Framework.TestManager
 import qualified Test.Framework.Location as Loc
 
           

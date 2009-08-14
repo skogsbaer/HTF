@@ -1,4 +1,4 @@
-{-# OPTIONS -XTemplateHaskell -cpp -pgmPcpphs -optP--cpp #-}
+{-# OPTIONS_GHC -XTemplateHaskell -cpp -pgmPcpphs -optP --cpp -optP -include -optP HTF.h #-}
 
 -- 
 -- Copyright (c) 2005   Stefan Wehr - http://www.stefanwehr.de
@@ -18,8 +18,6 @@
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 -- 02111-1307, USA.
 -- 
-
-#include "HTF.h"
 
 import Test.Framework
 import Control.Exception

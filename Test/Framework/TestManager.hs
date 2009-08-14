@@ -18,7 +18,9 @@
 
 module Test.Framework.TestManager (
 
-  TestID, Assertion, Test,
+  TestID, Assertion, Test, Filter, FlatTest,
+
+  getTestID,
 
   quickCheckTestFail, quickCheckTestError,
   unitTestFail, blackBoxTestFail,
@@ -78,6 +80,9 @@ data Test = BaseTest TestSort TestID Assertion
           | AnonTestSuite [Test]
 
 data FlatTest = FlatTest TestSort TestID Assertion
+
+getTestID :: FlatTest -> TestID
+getTestID (FlatTest _ x _) = x
 
 flattenTest :: Test -> [FlatTest]
 flattenTest = flattenTest' Nothing
