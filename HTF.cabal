@@ -2,23 +2,29 @@ Name:             HTF
 Version:          0.2
 License:          LGPL
 License-file:     LICENSE
+Copyright:        (c) 2005-2009 Stefan Wehr
 Author:           Stefan Wehr <mail@stefanwehr.de>
+Maintainer:       Stefan Wehr <mail@stefanwehr.de>
+Bug-reports:      mailto:mail@stefanwehr.de
 Stability:        Beta
 Category:         Testing
 Synopsis:         The Haskell Test Framework
 Description:      
-    The HTF lets you write HUnit tests (http://hunit.sourceforge.net)
-    and QuickCheck (http://www.cs.chalmers.se/~rjmh/QuickCheck/) properties
-    in an easy and convenient way. Additionally, the HTF provides a facility
-    for testing programs by running them and comparing the actual output with
-    the expected output (so called "file-based tests").
-    The HTF uses Template Haskell to collect all tests and properties,
-    so you do not need to write boilerplate code for that purpose.
-    Preprocessor macros provide you with file name and line number information
-    for tests and properties that failed.
-Homepage:         http://www.informatik.uni-freiburg.de/~wehr/software/haskell/
+    The Haskell Test Framework (/HTF/ for short) lets you define
+    unit tests (<http://hunit.sourceforge.net>), QuickCheck properties
+    (<http://www.cs.chalmers.se/~rjmh/QuickCheck/>), and black box
+    tests in an easy and convenient way. HTF uses Template Haskell to 
+    collect all tests and properties, so no boilerplate code is needed
+    for that purpose. Furthermore, HTF relies on preprocessor macros
+    to report failing test cases with exact file name and line number
+    information.
+    
+    .
+
+    The documentation of the "Test.Framework.Tutorial" module
+    provides a tutorial for HTF.
 Tested-with:      GHC==6.10.4
-Build-Type:       Simple
+Build-type:       Simple
 Cabal-version:    >= 1.6
 
 Library
@@ -31,14 +37,16 @@ Library
                     process, 
                     directory,
                     mtl
-  Exposed-Modules:  Test.Framework
-  Install-includes: HTF.h
-  Other-Modules:
-    Test.Framework.TestManager
+  Exposed-Modules:  
+    Test.Framework
     Test.Framework.HUnitWrapper
+    Test.Framework.TestManager
     Test.Framework.QuickCheckWrapper
     Test.Framework.BlackBoxTest
     Test.Framework.Location
     Test.Framework.Syntax
+    Test.Framework.Tutorial
+  Install-includes: HTF.h
+  Other-Modules:
     Test.Framework.Utils
     Test.Framework.Process
