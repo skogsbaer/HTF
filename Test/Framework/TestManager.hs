@@ -18,24 +18,26 @@
 
 module Test.Framework.TestManager (
 
-  TestID, Assertion, Test, Filter, FlatTest,
-
-  getTestID,
+  TestID, Assertion, Test, TestSuite, Filter, FlatTest(..), TestSort(..),
+  TestableHTF,
 
   quickCheckTestFail, quickCheckTestError,
   unitTestFail, blackBoxTestFail,
 
   makeQuickCheckTest, makeUnitTest, makeBlackBoxTest, makeTestSuite,
-  makeAnonTestSuite,
+  addToTestSuite,
 
   runTest, runTestWithArgs, runTestWithFilter
 
 ) where
 
+import Control.Monad
 import Control.Monad.State
 import Data.List ( isInfixOf )
 
-import Test.HUnit.Lang (performTestCase, assertFailure)
+import Test.HUnit.Lang ( performTestCase, assertFailure )
+
+import Test.Framework.Location ( Location, showLoc )
 
 type Assertion = IO ()
 
@@ -57,45 +59,56 @@ unitTestFail = assertFailure
 blackBoxTestFail :: String -> Assertion
 blackBoxTestFail = assertFailure
 
-makeQuickCheckTest :: TestID -> Assertion -> Test
-makeQuickCheckTest = BaseTest QuickCheckTest
+makeQuickCheckTest :: TestID -> Location -> Assertion -> Test
+makeQuickCheckTest id loc ass = BaseTest QuickCheckTest id (Just loc) ass
 
-makeUnitTest :: TestID -> Assertion -> Test
-makeUnitTest = BaseTest UnitTest
+makeUnitTest :: TestID -> Location -> Assertion -> Test
+makeUnitTest id loc ass = BaseTest UnitTest id (Just loc) ass
 
 makeBlackBoxTest :: TestID -> Assertion -> Test
-makeBlackBoxTest = BaseTest BlackBoxTest
+makeBlackBoxTest id ass = BaseTest BlackBoxTest id Nothing ass
 
-makeTestSuite :: TestID -> [Test] -> Test
+makeTestSuite :: TestID -> [Test] -> TestSuite
 makeTestSuite = TestSuite
 
-makeAnonTestSuite :: [Test] -> Test
-makeAnonTestSuite = AnonTestSuite
+addToTestSuite :: TestSuite -> [Test] -> TestSuite
+addToTestSuite (TestSuite id ts) ts' = TestSuite id (ts ++ ts')
 
 data TestSort = UnitTest | QuickCheckTest | BlackBoxTest
               deriving (Eq,Show,Read)
 
-data Test = BaseTest TestSort TestID Assertion
-          | TestSuite TestID [Test]
-          | AnonTestSuite [Test]
+data Test = BaseTest TestSort TestID (Maybe Location) Assertion
+          | CompoundTest TestSuite
 
-data FlatTest = FlatTest TestSort TestID Assertion
+data TestSuite = TestSuite TestID [Test]
 
-getTestID :: FlatTest -> TestID
-getTestID (FlatTest _ x _) = x
+data FlatTest = FlatTest TestSort TestID (Maybe Location) Assertion
 
-flattenTest :: Test -> [FlatTest]
-flattenTest = flattenTest' Nothing
-    where
-      flattenTest' path (BaseTest sort id ass) = 
-          [FlatTest sort (path `concatP` id) ass]
-      flattenTest' path (TestSuite id ts) = 
-          concatMap (flattenTest' (Just (path `concatP` id))) ts
-      flattenTest' path (AnonTestSuite ts) = 
-          concatMap (flattenTest' path) ts
-      concatP Nothing s = s
-      concatP (Just s1) s2 = s1 ++ pathSep ++ s2
-      pathSep = ":"
+class TestableHTF t where
+    flatten :: t -> [FlatTest]
+
+instance TestableHTF Test where
+    flatten = flattenTest Nothing
+
+instance TestableHTF TestSuite where
+    flatten = flattenTestSuite Nothing
+
+type Path = Maybe String
+
+flattenTest :: Path -> Test -> [FlatTest]
+flattenTest path (BaseTest sort id mloc ass) = 
+    [FlatTest sort (path `concatPath` id) mloc ass]
+flattenTest path (CompoundTest ts) = 
+    flattenTestSuite path ts
+
+flattenTestSuite :: Path -> TestSuite -> [FlatTest]
+flattenTestSuite path (TestSuite id ts) = 
+    concatMap (flattenTest (Just (path `concatPath` id))) ts
+
+concatPath :: Path -> String -> String
+concatPath Nothing s = s
+concatPath (Just s1) s2 = s1 ++ pathSep ++ s2
+    where pathSep = ":"
 
 data TestState = TestState { ts_passed :: Int
                            , ts_failed :: Int
@@ -107,8 +120,11 @@ initTestState = TestState 0 0 0
 type TR = StateT TestState IO
 
 runFlatTest :: FlatTest -> TR ()
-runFlatTest (FlatTest sort id ass) =
-    do liftIO $ report id
+runFlatTest (FlatTest sort id mloc ass) =
+    do let name = id ++ case mloc of
+                          Nothing -> ""
+                          Just loc -> " (" ++ showLoc loc ++ ")"
+       liftIO $ report name
        res <- liftIO $ performTestCase ass
        case res of
          Nothing -> reportSuccess
@@ -120,9 +136,11 @@ runFlatTest (FlatTest sort id ass) =
                              in case ms of
                                   Nothing -> (b, "", False)
                                   Just s -> (b, s, True)
-             in if doReport
-                   then if isFailure then reportFailure msg else reportError msg
-                   else return ()
+             in if isFailure
+                   then do modify (\s -> s { ts_failed = 1 + (ts_failed s) })
+                           when doReport $ reportFailure msg
+                   else do modify (\s -> s { ts_error = 1 + (ts_error s) })
+                           when doReport $ reportError msg
        liftIO $ report ""
     where
       reportSuccess = 
@@ -130,11 +148,9 @@ runFlatTest (FlatTest sort id ass) =
              when (sort /= QuickCheckTest) $
                   liftIO $ report "+++ OK"
       reportFailure msg = 
-          do modify (\s -> s { ts_failed = 1 + (ts_failed s) })
-             reportMessage msg failurePrefix
+          reportMessage msg failurePrefix
       reportError msg = 
-          do modify (\s -> s { ts_error = 1 + (ts_error s) })
-             reportMessage msg errorPrefix
+          reportMessage msg errorPrefix
       reportMessage msg prefix = liftIO $ report (prefix ++ msg)
       failurePrefix = "*** Failed! "
       errorPrefix = "@@@ Error! "
@@ -142,19 +158,20 @@ runFlatTest (FlatTest sort id ass) =
 runFlatTests :: [FlatTest] -> TR ()
 runFlatTests = mapM_ runFlatTest
 
-runTest :: Test -> IO ()
+runTest :: TestableHTF t => t -> IO ()
 runTest = runTestWithFilter (\_ -> True)
 
-runTestWithArgs :: [String] -> Test -> IO ()
+runTestWithArgs :: TestableHTF t => [String] -> t -> IO ()
 runTestWithArgs [] = runTest
 runTestWithArgs l = runTestWithFilter pred
-    where pred (FlatTest _ id _) = any (\s -> s `isInfixOf` id) l
+    where pred (FlatTest _ id _ _) = any (\s -> s `isInfixOf` id) l
 
 type Filter = FlatTest -> Bool
 
-runTestWithFilter :: Filter -> Test -> IO ()
+runTestWithFilter :: TestableHTF t => Filter -> t -> IO ()
 runTestWithFilter pred t =
-    do s <- execStateT (runFlatTests (filter pred (flattenTest t))) initTestState
+    do s <- execStateT (runFlatTests (filter pred (flatten t))) 
+                       initTestState
        let total = ts_passed s + ts_failed s + ts_error s
        report ("* Tests:    " ++ show total ++ "\n" ++
                "* Passed:   " ++ show (ts_passed s) ++ "\n" ++

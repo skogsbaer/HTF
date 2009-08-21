@@ -10,27 +10,34 @@ Stability:        Beta
 Category:         Testing
 Synopsis:         The Haskell Test Framework
 Description:      
-    The Haskell Test Framework (/HTF/ for short) lets you define
-    unit tests (<http://hunit.sourceforge.net>), QuickCheck properties
+
+    The Haskell Test Framework (/HTF/ for short) lets you define unit
+    tests (<http://hunit.sourceforge.net>), QuickCheck properties
     (<http://www.cs.chalmers.se/~rjmh/QuickCheck/>), and black box
-    tests in an easy and convenient way. HTF uses Template Haskell to 
-    collect all tests and properties, so no boilerplate code is needed
-    for that purpose. Furthermore, HTF relies on preprocessor macros
-    to report failing test cases with exact file name and line number
-    information.
+    tests in an easy and convenient way. The HTF uses a custom
+    preprocessor that collects test definitions automatically. 
+    Furthermore, the preprocessor allows the HTF to report failing
+    test cases with exact file name and line number information.
     
     .
 
     The documentation of the "Test.Framework.Tutorial" module
-    provides a tutorial for HTF.
+    provides a tutorial for the HTF.
+
 Tested-with:      GHC==6.10.4
 Build-type:       Simple
 Cabal-version:    >= 1.6
 
+Executable htfpp
+  Main-is:          HTFPP.hs
+  Build-Depends:    cpphs >= 1.8,
+                    haskell-src-exts >= 1.1,
+                    base >= 4
+  Other-modules:    Test.Framework.Preprocessor
+
 Library
   Build-Depends:    HUnit >= 1.2, 
                     QuickCheck >= 2, 
-                    template-haskell, 
                     base >= 4, 
                     random,
                     containers, 
@@ -44,7 +51,6 @@ Library
     Test.Framework.QuickCheckWrapper
     Test.Framework.BlackBoxTest
     Test.Framework.Location
-    Test.Framework.Syntax
     Test.Framework.Tutorial
   Install-includes: HTF.h
   Other-Modules:

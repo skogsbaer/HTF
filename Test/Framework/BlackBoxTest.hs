@@ -16,13 +16,21 @@
 -- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
 --
 
+{- |
+
+A /black box test/ in the terminology of the HTF consists of a
+driver program that is run in various input files. For each input
+file, the HTF checks that the driver program exits with the
+correct exit code and that it produces the expected output.
+
+-}
 module Test.Framework.BlackBoxTest ( 
   
-  Diff, BBTArgs(..), 
+  BBTArgs(..), defaultBBTArgs, 
 
-  defaultBBTArgs, defaultDiff,
+  blackBoxTests,
 
-  blackBoxTests
+  Diff, defaultDiff
 
 ) where
 
@@ -40,13 +48,17 @@ import Test.Framework.Process
 import Test.Framework.TestManager
 import Test.Framework.Utils
 
-type Diff = Maybe FilePath      -- Name of the file that contains the 
-                                -- expected output.
-                                -- If the parameter is Nothing, then no output
-                                -- is expected.
-          -> String             -- Actual output
-          -> IO (Maybe String)  -- A Nothing value means ok, otherwise the
-                                -- Just value wraps the error message
+{- | 
+The type of a function comparing the content of a file
+against a string, similar to the unix tool @diff@.
+The first parameter is the name of the file containing the 
+expected output. If this parameter is 'Nothing', then no output
+is expected. The second parameter is the actual output produced.
+If the result is 'Nothing' then no difference was found. 
+Otherwise, a 'Just' value contains a string explaining the
+different.
+-}
+type Diff = Maybe FilePath -> String -> IO (Maybe String)
 
 data BlackBoxTestCfg = BlackBoxTestCfg
                        { bbtCfg_shouldFail  :: Bool
@@ -145,20 +157,19 @@ defaultDiff expectFile real =
                   ExitFailure i -> error ("diff command failed with exit " ++
                                           "code " ++ show i ++ ": " ++ err)
 
-blackBoxTests :: TestID     -- id for the tests
-               -> FilePath  -- root directory of the test hierarchy
-               -> String    -- name of executable
-               -> String    -- filename suffix for input file
-               -> BBTArgs -- configuration
-               -> IO Test
-blackBoxTests id root exe suf cfg = 
+blackBoxTests :: FilePath  -- root directory of the test hierarchy
+              -> String    -- name of executable
+              -> String    -- filename suffix for input file
+              -> BBTArgs   -- configuration
+              -> IO [Test]
+blackBoxTests root exe suf cfg =     
     do let prune root _ = do dynCfg <- readDynCfg Map.empty
                                                   (root </> 
                                                    bbtArgs_dynArgsName cfg)
                              return $ dyn_skip dynCfg
        inputFiles <- collectFiles root suf prune
        (_, tests) <- mapAccumLM genTest Map.empty inputFiles
-       return $ makeTestSuite id tests
+       return tests
     where genTest :: DynamicConfigMap -> FilePath -> IO (DynamicConfigMap, 
                                                          Test)
           genTest map fname =

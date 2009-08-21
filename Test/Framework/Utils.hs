@@ -73,13 +73,14 @@ directoryEntryType fp =
 
 collectFiles :: FilePath                -- the directory to start from
              -> String                  -- suffix of the file names to collect
-             -> (FilePath -> [FilePath] -> IO Bool)  -- predicate that determines
-                                                     -- whether files below a certain 
-                                                     -- directory should be pruned.
-                                                     -- The first argument is the
-                                                     -- name of the directory, the
-                                                     -- second the entries of the 
-                                                     -- directory
+             -> (FilePath -> [FilePath] -> IO Bool)
+               -- predicate that determines
+               -- whether files below a certain 
+               -- directory should be pruned.
+               -- The first argument is the
+               -- name of the directory, the
+               -- second the entries of the 
+               -- directory
              -> IO [FilePath]
 collectFiles root suf prune = 
     do entries <- getDirectoryContents root

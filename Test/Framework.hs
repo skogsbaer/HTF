@@ -23,7 +23,6 @@ module Test.Framework (
   module Test.Framework.HUnitWrapper,
   module Test.Framework.QuickCheckWrapper,
   module Test.Framework.BlackBoxTest,
-  module Test.Framework.Syntax,
   module Test.Framework.TestManager,
 
   Loc.makeLoc
@@ -33,7 +32,6 @@ module Test.Framework (
 import Test.Framework.HUnitWrapper
 import Test.Framework.QuickCheckWrapper
 import Test.Framework.BlackBoxTest
-import Test.Framework.Syntax
 import Test.Framework.TestManager
 import qualified Test.Framework.Location as Loc
 

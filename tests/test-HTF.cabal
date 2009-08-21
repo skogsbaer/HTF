@@ -5,14 +5,10 @@ Build-type:    Simple
 
 Executable test
   Main-is: TestHTF.hs
-  Build-depends: base, HTF, template-haskell
-  Build-tools: cpphs>=1.8
+  Build-depends: base, HTF
 
 Executable tutorial
   Main-is: Tutorial.hs
-  Build-depends: base, HTF, template-haskell
-  Build-tools: cpphs>=1.8
+  Build-depends: base, HTF
 
-
-  
   

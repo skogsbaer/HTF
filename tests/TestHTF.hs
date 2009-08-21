@@ -1,5 +1,4 @@
-{-# OPTIONS_GHC -XTemplateHaskell -cpp -pgmPcpphs -optP --cpp -optP -include -optP HTF.h #-}
-
+{-# OPTIONS_GHC -F -pgmF htfpp #-}
 -- 
 -- Copyright (c) 2005   Stefan Wehr - http://www.stefanwehr.de
 --
@@ -23,7 +22,8 @@ import Test.Framework
 import Control.Exception
 import System.Environment
 
-data T = A | B deriving Eq
+data T = A | B
+       deriving Eq
 
 {-
 stringGap = "hello \
@@ -34,68 +34,53 @@ stringGap = "hello world!"
 handleExc :: a -> SomeException -> a
 handleExc x _ = x
 
-$(tests "assertTests" [d|
+test_stringGap = assertEqual stringGap "hello world!"
 
- test_stringGap = assertEqual stringGap "hello world!"
+test_assertEqual = assertEqual 1 2
 
- test_assertEqual = assertEqual 1 2
+test_assertEqualNoShow = assertEqualNoShow A B
 
- test_assertEqualNoShow = assertEqualNoShow A B
+test_assertSetEqual = assertSetEqual [1,2] [2]
 
- test_assertSetEqual = assertSetEqual [1,2] [2]
+test_assertSetEqualSuccess = assertSetEqual [1,2] [2,1]
 
- test_assertSetEqualSuccess = assertSetEqual [1,2] [2,1]
+test_assertNotEmpty = assertNotEmpty []
 
- test_assertNotEmpty = assertNotEmpty []
+test_assertEmpty = assertEmpty [1]
 
- test_assertEmpty = assertEmpty [1]
+test_assertThrows = assertThrows (return ()) (handleExc True)
 
- test_assertThrows = assertThrows (return ()) (handleExc True)
+test_assertThrows' = assertThrows (error "ERROR") (handleExc False)
 
- test_assertThrows' = assertThrows (error "ERROR") (handleExc False)
+test_someError = error "Bart Simpson!!"
 
- test_someError = error "Bart Simpson!!"
+prop_ok :: [Int] -> Property
+prop_ok xs = classify (null xs) "trivial" $ xs == (reverse (reverse xs))
 
- |])
+prop_fail :: [Int] -> Bool
+prop_fail xs = xs == (reverse xs)
 
-$(tests "propTests" [d|
+prop_exhaust = False ==> True
 
- prop_ok :: [Int] -> Property
- prop_ok xs = classify (null xs) "trivial" $ xs == (reverse (reverse xs))
-
- prop_fail :: [Int] -> Bool
- prop_fail xs = xs == (reverse xs)
-
- prop_exhaust = False ==> True
-
- prop_error :: Bool
- prop_error = error "Lisa"
-
- |])
+prop_error :: Bool
+prop_error = error "Lisa"
 
 changeArgs args = args { maxSuccess = 1 }
 
-$(tests "propTestsVerbose" [d|
+prop_ok' = withQCArgs (\a -> a { maxSuccess = 1}) $
+                     \xs -> classify (null xs) "trivial" $ 
+                            (xs::[Int]) == (reverse (reverse xs))
 
- prop_ok = withQCArgs (\a -> a { maxSuccess = 1}) $
-                      \xs -> classify (null xs) "trivial" $ 
-                             (xs::[Int]) == (reverse (reverse xs))
+prop_fail' = 
+    withQCArgs (\a -> a { replay = read "Just (1292732529 652912053,3)" }) prop
+    where prop xs = xs == (reverse xs)
+              where types = xs::[Int]
 
- prop_fail = 
-     withQCArgs (\a -> a { replay = read "Just (1292732529 652912053,3)" }) prop
-     where prop xs = xs == (reverse xs)
-               where types = xs::[Int]
-
- prop_error :: TestableWithQCArgs
- prop_error = withQCArgs changeArgs $ (error "Lisa" :: Bool)
-
- |])
-
-allTests bbts = makeAnonTestSuite 
-                  $ [assertTests,propTests,propTestsVerbose] ++ bbts
+prop_error' :: TestableWithQCArgs
+prop_error' = withQCArgs changeArgs $ (error "Lisa" :: Bool)
 
 main = 
     do args <- getArgs
-       fbts <- blackBoxTests "bbts" "bbt" "./run-bbt.sh" ".x" 
+       bbts <- blackBoxTests "bbt" "./run-bbt.sh" ".x" 
                  (defaultBBTArgs { bbtArgs_verbose = False })
-       runTestWithArgs args (allTests [fbts])
+       runTestWithArgs args (addToTestSuite allHTFTests bbts)
