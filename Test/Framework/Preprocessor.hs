@@ -124,11 +124,15 @@ analyse originalFileName s =
 
 transform :: FilePath -> String -> IO String
 transform originalFileName input =
-    do analyseResult <- analyse originalFileName input
+    do analyseResult <- analyse originalFileName 
+                          -- the parser fails if the last line is a line
+                          -- comment not ending with \n
+                          (input ++ "\n")
        case analyseResult of
          ParseFailed loc err ->
-             do warn ("Parsing of " ++ originalFileName ++ " failed at line " ++
-                      show (srcLine loc) ++ ", column " ++ show (srcColumn loc))
+             do warn ("Parsing of " ++ originalFileName ++ " failed at line " 
+                      ++ show (srcLine loc) ++ ", column " ++ 
+                      show (srcColumn loc) ++ ": " ++ err)
                 return (preprocess (ModuleInfo "" [] "UNKNOWN_MODULE"))
          ParseOk info ->
              return (preprocess info)
