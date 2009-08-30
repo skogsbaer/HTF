@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 --
 -- Copyright (c) 2005, 2009   Stefan Wehr - http://www.stefanwehr.de
 --
@@ -18,8 +19,19 @@
 
 module Test.Framework.HUnitWrapper (
 
-  assertBool_, assertEqual_, assertEqualNoShow_, assertNotEmpty_, assertEmpty_,
-  assertSetEqual_, assertThrows_,
+  assertBool_, 
+
+  assertEqual_, assertEqualNoShow_, 
+
+  assertNotEmpty_, assertEmpty_,
+  
+  assertSetEqual_, 
+
+  assertThrows_, 
+
+  assertLeft_, assertLeftNoShow_, assertRight_, assertRightNoShow_,
+
+  assertJust_,
 
   assertFailure
 
@@ -41,7 +53,7 @@ import Test.Framework.Utils
 
 -- WARNING: do not forget to add a preprocessor macro for new assertions!!
 
-assertFailure :: String -> IO ()
+assertFailure :: String -> IO a
 assertFailure s = unitTestFail s
 
 assertBool_ :: Location -> Bool -> HU.Assertion
@@ -83,7 +95,7 @@ assertSetEqual_ loc expected actual =
 
 assertNotEmpty_ :: Location -> [a] -> HU.Assertion
 assertNotEmpty_ loc [] = 
-    assertFailure ("assertNotNull failed at " ++ showLoc loc)
+    assertFailure ("assertNotEmpty failed at " ++ showLoc loc)
 assertNotEmpty_ _ (_:_) = return ()
 
 assertEmpty_ :: Location -> [a] -> HU.Assertion
@@ -101,3 +113,35 @@ assertThrows_ loc io f =
                                        showLoc loc ++
                                        ": wrong exception was thrown: " ++
                                        show e)
+
+assertLeft_ :: forall a b . Show b => Location -> Either a b -> IO a
+assertLeft_ _ (Left x) = return x
+assertLeft_ loc (Right x) = 
+    assertFailure ("assertLeft failed at " ++ showLoc loc ++ 
+                   ": expected a Left value, given " ++
+                   show (Right x :: Either b b))
+
+assertLeftNoShow_ :: Location -> Either a b -> IO a
+assertLeftNoShow_ _ (Left x) = return x
+assertLeftNoShow_ loc (Right x) =
+    assertFailure ("assertLeft failed at " ++ showLoc loc ++ 
+                   ": expected a Left value, given a Right value")
+
+assertRight_ :: forall a b . Show a => Location -> Either a b -> IO b
+assertRight_ _ (Right x) = return x
+assertRight_ loc (Left x) = 
+    assertFailure ("assertRight failed at " ++ showLoc loc ++ 
+                   ": expected a Right value, given " ++
+                   show (Left x :: Either a a))
+
+assertRightNoShow_ :: Location -> Either a b -> IO b
+assertRightNoShow_ _ (Right x) = return x
+assertRightNoShow_ loc (Left x) =
+    assertFailure ("assertRight failed at " ++ showLoc loc ++ 
+                   ": expected a Right value, given a Left value")
+
+assertJust_ :: Location -> Maybe a -> IO a
+assertJust_ _ (Just x) = return x
+assertJust_ loc Nothing = 
+    assertFailure ("assertJust failed at " ++ showLoc loc ++
+                   ": expected a Just value, given Nothing")

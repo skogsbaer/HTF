@@ -53,7 +53,13 @@ assertDefines prefix =
         ,"assertSetEqual"
         ,"assertEmpty"
         ,"assertNotEmpty"
-        ,"assertThrows"]
+        ,"assertThrows"
+        ,"assertLeft"
+        ,"assertLeftNoShow"
+        ,"assertRight"
+        ,"assertRightNoShow"
+        ,"assertJust"
+        ]
 
 warn :: String -> IO ()
 warn s = 

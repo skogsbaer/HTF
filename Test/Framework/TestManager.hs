@@ -25,7 +25,8 @@ module Test.Framework.TestManager (
   unitTestFail, blackBoxTestFail,
 
   makeQuickCheckTest, makeUnitTest, makeBlackBoxTest, makeTestSuite,
-  addToTestSuite,
+  makeAnonTestSuite,
+  addToTestSuite, testSuiteAsTest,
 
   runTest, runTestWithArgs, runTestWithFilter
 
@@ -35,7 +36,7 @@ import Control.Monad
 import Control.Monad.State
 import Data.List ( isInfixOf )
 
-import Test.HUnit.Lang ( performTestCase, assertFailure )
+import qualified Test.HUnit.Lang as HU
 
 import Test.Framework.Location ( Location, showLoc )
 
@@ -43,27 +44,33 @@ type Assertion = IO ()
 
 type TestID = String
 
+assertFailureHTF :: String -> Assertion
+-- Important: force the string argument, otherwise an error embedded
+-- lazily inside the string might escape.
+assertFailureHTF s = length s `seq` HU.assertFailure s
 
 -- This is a HACK: we encode a custom error message for QuickCheck
 -- failures and errors in a string, which is later parsed using read!
 
 quickCheckTestError :: Maybe String -> Assertion
-quickCheckTestError m = assertFailure (show (False, m)) 
+quickCheckTestError m = assertFailureHTF (show (False, m)) 
 
 quickCheckTestFail :: Maybe String -> Assertion
-quickCheckTestFail m = assertFailure (show (True, m))
+quickCheckTestFail m = assertFailureHTF (show (True, m))
 
-unitTestFail :: String -> Assertion
-unitTestFail = assertFailure
+unitTestFail :: String -> IO a
+unitTestFail s = 
+    do assertFailureHTF s
+       error "unitTestFail: UNREACHABLE"
 
 blackBoxTestFail :: String -> Assertion
-blackBoxTestFail = assertFailure
+blackBoxTestFail = assertFailureHTF
 
 makeQuickCheckTest :: TestID -> Location -> Assertion -> Test
 makeQuickCheckTest id loc ass = BaseTest QuickCheckTest id (Just loc) ass
 
-makeUnitTest :: TestID -> Location -> Assertion -> Test
-makeUnitTest id loc ass = BaseTest UnitTest id (Just loc) ass
+makeUnitTest :: TestID -> Location -> IO a -> Test
+makeUnitTest id loc ass = BaseTest UnitTest id (Just loc) (ass >> return ())
 
 makeBlackBoxTest :: TestID -> Assertion -> Test
 makeBlackBoxTest id ass = BaseTest BlackBoxTest id Nothing ass
@@ -71,8 +78,15 @@ makeBlackBoxTest id ass = BaseTest BlackBoxTest id Nothing ass
 makeTestSuite :: TestID -> [Test] -> TestSuite
 makeTestSuite = TestSuite
 
+makeAnonTestSuite :: [Test] -> TestSuite
+makeAnonTestSuite = AnonTestSuite
+
+testSuiteAsTest :: TestSuite -> Test
+testSuiteAsTest = CompoundTest
+
 addToTestSuite :: TestSuite -> [Test] -> TestSuite
 addToTestSuite (TestSuite id ts) ts' = TestSuite id (ts ++ ts')
+addToTestSuite (AnonTestSuite ts) ts' = AnonTestSuite (ts ++ ts')
 
 data TestSort = UnitTest | QuickCheckTest | BlackBoxTest
               deriving (Eq,Show,Read)
@@ -81,6 +95,7 @@ data Test = BaseTest TestSort TestID (Maybe Location) Assertion
           | CompoundTest TestSuite
 
 data TestSuite = TestSuite TestID [Test]
+               | AnonTestSuite [Test]
 
 data FlatTest = FlatTest TestSort TestID (Maybe Location) Assertion
 
@@ -104,6 +119,8 @@ flattenTest path (CompoundTest ts) =
 flattenTestSuite :: Path -> TestSuite -> [FlatTest]
 flattenTestSuite path (TestSuite id ts) = 
     concatMap (flattenTest (Just (path `concatPath` id))) ts
+flattenTestSuite path (AnonTestSuite ts) = 
+    concatMap (flattenTest path) ts
 
 concatPath :: Path -> String -> String
 concatPath Nothing s = s
@@ -125,7 +142,7 @@ runFlatTest (FlatTest sort id mloc ass) =
                           Nothing -> ""
                           Just loc -> " (" ++ showLoc loc ++ ")"
        liftIO $ report name
-       res <- liftIO $ performTestCase ass
+       res <- liftIO $ HU.performTestCase ass
        case res of
          Nothing -> reportSuccess
          Just (isFailure', msg') ->

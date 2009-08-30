@@ -19,8 +19,8 @@
 -- 
 
 import Test.Framework
-import Control.Exception
 import System.Environment
+import Control.Exception
 
 data T = A | B
        deriving Eq
