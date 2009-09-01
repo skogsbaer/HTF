@@ -27,7 +27,7 @@ module Test.Framework.HUnitWrapper (
   
   assertSetEqual_, 
 
-  assertThrows_, 
+  assertThrows_, assertThrowsSome_,
 
   assertLeft_, assertLeftNoShow_, assertRight_, assertRightNoShow_,
 
@@ -102,9 +102,9 @@ assertEmpty_ :: Location -> [a] -> HU.Assertion
 assertEmpty_ loc (_:_) = assertFailure ("assertNull failed at " ++ showLoc loc)
 assertEmpty_ loc [] = return ()
 
-assertThrows_ :: Exception e => Location -> IO a -> (e -> Bool) -> HU.Assertion
-assertThrows_ loc io f =
-    do res <- try io
+assertThrows_ :: Exception e => Location -> a -> (e -> Bool) -> HU.Assertion
+assertThrows_ loc x f =
+    do res <- try (evaluate x)
        case res of
          Right _ -> assertFailure ("assertThrows failed at " ++ showLoc loc ++
                                    ": no exception was thrown")
@@ -113,6 +113,10 @@ assertThrows_ loc io f =
                                        showLoc loc ++
                                        ": wrong exception was thrown: " ++
                                        show e)
+
+assertThrowsSome_ :: Location -> a -> HU.Assertion
+assertThrowsSome_ loc x =
+    assertThrows_ loc x (\ (e::SomeException) -> True)
 
 assertLeft_ :: forall a b . Show b => Location -> Either a b -> IO a
 assertLeft_ _ (Left x) = return x

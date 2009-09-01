@@ -54,6 +54,7 @@ assertDefines prefix =
         ,"assertEmpty"
         ,"assertNotEmpty"
         ,"assertThrows"
+        ,"assertThrowsSome"
         ,"assertLeft"
         ,"assertLeftNoShow"
         ,"assertRight"
