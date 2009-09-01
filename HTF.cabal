@@ -52,7 +52,6 @@ Library
     Test.Framework.BlackBoxTest
     Test.Framework.Location
     Test.Framework.Tutorial
-  Install-includes: HTF.h
   Other-Modules:
     Test.Framework.Utils
     Test.Framework.Process
