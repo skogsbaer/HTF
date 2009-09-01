@@ -27,7 +27,7 @@ import Language.Preprocessor.Cpphs ( runCpphs,
                                      defaultCpphsOptions)
 import Language.Haskell.Exts.Parser
 import Language.Haskell.Exts.Syntax
-import Language.Haskell.Exts.Extension ( glasgowExts )
+import Language.Haskell.Exts.Extension ( glasgowExts, Extension(..) )
 
 import Test.Framework.Location
 
@@ -87,15 +87,17 @@ analyse originalFileName s =
                 htfPrefix <-
                   case mapMaybe prefixFromImport imports of
                     (s:_) -> return s
-                    [] -> do warn ("No import found for " ++ htfModule ++ " in "
-                                   ++ originalFileName)
+                    [] -> do warn ("No import found for " ++ htfModule ++ 
+                                   " in " ++ originalFileName)
                              return (htfModule ++ ".")
                 return $ ParseOk (ModuleInfo htfPrefix defs moduleName)
          ParseFailed loc err -> return (ParseFailed loc err)
     where
       parseMode :: ParseMode
       parseMode = defaultParseMode { parseFilename = originalFileName
-                                   , extensions = glasgowExts }
+                                   , extensions = glasgowExts ++
+                                                  [ExplicitForall]
+                                   }
       prefixFromImport :: ImportDecl -> Maybe String
       prefixFromImport (ImportDecl loc (ModuleName s) qualified _ _
                                    alias _) 
