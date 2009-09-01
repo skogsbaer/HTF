@@ -34,3 +34,4 @@
 (^|/)usr($|/)
 tests/tt
 \.setup-config
+dist$
