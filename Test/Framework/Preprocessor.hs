@@ -1,3 +1,5 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 -- 
 -- Copyright (c) 2009   Stefan Wehr - http://www.stefanwehr.de
 --
@@ -21,11 +23,13 @@ module Test.Framework.Preprocessor ( transform, progName ) where
 import Data.Maybe ( mapMaybe )
 import Data.List ( intercalate )
 import System.IO ( hPutStrLn, stderr )
-
+import Control.Exception ( evaluate, catch, SomeException )
+import Prelude hiding ( catch )
 import Language.Preprocessor.Cpphs ( runCpphs,
                                      CpphsOptions(..), 
                                      defaultCpphsOptions)
-import Language.Haskell.Exts.Parser
+import Language.Haskell.Exts.Parser ( parseModuleWithMode, ParseMode(..),
+                                      defaultParseMode, ParseResult(..) )
 import Language.Haskell.Exts.Syntax
 import Language.Haskell.Exts.Extension ( glasgowExts, Extension(..) )
 
@@ -70,6 +74,22 @@ nameAsString :: Name -> String
 nameAsString (Ident s) = s
 nameAsString (Symbol s) = s
 
+parse :: FilePath -> String -> IO (ParseResult Module)
+parse originalFileName input =
+    (evaluate $ parseModuleWithMode parseMode fixedInput)
+    `catch` (\(e::SomeException) -> return $ ParseFailed unknownLoc (show e))
+    where
+      fixedInput :: String
+      fixedInput = (input ++ "\n") {- the parser fails if the last line is a
+                                      line comment not ending with \n -}
+      parseMode :: ParseMode
+      parseMode = defaultParseMode { parseFilename = originalFileName
+                                   , extensions = glasgowExts ++
+                                                  [ExplicitForall]
+                                   }
+      unknownLoc :: SrcLoc
+      unknownLoc = SrcLoc originalFileName 0 0
+
 data ModuleInfo = ModuleInfo { mi_prefix     :: String
                              , mi_defs       :: [Definition]
                              , mi_moduleName :: String }
@@ -77,8 +97,8 @@ data ModuleInfo = ModuleInfo { mi_prefix     :: String
 analyse :: FilePath -> String 
         -> IO (ParseResult ModuleInfo)
 analyse originalFileName s = 
-    let parseResult = parseModuleWithMode parseMode s
-    in case parseResult of
+    do parseResult <- parse originalFileName s
+       case parseResult of
          ParseOk (Module loc (ModuleName moduleName) 
                          pragmas maybeWarning maybeExports 
                          imports decls) ->
@@ -93,11 +113,6 @@ analyse originalFileName s =
                 return $ ParseOk (ModuleInfo htfPrefix defs moduleName)
          ParseFailed loc err -> return (ParseFailed loc err)
     where
-      parseMode :: ParseMode
-      parseMode = defaultParseMode { parseFilename = originalFileName
-                                   , extensions = glasgowExts ++
-                                                  [ExplicitForall]
-                                   }
       prefixFromImport :: ImportDecl -> Maybe String
       prefixFromImport (ImportDecl loc (ModuleName s) qualified _ _
                                    alias _) 
@@ -127,10 +142,7 @@ analyse originalFileName s =
 
 transform :: FilePath -> String -> IO String
 transform originalFileName input =
-    do analyseResult <- analyse originalFileName 
-                          -- the parser fails if the last line is a line
-                          -- comment not ending with \n
-                          (input ++ "\n")
+    do analyseResult <- analyse originalFileName input
        case analyseResult of
          ParseFailed loc err ->
              do warn ("Parsing of " ++ originalFileName ++ " failed at line " 

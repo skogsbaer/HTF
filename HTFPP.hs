@@ -1,3 +1,5 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 -- 
 -- Copyright (c) 2009   Stefan Wehr - http://www.stefanwehr.de
 --
@@ -76,6 +78,12 @@ main =
                  do usage
                     exitWith (ExitFailure 1)
        input <- hGetContents hIn
-       output <- transform origInputFilename input
+       output <- transform origInputFilename input `catch` 
+                   (\ (e::SomeException) ->
+                        do hPutStrLn stderr (progName ++ 
+                                             ": unexpected exception: " ++ 
+                                             show e)
+                           return ("#line 1 " ++ show origInputFilename ++
+                                   "\n" ++ input))
        hPutStr hOut output
        hFlush hOut
