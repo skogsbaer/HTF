@@ -35,6 +35,7 @@ module Test.Framework.TestManager (
 import Control.Monad
 import Control.Monad.State
 import Data.List ( isInfixOf )
+import Text.PrettyPrint
 
 import qualified Test.HUnit.Lang as HU
 
@@ -128,12 +129,12 @@ concatPath Nothing s = s
 concatPath (Just s1) s2 = s1 ++ pathSep ++ s2
     where pathSep = ":"
 
-data TestState = TestState { ts_passed :: Int
-                           , ts_failed :: Int
-                           , ts_error  :: Int }
+data TestState = TestState { ts_passed :: [String]
+                           , ts_failed :: [String]
+                           , ts_error  :: [String] }
 
 initTestState :: TestState
-initTestState = TestState 0 0 0
+initTestState = TestState [] [] []
 
 type TR = StateT TestState IO
 
@@ -145,7 +146,7 @@ runFlatTest (FlatTest sort id mloc ass) =
        liftIO $ report name
        res <- liftIO $ HU.performTestCase ass
        case res of
-         Nothing -> reportSuccess
+         Nothing -> reportSuccess name
          Just (isFailure', msg') ->
              let (isFailure, msg, doReport) = 
                      if sort /= QuickCheckTest
@@ -160,14 +161,16 @@ runFlatTest (FlatTest sort id mloc ass) =
                                      Nothing -> (b, "", False)
                                      Just s -> (b, s, True)
              in if isFailure
-                   then do modify (\s -> s { ts_failed = 1 + (ts_failed s) })
+                   then do modify (\s -> s { ts_failed = 
+                                             name : (ts_failed s) })
                            when doReport $ reportFailure msg
-                   else do modify (\s -> s { ts_error = 1 + (ts_error s) })
+                   else do modify (\s -> s { ts_error = 
+                                             name : (ts_error s) })
                            when doReport $ reportError msg
        liftIO $ report ""
     where
-      reportSuccess = 
-          do modify (\s -> s { ts_passed = 1 + (ts_passed s) })
+      reportSuccess name = 
+          do modify (\s -> s { ts_passed = name : (ts_passed s) })
              when (sort /= QuickCheckTest) $
                   liftIO $ report "+++ OK"
       reportFailure msg = 
@@ -195,12 +198,28 @@ runTestWithFilter :: TestableHTF t => Filter -> t -> IO ()
 runTestWithFilter pred t =
     do s <- execStateT (runFlatTests (filter pred (flatten t))) 
                        initTestState
-       let total = ts_passed s + ts_failed s + ts_error s
+       let passed = length (ts_passed s)
+           failed = length (ts_failed s)
+           error = length (ts_error s)
+           total = passed + failed + error
        report ("* Tests:    " ++ show total ++ "\n" ++
-               "* Passed:   " ++ show (ts_passed s) ++ "\n" ++
-               "* Failures: " ++ show (ts_failed s) ++ "\n" ++
-               "* Errors:   " ++ show (ts_error s))
+               "* Passed:   " ++ show passed ++ "\n" ++
+               "* Failures: " ++ show failed ++ "\n" ++
+               "* Errors:   " ++ show error )
+       when (failed > 0) $
+          reportDoc (text "\nFailures:" $$ renderTestNames 
+                                             (reverse (ts_failed s)))
+       when (error > 0) $
+          reportDoc (text "\nFailures:" $$ renderTestNames 
+                                             (reverse (ts_error s)))
        return ()
+    where
+      renderTestNames l = 
+          nest 2 (vcat (map (\name -> text "*" <+> text name) l))
+
 
 report :: String -> IO ()
 report = putStrLn
+
+reportDoc :: Doc -> IO ()
+reportDoc doc = report (render doc)
