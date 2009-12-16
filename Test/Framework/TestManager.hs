@@ -39,6 +39,7 @@ import Data.List ( isInfixOf )
 import qualified Test.HUnit.Lang as HU
 
 import Test.Framework.Location ( Location, showLoc )
+import Test.Framework.Utils ( readM )
 
 type Assertion = IO ()
 
@@ -149,10 +150,15 @@ runFlatTest (FlatTest sort id mloc ass) =
              let (isFailure, msg, doReport) = 
                      if sort /= QuickCheckTest
                         then (isFailure', msg', True)
-                        else let (b, ms) = (read msg' :: (Bool, Maybe String))
-                             in case ms of
-                                  Nothing -> (b, "", False)
-                                  Just s -> (b, s, True)
+                        else case readM msg' :: Maybe (Bool, Maybe String) of
+                               Nothing ->
+                                   error ("ERROR: " ++
+                                          "Cannot deserialize QuickCheck " ++
+                                          "error message " ++ show msg')
+                               Just (b, ms) ->
+                                   case ms of
+                                     Nothing -> (b, "", False)
+                                     Just s -> (b, s, True)
              in if isFailure
                    then do modify (\s -> s { ts_failed = 1 + (ts_failed s) })
                            when doReport $ reportFailure msg

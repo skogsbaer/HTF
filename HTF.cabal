@@ -43,7 +43,8 @@ Library
                     containers, 
                     process, 
                     directory,
-                    mtl
+                    mtl,
+                    pretty
   Exposed-Modules:  
     Test.Framework
     Test.Framework.HUnitWrapper
@@ -52,6 +53,7 @@ Library
     Test.Framework.BlackBoxTest
     Test.Framework.Location
     Test.Framework.Tutorial
+    Test.Framework.Pretty
   Other-Modules:
     Test.Framework.Utils
     Test.Framework.Process

@@ -31,7 +31,7 @@ module Test.Framework.QuickCheckWrapper (
 import qualified Data.Map as Map
 import Control.Concurrent.MVar
 import Prelude hiding ( catch )
-import Control.Exception ( throw, catch, SomeException )
+import Control.Exception ( throw, catch, SomeException, evaluate )
 import System.IO
 import System.IO.Unsafe
 import System.Random
@@ -66,17 +66,23 @@ testableAsAssertion t =
     withMVar qcState $ \state ->
         do eitherArgs <- 
                (let a = (argsModifier t) (qc_args state)
-                in length (show a) `seq` return (Right a))
+                in do evaluate (length (show a))
+                      return (Right a))
                `catch`
                (\e -> return $ Left (show (e :: SomeException)))
            case eitherArgs of
              Left err -> quickCheckTestError
-                            (Just ("Cannot evaluate custom arguments: " ++ err))
+                            (Just ("Cannot evaluate custom arguments: " 
+                                   ++ err))
              Right args ->
-                 do res <- quickCheckWithResult args t
+                 do res <- do x <- quickCheckWithResult args t 
+                              return (Right x)
+                          `catch` 
+                            (\e -> return $ Left (show (e::SomeException)))
                     case res of
-                      Success _ -> return ()
-                      Failure gen size reason _ -> 
+                      Left err -> quickCheckTestError (Just err)
+                      Right (Success _) -> return ()
+                      Right (Failure gen size _ _) -> 
                            do putStrLn ("Replay argument: " ++
                                         (show (show (Just (gen, size)))))
                               quickCheckTestFail Nothing

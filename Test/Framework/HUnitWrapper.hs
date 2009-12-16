@@ -21,7 +21,7 @@ module Test.Framework.HUnitWrapper (
 
   assertBool_, 
 
-  assertEqual_, assertEqualNoShow_, 
+  assertEqual_, assertEqualP_, assertEqualNoShow_, 
 
   assertNotEmpty_, assertEmpty_,
   
@@ -42,10 +42,12 @@ import Data.List ( (\\) )
 import Control.Exception
 import Control.Monad
 import qualified Test.HUnit as HU hiding ( assertFailure )
+-- import Data.Algorithm.Diff
 
 import Test.Framework.TestManager
 import Test.Framework.Location
 import Test.Framework.Utils
+import Test.Framework.Pretty
 
 --
 -- Assertions
@@ -66,8 +68,17 @@ assertEqual_ loc expected actual =
        then assertFailure msg
        else return ()
     where msg = "assertEqual failed at " ++ showLoc loc ++
-                "\n expected: " ++ show expected ++ "\n but got:  " ++ 
-                show actual
+                "\n expected: " ++ show expected ++ 
+		"\n but got:  " ++ show actual
+
+assertEqualP_ :: (Eq a, Pretty a) => Location -> a -> a -> HU.Assertion
+assertEqualP_ loc expected actual =
+    if expected /= actual
+       then assertFailure msg
+       else return ()
+    where msg = "assertEqual failed at " ++ showLoc loc ++
+                "\n expected:\n" ++ showPretty expected ++ 
+		"\n but got:\n" ++ showPretty actual
 
 assertEqualNoShow_ :: Eq a => Location -> a -> a -> HU.Assertion
 assertEqualNoShow_ loc expected actual =

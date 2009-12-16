@@ -53,6 +53,7 @@ assertDefines prefix =
                    prefix ++ "makeLoc __FILE__ __LINE__))"))
         ["assertBool"
         ,"assertEqual"
+        ,"assertEqualP"
         ,"assertEqualNoShow"
         ,"assertSetEqual"
         ,"assertEmpty"

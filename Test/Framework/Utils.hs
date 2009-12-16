@@ -1,3 +1,4 @@
+{-# LANGUAGE PatternGuards #-}
 -- 
 -- Copyright (c) 2005   Stefan Wehr - http://www.stefanwehr.de
 --
@@ -113,4 +114,10 @@ mapAccumLM _ s []        = return (s, [])
 mapAccumLM f s (x:xs)    = do (s', y ) <- f s x 
                               (s'',ys) <- mapAccumLM f s' xs
                               return (s'',y:ys)
-                                 
+
+readM :: (Monad m, Read a) => String -> m a
+readM s | [x] <- parse = return x
+        | otherwise    = fail $ "Failed parse: " ++ show s
+    where
+      parse = [x | (x,t) <- reads s]
+
