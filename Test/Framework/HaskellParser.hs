@@ -54,8 +54,12 @@ parse originalFileName input =
       fixedInput :: String
       fixedInput = (input ++ "\n") {- the parser fails if the last line is a
                                       line comment not ending with \n -}
+      {- FIXME: fixities needed for all operators. Heuristic:
+         all operators are considered to be any sequence
+         of the symbols _:"'>!#$%&*+./<=>?@\^|-~ with at most length 8 -}
       parseMode :: Parser.ParseMode
-      parseMode = Parser.defaultParseMode { Parser.parseFilename = originalFileName
+      parseMode = Parser.defaultParseMode { Parser.parseFilename =
+                                              originalFileName
                                           , Parser.extensions =
                                               Ext.glasgowExts ++
                                               [Ext.ExplicitForall]
@@ -66,7 +70,8 @@ parse originalFileName input =
                           imports decls) =
           Module moduleName (map transformImport imports)
                             (mapMaybe transformDecl decls)
-      transformImport (Syn.ImportDecl loc (Syn.ModuleName s) qualified _ _ alias _) =
+      transformImport (Syn.ImportDecl loc (Syn.ModuleName s)
+                                      qualified _ _ alias _) =
           let alias' = case alias of
                          Nothing -> Nothing
                          Just (Syn.ModuleName s) -> Just s
