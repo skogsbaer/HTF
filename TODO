@@ -1,3 +1,4 @@
+* Replace haskell-src-exts by the GHC parser
 * Write proper documentation
 * diff if assertEqualsP fails
-* LATER: Support for Smallcheck and/or Lazy Smallcheck  
+* LATER: Support for Smallcheck and/or Lazy Smallcheck

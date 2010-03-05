@@ -1,13 +1,13 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
--- 
+--
 -- Copyright (c) 2009   Stefan Wehr - http://www.stefanwehr.de
 --
 -- This library is free software; you can redistribute it and/or
 -- modify it under the terms of the GNU Lesser General Public
 -- License as published by the Free Software Foundation; either
 -- version 2.1 of the License, or (at your option) any later version.
--- 
+--
 -- This library is distributed in the hope that it will be useful,
 -- but WITHOUT ANY WARRANTY; without even the implied warranty of
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
@@ -23,16 +23,11 @@ module Test.Framework.Preprocessor ( transform, progName ) where
 import Data.Maybe ( mapMaybe )
 import Data.List ( intercalate )
 import System.IO ( hPutStrLn, stderr )
-import Control.Exception ( evaluate, catch, SomeException )
-import Prelude hiding ( catch )
 import Language.Preprocessor.Cpphs ( runCpphs,
-                                     CpphsOptions(..), 
+                                     CpphsOptions(..),
                                      defaultCpphsOptions)
-import Language.Haskell.Exts.Parser ( parseModuleWithMode, ParseMode(..),
-                                      defaultParseMode, ParseResult(..) )
-import Language.Haskell.Exts.Syntax
-import Language.Haskell.Exts.Extension ( glasgowExts, Extension(..) )
 
+import Test.Framework.HaskellParser
 import Test.Framework.Location
 
 progName :: String
@@ -44,12 +39,9 @@ htfModule = "Test.Framework"
 testDeclName :: String
 testDeclName = "allHTFTests"
 
-data Definition = TestDef String Location String 
-                | PropDef String Location String
-
 assertDefines :: String -> [(String, String)]
 assertDefines prefix =
-    map (\s -> (s, "(" ++ prefix ++ s ++ "_ (" ++ 
+    map (\s -> (s, "(" ++ prefix ++ s ++ "_ (" ++
                    prefix ++ "makeLoc __FILE__ __LINE__))"))
         ["assertBool"
         ,"assertEqual"
@@ -68,117 +60,90 @@ assertDefines prefix =
         ]
 
 warn :: String -> IO ()
-warn s = 
+warn s =
     hPutStrLn stderr $ progName ++ " warning: " ++ s
-
-nameAsString :: Name -> String
-nameAsString (Ident s) = s
-nameAsString (Symbol s) = s
-
-parse :: FilePath -> String -> IO (ParseResult Module)
-parse originalFileName input =
-    (evaluate $ parseModuleWithMode parseMode fixedInput)
-    `catch` (\(e::SomeException) -> return $ ParseFailed unknownLoc (show e))
-    where
-      fixedInput :: String
-      fixedInput = (input ++ "\n") {- the parser fails if the last line is a
-                                      line comment not ending with \n -}
-      parseMode :: ParseMode
-      parseMode = defaultParseMode { parseFilename = originalFileName
-                                   , extensions = glasgowExts ++
-                                                  [ExplicitForall]
-                                   }
-      unknownLoc :: SrcLoc
-      unknownLoc = SrcLoc originalFileName 0 0
 
 data ModuleInfo = ModuleInfo { mi_prefix     :: String
                              , mi_defs       :: [Definition]
                              , mi_moduleName :: String }
 
-analyse :: FilePath -> String 
+data Definition = TestDef String Location String
+                | PropDef String Location String
+
+analyse :: FilePath -> String
         -> IO (ParseResult ModuleInfo)
-analyse originalFileName s = 
+analyse originalFileName s =
     do parseResult <- parse originalFileName s
        case parseResult of
-         ParseOk (Module loc (ModuleName moduleName) 
-                         pragmas maybeWarning maybeExports 
-                         imports decls) ->
+         ParseOK (Module moduleName imports decls) ->
              do -- putStrLn $ show decls
                 let defs = mapMaybe defFromDecl decls
                 htfPrefix <-
                   case mapMaybe prefixFromImport imports of
                     (s:_) -> return s
-                    [] -> do warn ("No import found for " ++ htfModule ++ 
+                    [] -> do warn ("No import found for " ++ htfModule ++
                                    " in " ++ originalFileName)
                              return (htfModule ++ ".")
-                return $ ParseOk (ModuleInfo htfPrefix defs moduleName)
-         ParseFailed loc err -> return (ParseFailed loc err)
+                return $ ParseOK (ModuleInfo htfPrefix defs moduleName)
+         ParseError loc err -> return (ParseError loc err)
     where
       prefixFromImport :: ImportDecl -> Maybe String
-      prefixFromImport (ImportDecl loc (ModuleName s) qualified _ _
-                                   alias _) 
+      prefixFromImport (ImportDecl s qualified alias)
           | s == htfModule =
               if qualified
                   then case alias of
-                         Just (ModuleName s') -> Just $ s' ++ "."
+                         Just s' -> Just $ s' ++ "."
                          Nothing -> Just $ s ++ "."
                   else Just ""
       prefixFromImport _ = Nothing
       defFromDecl :: Decl -> Maybe Definition
-      defFromDecl (PatBind loc (PVar name) _ _ _) = 
-          defFromNameAndLoc name loc
-      defFromDecl (FunBind (Match loc name _ _ _ _ : _)) =
-          defFromNameAndLoc name loc
-      defFromDecl _ = Nothing
-      defFromNameAndLoc :: Name -> SrcLoc -> Maybe Definition
+      defFromDecl (Decl loc name) = defFromNameAndLoc name loc
+      defFromNameAndLoc :: Name -> Location -> Maybe Definition
       defFromNameAndLoc name loc =
-          let l = makeLoc (srcFilename loc) (srcLine loc)
-              s = nameAsString name
-          in case s of
-               ('t':'e':'s':'t':'_':rest) | not (null rest) -> 
-                   Just (TestDef rest l s)
-               ('p':'r':'o':'p':'_':rest) | not (null rest) -> 
-                   Just (PropDef rest l s)
-               _ -> Nothing
+          case name of
+            ('t':'e':'s':'t':'_':rest) | not (null rest) ->
+                Just (TestDef rest loc name)
+            ('p':'r':'o':'p':'_':rest) | not (null rest) ->
+                Just (PropDef rest loc name)
+            _ -> Nothing
 
 transform :: FilePath -> String -> IO String
 transform originalFileName input =
     do analyseResult <- analyse originalFileName input
        case analyseResult of
-         ParseFailed loc err ->
-             do warn ("Parsing of " ++ originalFileName ++ " failed at line " 
-                      ++ show (srcLine loc) ++ ", column " ++ 
-                      show (srcColumn loc) ++ ": " ++ err)
+         ParseError loc err ->
+             do warn ("Parsing of " ++ originalFileName ++ " failed at line "
+                      ++ show (lineNumber loc) ++ ": " ++ err)
                 return (preprocess (ModuleInfo "" [] "UNKNOWN_MODULE"))
-         ParseOk info ->
+         ParseOK info ->
              return (preprocess info)
     where
       preprocess :: ModuleInfo -> String
-      preprocess info = 
-          let preProcessedInput = runCpphs (cpphsOptions info) 
+      preprocess info =
+          let preProcessedInput = runCpphs (cpphsOptions info)
                                            originalFileName input
           in preProcessedInput ++ "\n\n" ++ additionalCode info ++ "\n"
       cpphsOptions :: ModuleInfo -> CpphsOptions
-      cpphsOptions info = 
-          defaultCpphsOptions { defines = 
+      cpphsOptions info =
+          defaultCpphsOptions { defines =
                                     defines defaultCpphsOptions ++
                                             assertDefines (mi_prefix info)
                               }
       additionalCode :: ModuleInfo -> String
-      additionalCode info = 
+      additionalCode info =
           testDeclName ++ " :: " ++ mi_prefix info ++ "TestSuite\n" ++
-          testDeclName ++ " = " ++ mi_prefix info ++ "makeTestSuite" ++ 
-          " " ++ show (mi_moduleName info) ++ 
-          " [\n    " ++ intercalate ",\n    " 
+          testDeclName ++ " = " ++ mi_prefix info ++ "makeTestSuite" ++
+          " " ++ show (mi_moduleName info) ++
+          " [\n    " ++ intercalate ",\n    "
                           (map (codeForDef (mi_prefix info)) (mi_defs info))
           ++ "\n  ]"
       codeForDef :: String -> Definition -> String
-      codeForDef pref (TestDef s loc name) = 
+      codeForDef pref (TestDef s loc name) =
           pref ++ "makeUnitTest " ++ (show s) ++ " " ++ codeForLoc pref loc ++
           " " ++ name
-      codeForDef pref (PropDef s loc name) = 
-          pref ++ "makeQuickCheckTest " ++ (show s) ++ " " ++ 
-          codeForLoc pref loc ++ " (" ++ pref ++ "testableAsAssertion (" ++ 
+      codeForDef pref (PropDef s loc name) =
+          pref ++ "makeQuickCheckTest " ++ (show s) ++ " " ++
+          codeForLoc pref loc ++ " (" ++ pref ++ "testableAsAssertion (" ++
           pref ++ "asTestableWithQCArgs " ++ name ++ "))"
       codeForLoc :: String -> Location -> String
       codeForLoc pref loc = "(" ++ pref ++ "makeLoc " ++ show (fileName loc) ++
