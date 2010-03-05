@@ -110,7 +110,7 @@ assertNotEmpty_ loc [] =
 assertNotEmpty_ _ (_:_) = return ()
 
 assertEmpty_ :: Location -> [a] -> HU.Assertion
-assertEmpty_ loc (_:_) = assertFailure ("assertNull failed at " ++ showLoc loc)
+assertEmpty_ loc (_:_) = assertFailure ("assertEmpty failed at " ++ showLoc loc)
 assertEmpty_ loc [] = return ()
 
 assertThrows_ :: Exception e => Location -> a -> (e -> Bool) -> HU.Assertion
