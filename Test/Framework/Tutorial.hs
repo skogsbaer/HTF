@@ -23,7 +23,7 @@ file with a @OPTIONS_GHC@ pragma in the first line.
 @
 
 This pragma instructs GHC to run the source file through @htfpp@, the
-custom preprocessor of the HTF.  
+custom preprocessor of the HTF.
 
 The following @import@ statements are also needed:
 
@@ -46,7 +46,7 @@ prop_reverse xs = xs == (myReverse (myReverse xs))
 
 When @htfpp@ consumes the source file, it replaces the @assertEqual@
 tokens (and other @assert@-like tokens, see
-"Test.Framework.HUnitWrapper") with calls to 
+"Test.Framework.HUnitWrapper") with calls to
 'assertEqual_', passing
 the current location in the file as the first argument. Moreover, the
 preprocessor collects all top-level definitions starting with @test_@
@@ -62,13 +62,13 @@ To run the tests, use the 'runTestWithArgs' function, which
 takes a list of strings and the test.
 
 @
-main = 
+main =
     do args <- getArgs
        runTestWithArgs args reverseTests
 @
 
 Here is the skeleton of a @.cabal@ file which you may want to use to
-compile the tests. 
+compile the tests.
 
 @
 Name:          HTF-tutorial
@@ -89,15 +89,15 @@ further commandline arguments yields the following output:
 > *** Failed! assertEqual failed at Tutorial.hs:18
 >  expected: [3,2,1]
 >  but got:  [3]
-> 
+>
 > Main:empty (Tutorial.hs:19)
 > +++ OK
-> 
+>
 > Main:reverse (Tutorial.hs:22)
-> *** Failed! Falsifiable (after 3 tests and 1 shrink):     
+> *** Failed! Falsifiable (after 3 tests and 1 shrink):
 > [0,0]
 > Replay argument: "Just (847701486 2147483396,2)"
-> 
+>
 > * Tests:    3
 > * Passed:   1
 > * Failures: 2
@@ -116,11 +116,11 @@ feature may not be useful for this simple example but it helps in more
 complex scenarios).
 
 To replay a property you simply use the string
-representation of the generator to define a new QuickCheck property 
+representation of the generator to define a new QuickCheck property
 with custom arguments:
 
 @
-prop_reverseReplay = 
+prop_reverseReplay =
   'withQCArgs' (\a -> a { 'replay' = 'read' \"Just (1060394807 2147483396,2)\" })
   prop_reverse
 @
@@ -138,23 +138,23 @@ desired result:
 
 > Main:nonEmpty (Tutorial.hs:17)
 > +++ OK
-> 
+>
 > Main:empty (Tutorial.hs:19)
 > +++ OK
-> 
+>
 > Main:reverse (Tutorial.hs:22)
 > +++ OK, passed 100 tests.
-> 
+>
 > Main:reverseReplay (Tutorial.hs:24)
 > +++ OK, passed 100 tests.
-> 
+>
 > * Tests:    4
 > * Passed:   4
 > * Failures: 0
 > * Errors:   0
 
 The HTF also allows the definition of black box tests. See the documentation
-of the 'Test.Framework.BlackBoxTest' module for further information.
+of the "Test.Framework.BlackBoxTest" module for further information.
 
 -}
 module Test.Framework.Tutorial where

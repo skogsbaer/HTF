@@ -114,15 +114,15 @@ transform originalFileName input =
          ParseError loc err ->
              do warn ("Parsing of " ++ originalFileName ++ " failed at line "
                       ++ show (lineNumber loc) ++ ": " ++ err)
-                return (preprocess (ModuleInfo "" [] "UNKNOWN_MODULE"))
+                preprocess (ModuleInfo "" [] "UNKNOWN_MODULE")
          ParseOK info ->
-             return (preprocess info)
+             preprocess info
     where
-      preprocess :: ModuleInfo -> String
+      preprocess :: ModuleInfo -> IO String
       preprocess info =
-          let preProcessedInput = runCpphs (cpphsOptions info)
-                                           originalFileName input
-          in preProcessedInput ++ "\n\n" ++ additionalCode info ++ "\n"
+          do preProcessedInput <- runCpphs (cpphsOptions info) originalFileName
+                                           input
+             return $ preProcessedInput ++ "\n\n" ++ additionalCode info ++ "\n"
       cpphsOptions :: ModuleInfo -> CpphsOptions
       cpphsOptions info =
           defaultCpphsOptions { defines =

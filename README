@@ -1,34 +1,30 @@
                     HTF - The Haskell Test Framework
                   ====================================
 
-Author:  Stefan Wehr <mail AT stefanwehr.de>
+Author:  Stefan Wehr <mail AT stefanwehr DOT de>
 License: LGPL
 
-The HTF lets you write HUnit tests (http://hunit.sourceforge.net/) and
-QuickCheck (http://www.cs.chalmers.se/~rjmh/QuickCheck/) properties in
-an easy and convenient way. Additionally, the HTF provides a facility
-for testing programs by running them and comparing the actual output
-with the expected output (so called "file-based tests").
+The Haskell Test Framework (HTF for short) lets you define unit tests
+(http://hunit.sourceforge.net), QuickCheck properties
+(http://www.cs.chalmers.se/~rjmh/QuickCheck/), and black box tests in an
+easy and convenient way. The HTF uses a custom preprocessor that collects
+test definitions automatically. Furthermore, the preprocessor allows the
+HTF to report failing test cases with exact file name and line number
+information.
 
-The HTF uses Template Haskell to collect all tests and properties, so
-you do not need to write boilerplate code for that
-purpose. Preprocessor macros provide you with file name and line
-number information for tests and properties that failed.
+The documentation of the Test.Framework.Tutorial module provides a
+tutorial for the HTF.
 
-Documentation is still work in progress. However, the file
-tests/TestHTF.hs is a good example for what is possible with the HTF.
-
-NOTE: If you use file-based tests, you have to compile your program
+NOTE: If you use black box tests, you have to compile your program
 with the `-threaded' option. Otherwise, your program just blocks
 indefinitely!
+
 
 Requirements:
 -------------
 
-- GHC 6.4.1  (should compile but does not work properly with GHC 6.4.0 
-              because the HUnit package in GHC 6.4.0 has a bug)
-- Cabal 1.1.3
-- cpphs 1.0 or cpp
+- GHC (tested with 6.10.4)
+- Some haskell libraries, see HTF.cabal
 
 
 Installation instructions:
