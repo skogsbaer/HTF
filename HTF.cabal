@@ -1,5 +1,5 @@
 Name:             HTF
-Version:          0.3.1
+Version:          0.3.2
 License:          LGPL
 License-File:     LICENSE
 Copyright:        (c) 2005-2010 Stefan Wehr
@@ -24,12 +24,16 @@ Description:
     The documentation of the "Test.Framework.Tutorial" module
     provides a tutorial for the HTF.
 
-Tested-With:      GHC==6.10.4
+Tested-With:      GHC==6.10.4, GHC==6.12
 Build-Type:       Simple
 Cabal-Version:    >= 1.6
 Extra-Source-Files:
   README
   TODO
+
+Source-Repository head
+  Type:           darcs
+  Location:       http://www.stefanwehr.de/darcs/HTF
 
 Executable htfpp
   Main-Is:          HTFPP.hs
