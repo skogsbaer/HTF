@@ -24,6 +24,7 @@ import Prelude hiding ( catch )
 import qualified Language.Haskell.Exts.Parser as Parser
 import qualified Language.Haskell.Exts.Syntax as Syn
 import qualified Language.Haskell.Exts.Extension as Ext
+import qualified Language.Haskell.Exts.Fixity as Fix
 
 import Test.Framework.Location
 
@@ -63,7 +64,10 @@ parse originalFileName input =
                                           , Parser.extensions =
                                               Ext.glasgowExts ++
                                               [Ext.ExplicitForall]
-                                   }
+                                          , Parser.fixities =
+                                              Fix.baseFixities ++
+                                              Fix.infixr_ 0 ["==>"]
+                                          }
       unknownLoc :: Syn.SrcLoc
       unknownLoc = Syn.SrcLoc originalFileName 0 0
       transformModule (Syn.Module _ (Syn.ModuleName moduleName) _ _ _
