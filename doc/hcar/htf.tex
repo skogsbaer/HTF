@@ -1,0 +1,33 @@
+\documentclass{scrreprt}
+\usepackage{paralist}
+\usepackage{graphicx}
+\usepackage[final]{hcar}
+
+\begin{document}
+
+\begin{hcarentry}{HTF: a test framework for Haskell}
+\report{Stefan Wehr}
+\status{beta, active development}
+\makeheader
+\label{htf}
+
+The Haskell Test Framework (\emph{HTF} for short) lets you define unit
+tests, QuickCheck properties, and black box tests in an easy and
+convenient way. The HTF uses a custom preprocessor that collects test
+definitions automatically. Furthermore, the preprocessor allows the HTF to
+report failing test cases with exact file name and line number
+information.
+
+Initially created in 2005, HTF wasn't actively developed for almost five
+years. Development resumed in 2010, adding many improvements to the code
+base.
+
+\FurtherReading
+\begin{itemize}
+\item Hackage entry: \url{http://hackage.haskell.org/package/HTF}
+\item Tutorial: \url{http://www.factisresearch.com/2010/03/htf/}
+\end{itemize}
+
+\end{hcarentry}
+
+\end{document}
