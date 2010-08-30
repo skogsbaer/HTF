@@ -1,11 +1,11 @@
--- 
+--
 -- Copyright (c) 2009   Stefan Wehr - http://www.stefanwehr.de
 --
 -- This library is free software; you can redistribute it and/or
 -- modify it under the terms of the GNU Lesser General Public
 -- License as published by the Free Software Foundation; either
 -- version 2.1 of the License, or (at your option) any later version.
--- 
+--
 -- This library is distributed in the hope that it will be useful,
 -- but WITHOUT ANY WARRANTY; without even the implied warranty of
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
@@ -55,13 +55,13 @@ assertFailureHTF s = length s `seq` HU.assertFailure s
 -- failures and errors in a string, which is later parsed using read!
 
 quickCheckTestError :: Maybe String -> Assertion
-quickCheckTestError m = assertFailureHTF (show (False, m)) 
+quickCheckTestError m = assertFailureHTF (show (False, m))
 
 quickCheckTestFail :: Maybe String -> Assertion
 quickCheckTestFail m = assertFailureHTF (show (True, m))
 
 unitTestFail :: String -> IO a
-unitTestFail s = 
+unitTestFail s =
     do assertFailureHTF s
        error "unitTestFail: UNREACHABLE"
 
@@ -110,18 +110,21 @@ instance TestableHTF Test where
 instance TestableHTF TestSuite where
     flatten = flattenTestSuite Nothing
 
+instance TestableHTF t => TestableHTF [t] where
+    flatten = concatMap flatten
+
 type Path = Maybe String
 
 flattenTest :: Path -> Test -> [FlatTest]
-flattenTest path (BaseTest sort id mloc ass) = 
+flattenTest path (BaseTest sort id mloc ass) =
     [FlatTest sort (path `concatPath` id) mloc ass]
-flattenTest path (CompoundTest ts) = 
+flattenTest path (CompoundTest ts) =
     flattenTestSuite path ts
 
 flattenTestSuite :: Path -> TestSuite -> [FlatTest]
-flattenTestSuite path (TestSuite id ts) = 
+flattenTestSuite path (TestSuite id ts) =
     concatMap (flattenTest (Just (path `concatPath` id))) ts
-flattenTestSuite path (AnonTestSuite ts) = 
+flattenTestSuite path (AnonTestSuite ts) =
     concatMap (flattenTest path) ts
 
 concatPath :: Path -> String -> String
@@ -148,7 +151,7 @@ runFlatTest (FlatTest sort id mloc ass) =
        case res of
          Nothing -> reportSuccess name
          Just (isFailure', msg') ->
-             let (isFailure, msg, doReport) = 
+             let (isFailure, msg, doReport) =
                      if sort /= QuickCheckTest
                         then (isFailure', msg', True)
                         else case readM msg' :: Maybe (Bool, Maybe String) of
@@ -161,21 +164,21 @@ runFlatTest (FlatTest sort id mloc ass) =
                                      Nothing -> (b, "", False)
                                      Just s -> (b, s, True)
              in if isFailure
-                   then do modify (\s -> s { ts_failed = 
+                   then do modify (\s -> s { ts_failed =
                                              name : (ts_failed s) })
                            when doReport $ reportFailure msg
-                   else do modify (\s -> s { ts_error = 
+                   else do modify (\s -> s { ts_error =
                                              name : (ts_error s) })
                            when doReport $ reportError msg
        liftIO $ report ""
     where
-      reportSuccess name = 
+      reportSuccess name =
           do modify (\s -> s { ts_passed = name : (ts_passed s) })
              when (sort /= QuickCheckTest) $
                   liftIO $ report "+++ OK"
-      reportFailure msg = 
+      reportFailure msg =
           reportMessage msg failurePrefix
-      reportError msg = 
+      reportError msg =
           reportMessage msg errorPrefix
       reportMessage msg prefix = liftIO $ report (prefix ++ msg)
       failurePrefix = "*** Failed! "
@@ -196,7 +199,7 @@ type Filter = FlatTest -> Bool
 
 runTestWithFilter :: TestableHTF t => Filter -> t -> IO ()
 runTestWithFilter pred t =
-    do s <- execStateT (runFlatTests (filter pred (flatten t))) 
+    do s <- execStateT (runFlatTests (filter pred (flatten t)))
                        initTestState
        let passed = length (ts_passed s)
            failed = length (ts_failed s)
@@ -207,14 +210,14 @@ runTestWithFilter pred t =
                "* Failures: " ++ show failed ++ "\n" ++
                "* Errors:   " ++ show error )
        when (failed > 0) $
-          reportDoc (text "\nFailures:" $$ renderTestNames 
+          reportDoc (text "\nFailures:" $$ renderTestNames
                                              (reverse (ts_failed s)))
        when (error > 0) $
-          reportDoc (text "\nFailures:" $$ renderTestNames 
+          reportDoc (text "\nFailures:" $$ renderTestNames
                                              (reverse (ts_error s)))
        return ()
     where
-      renderTestNames l = 
+      renderTestNames l =
           nest 2 (vcat (map (\name -> text "*" <+> text name) l))
 
 
