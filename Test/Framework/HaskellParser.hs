@@ -18,6 +18,7 @@
 module Test.Framework.HaskellParser where
 
 import Data.Maybe
+import Data.Char ( isSpace )
 import Control.Exception ( evaluate, catch, SomeException )
 import Prelude hiding ( catch )
 
@@ -52,9 +53,16 @@ parse originalFileName input =
          Parser.ParseFailed loc err -> return (ParseError (transformLoc loc) err)
          Parser.ParseOk m -> return $ ParseOK (transformModule m)
     where
+      -- fixedInput serves two purposes:
+      -- 1. add a trailing \n
+      -- 2. comment out lines starting with #
       fixedInput :: String
-      fixedInput = (input ++ "\n") {- the parser fails if the last line is a
-                                      line comment not ending with \n -}
+      fixedInput = (unlines . map fixLine . lines) input
+          where
+            fixLine s =
+                case dropWhile isSpace s of
+                  '#':_ -> "-- " ++ s
+                  _ -> s
       {- FIXME: fixities needed for all operators. Heuristic:
          all operators are considered to be any sequence
          of the symbols _:"'>!#$%&*+./<=>?@\^|-~ with at most length 8 -}

@@ -1,0 +1,3 @@
+* 0.3.4 (2010-08-30)
+** Bugfixes
+   - htfpp now accepts code subject to preprocessing with cpp

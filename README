@@ -23,13 +23,11 @@ indefinitely!
 Requirements:
 -------------
 
-- GHC (tested with 6.10.4)
+- GHC (tested with 6.10.4 and 6.12.3)
 - Some haskell libraries, see HTF.cabal
 
 
 Installation instructions:
 --------------------------
 
-runhaskell setup.hs configure
-runhaskell setup.hs build
-runhaskell setup.hs install   (probably as root)
+Execute the command `cabal install' inside the HTF root directory.
