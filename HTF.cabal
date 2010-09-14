@@ -1,5 +1,5 @@
 Name:             HTF
-Version:          0.3.5.0
+Version:          0.4.0.0
 License:          LGPL
 License-File:     LICENSE
 Copyright:        (c) 2005-2010 Stefan Wehr
@@ -37,23 +37,23 @@ Source-Repository head
 
 Executable htfpp
   Main-Is:          HTFPP.hs
-  Build-Depends:    cpphs >= 1.11,
-                    haskell-src-exts >= 1.8.2,
+  Build-Depends:    cpphs == 1.11.*,
+                    haskell-src-exts >= 1.8.2 && < 1.10,
                     base >= 4 && < 5
   Other-Modules:
     Test.Framework.Preprocessor
     Test.Framework.HaskellParser
 
 Library
-  Build-Depends:    HUnit >= 1.2,
-                    QuickCheck >= 2,
+  Build-Depends:    HUnit == 1.2.*,
+                    QuickCheck == 2.1.*,
                     base >= 4 && < 5,
-                    random,
-                    containers,
-                    process,
-                    directory,
-                    mtl,
-                    pretty
+                    random == 1.0.*,
+                    containers == 0.3.*,
+                    process == 1.0.*,
+                    directory == 1.0.*,
+                    mtl == 1.1.*,
+                    pretty == 1.0.*
   Exposed-Modules:
     Test.Framework
     Test.Framework.HUnitWrapper
