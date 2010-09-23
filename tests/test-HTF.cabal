@@ -5,10 +5,8 @@ Build-type:    Simple
 
 Executable test
   Main-is: TestHTF.hs
-  Build-depends: base, HTF
+  Build-depends: base >= 4, HTF
 
 Executable tutorial
   Main-is: Tutorial.hs
-  Build-depends: base, HTF
-
-  
+  Build-depends: base >= 4, HTF

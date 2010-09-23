@@ -1,11 +1,4 @@
-.PHONY: configure build run
-
-configure:
-	runhaskell Setup.hs configure --user
-
-build:
-	runhaskell Setup.hs build
+.PHONY: run
 
 run:
 	dist/build/test/test
-

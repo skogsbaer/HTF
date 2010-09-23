@@ -39,25 +39,35 @@ htfModule = "Test.Framework"
 testDeclName :: String
 testDeclName = "allHTFTests"
 
-assertDefines :: String -> [(String, String)]
-assertDefines prefix =
-    map (\s -> (s, "(" ++ prefix ++ s ++ "_ (" ++
-                   prefix ++ "makeLoc __FILE__ __LINE__))"))
-        ["assertBool"
-        ,"assertEqual"
-        ,"assertEqualP"
-        ,"assertEqualNoShow"
-        ,"assertSetEqual"
-        ,"assertEmpty"
-        ,"assertNotEmpty"
-        ,"assertThrows"
-        ,"assertThrowsSome"
-        ,"assertLeft"
-        ,"assertLeftNoShow"
-        ,"assertRight"
-        ,"assertRightNoShow"
-        ,"assertJust"
-        ]
+allAsserts :: [String]
+allAsserts = ["assertBool"
+             ,"assertEqual"
+             ,"assertEqualPretty"
+             ,"assertEqualNoShow"
+             ,"assertListsEqualAsSets"
+             ,"assertEmpty"
+             ,"assertNotEmpty"
+             ,"assertThrows"
+             ,"assertThrowsSome"
+             ,"assertLeft"
+             ,"assertLeftNoShow"
+             ,"assertRight"
+             ,"assertRightNoShow"
+             ,"assertJust"
+             ,"assertNothing"
+             ,"assertNothingNoShow"
+             ]
+
+assertDefines :: Bool -> String -> [(String, String)]
+assertDefines hunitBackwardsCompat prefix =
+    concatMap fun allAsserts
+    where
+      fun a =
+          if hunitBackwardsCompat
+             then [(a, expansion a "Verbose_"), (a ++ "HTF", expansion a "_")]
+             else [(a, expansion a "_"), (a ++ "Verbose", expansion a "Verbose_")]
+      expansion a suffix = "(" ++ prefix ++ a ++ suffix ++ " (" ++
+                           prefix ++ "makeLoc __FILE__ __LINE__))"
 
 warn :: String -> IO ()
 warn s =
@@ -107,8 +117,8 @@ analyse originalFileName s =
                 Just (PropDef rest loc name)
             _ -> Nothing
 
-transform :: FilePath -> String -> IO String
-transform originalFileName input =
+transform :: Bool -> FilePath -> String -> IO String
+transform hunitBackwardsCompat originalFileName input =
     do analyseResult <- analyse originalFileName input
        case analyseResult of
          ParseError loc err ->
@@ -127,7 +137,8 @@ transform originalFileName input =
       cpphsOptions info =
           defaultCpphsOptions { defines =
                                     defines defaultCpphsOptions ++
-                                            assertDefines (mi_prefix info)
+                                            assertDefines hunitBackwardsCompat
+                                                          (mi_prefix info)
                               }
       additionalCode :: ModuleInfo -> String
       additionalCode info =

@@ -1,3 +1,12 @@
+* 0.5.0.0
+  - added `--hunit' flag to htfpp. (The `--hunit' flag causes assert-like
+    macros to be expanded in a way that is backwards-compatible with the
+    corresponding functions of the HUnit library.)
+  - Some functions in Test.Framework.HUnitWrapper were renamed in a
+    non-backwards compatible way. The assert*P functions are now called
+    assert*Pretty, and the function assertSetEqual is now called
+    assertListsEqualAsSet
+
 * 0.4.0.0 (2010-09-02)
   - More specific version constraints in .cabal file
 

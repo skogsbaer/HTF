@@ -1,13 +1,13 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
--- 
+--
 -- Copyright (c) 2009   Stefan Wehr - http://www.stefanwehr.de
 --
 -- This library is free software; you can redistribute it and/or
 -- modify it under the terms of the GNU Lesser General Public
 -- License as published by the Free Software Foundation; either
 -- version 2.1 of the License, or (at your option) any later version.
--- 
+--
 -- This library is distributed in the hope that it will be useful,
 -- but WITHOUT ANY WARRANTY; without even the implied warranty of
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
@@ -28,10 +28,10 @@ import Control.Exception
 import Test.Framework.Preprocessor
 
 usage :: IO ()
-usage = 
-    hPutStrLn stderr 
+usage =
+    hPutStrLn stderr
       ("Preprocessor for the Haskell Test Framework\n\n" ++
-       "Usage: " ++ progName ++ " [FILE1 [FILE2 [FILE3]]]\n\n" ++
+       "Usage: " ++ progName ++ " [--hunit] [FILE1 [FILE2 [FILE3]]]\n\n" ++
        "* If no argument is given, input is read from stdin and\n" ++
        "  output is written to stdout.\n" ++
        "* If only FILE1 is given, input is read from this file\n" ++
@@ -40,10 +40,13 @@ usage =
        "  and output is written to FILE2.\n" ++
        "* If FILE1, FILE2, and FILE3 are given, input is read\n" ++
        "  from FILE2, output is written to FILE3, and\n" ++
-       "  FILE1 serves as the original input filename.")
+       "  FILE1 serves as the original input filename.\n\n" ++
+       "The `--hunit' flag causes assert-like macros to be expanded in a way\n" ++
+       "that is backwards-compatible with the corresponding functions of the\n" ++
+       "HUnit library.")
 
 saveOpenFile :: FilePath -> IOMode -> IO Handle
-saveOpenFile path mode = 
+saveOpenFile path mode =
     openFile path mode `catch` exHandler
     where
       exHandler :: SomeException -> IO Handle
@@ -51,17 +54,21 @@ saveOpenFile path mode =
           do hPutStrLn stderr ("Error opening file " ++ path ++ ": " ++
                                show e)
              exitWith (ExitFailure 1)
-    
-main = 
+
+main =
     do args <- getArgs
        when ("-h" `elem` args ||
              "-help" `elem` args ||
              "--help" `elem` args) $
            do usage
-              exitWith (ExitFailure 1)          
+              exitWith (ExitFailure 1)
+       let (restArgs, hunitBackwardsCompat) =
+               case reverse args of
+                 "--hunit":rrest -> (reverse rrest, True)
+                 rrest -> (reverse rrest, False)
        (origInputFilename, hIn, hOut) <-
-           case args of
-             [] -> 
+           case restArgs of
+             [] ->
                  return ("<stdin>", stdin, stdout)
              file1:[] ->
                  do h <- saveOpenFile file1 ReadMode
@@ -78,10 +85,10 @@ main =
                  do usage
                     exitWith (ExitFailure 1)
        input <- hGetContents hIn
-       output <- transform origInputFilename input `catch` 
+       output <- transform hunitBackwardsCompat origInputFilename input `catch`
                    (\ (e::SomeException) ->
-                        do hPutStrLn stderr (progName ++ 
-                                             ": unexpected exception: " ++ 
+                        do hPutStrLn stderr (progName ++
+                                             ": unexpected exception: " ++
                                              show e)
                            return ("#line 1 " ++ show origInputFilename ++
                                    "\n" ++ input))
