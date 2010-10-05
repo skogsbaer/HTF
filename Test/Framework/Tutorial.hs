@@ -48,7 +48,9 @@ When @htfpp@ consumes the source file, it replaces the @assertEqual@
 tokens (and other @assert@-like tokens, see
 "Test.Framework.HUnitWrapper") with calls to
 'assertEqual_', passing
-the current location in the file as the first argument. Moreover, the
+the current location in the file as the first argument. (Backwards-compatibility
+with the HUnit library is discussed at the end of this tutorial.)
+Moreover, the
 preprocessor collects all top-level definitions starting with @test_@
 or @prop_@ in a test suite with name allHTFTests of type 'TestSuite'.
 
@@ -78,7 +80,7 @@ Build-type:    Simple
 
 Executable tutorial
   Main-is: Tutorial.hs
-  Build-depends: base, HTF
+  Build-depends: base >= 4 && < 5, HTF == 0.5.*
 @
 
 Compiling the program just shown (you must include the code for
@@ -156,7 +158,23 @@ desired result:
 The HTF also allows the definition of black box tests. See the documentation
 of the "Test.Framework.BlackBoxTest" module for further information.
 
+/Backwards-compatibility with HUnit/
+
+The types of the various @assert@-like macros of the HTF are not backwards-compatible
+with the corresponding functions of HUnit. This incompatibility is intentional, of course:
+with HUnit, the programmer has to provide suitable location information by explicitly
+passing a string argument to the @assert@-like functions, whereas HTF provides
+location information implicitly through its pre-processor @htfpp@.
+
+To simplify transition from HUnit to HTF, @htfpp@ provides a commandline flag
+@--hunit@. This flag causes @htfpp@ to exand the assertion macros in a way compatible
+with the types of the corresponding HUnit functions. For example, with the @--hunit@
+flag being present, @assertEqual@ is exanded to
+@'assertEqualVerbose_' ('makeLoc' \"filename\" line)@, whose type
+@(Show a, Eq a) => String -> a -> a -> IO ()@ is compatible with
+the type of HUnit's 'Test.HUnit.Base.assertEqual' function.
 -}
 module Test.Framework.Tutorial where
 
 import Test.Framework
+import qualified Test.HUnit.Base
