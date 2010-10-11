@@ -1,4 +1,7 @@
-* 0.5.0.0
+* 0.5.0.1 (2010-10-11)
+  - preprocessor now parses bang patterns
+
+* 0.5.0.0 (2010-10-05)
   - added `--hunit' flag to htfpp. (The `--hunit' flag causes assert-like
     macros to be expanded in a way that is backwards-compatible with the
     corresponding functions of the HUnit library.)

@@ -71,7 +71,7 @@ parse originalFileName input =
                                               originalFileName
                                           , Parser.extensions =
                                               Ext.glasgowExts ++
-                                              [Ext.ExplicitForall]
+                                              [Ext.ExplicitForall, Ext.BangPatterns]
                                           , Parser.fixities =
                                               Fix.baseFixities ++
                                               Fix.infixr_ 0 ["==>"]
