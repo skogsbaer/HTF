@@ -81,8 +81,8 @@ testableAsAssertion t =
                             (\e -> return $ Left (show (e::SomeException)))
                     case res of
                       Left err -> quickCheckTestError (Just err)
-                      Right (Success _) -> return ()
-                      Right (Failure gen size _ _) -> 
+                      Right (Success {}) -> return ()
+                      Right (Failure { usedSize=size, usedSeed=gen }) ->
                            do putStrLn ("Replay argument: " ++
                                         (show (show (Just (gen, size)))))
                               quickCheckTestFail Nothing

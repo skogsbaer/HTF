@@ -1,5 +1,5 @@
 Name:             HTF
-Version:          0.6.0.0
+Version:          0.6.0.1
 License:          LGPL
 License-File:     LICENSE
 Copyright:        (c) 2005-2010 Stefan Wehr
@@ -46,12 +46,12 @@ Executable htfpp
 
 Library
   Build-Depends:    HUnit == 1.2.*,
-                    QuickCheck == 2.1.*,
+                    QuickCheck >= 2.1 && < 2.4,
                     base >= 4 && < 5,
                     random == 1.0.*,
-                    containers == 0.3.*,
+                    containers >= 0.3 && < 0.5,
                     process == 1.0.*,
-                    directory == 1.0.*,
+                    directory >= 1.0 && < 1.2,
                     mtl >= 1.1 && < 2.1,
                     pretty == 1.0.*
   Exposed-Modules:
