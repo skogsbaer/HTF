@@ -1,3 +1,7 @@
+* 0.6.0.1 (2010-12-05)
+  - support for GHC 7, QuickCheck 2.3, containers 0.4 and directory 1.1
+    (thanks to David Leuschner)
+
 * 0.6.0.0 (2010-11-12)
   - generalized mtl dependency to accept version 1.1* and 2.0.*.
 
