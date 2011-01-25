@@ -1,3 +1,8 @@
+* 0.7.0.0 (2011-01-25)
+  - htfpp parses extension from pragmas
+  - runTest, runTestWithArgs, runTestWithFilter return an appropriate exit
+    code
+
 * 0.6.0.1 (2010-12-05)
   - support for GHC 7, QuickCheck 2.3, containers 0.4 and directory 1.1
     (thanks to David Leuschner)

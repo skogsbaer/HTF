@@ -1,5 +1,5 @@
 Name:             HTF
-Version:          0.6.0.1
+Version:          0.7.0.0
 License:          LGPL
 License-File:     LICENSE
 Copyright:        (c) 2005-2010 Stefan Wehr
@@ -24,7 +24,7 @@ Description:
     The documentation of the "Test.Framework.Tutorial" module
     provides a tutorial for the HTF.
 
-Tested-With:      GHC==6.10.4, GHC==6.12
+Tested-With:      GHC==6.10.4, GHC==6.12, GHC==7.0
 Build-Type:       Simple
 Cabal-Version:    >= 1.6
 Extra-Source-Files:
