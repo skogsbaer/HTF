@@ -22,6 +22,7 @@ import Data.Char ( isSpace )
 import Control.Exception ( evaluate, catch, SomeException )
 import Prelude hiding ( catch )
 
+import qualified Language.Haskell.Exts as Exts
 import qualified Language.Haskell.Exts.Parser as Parser
 import qualified Language.Haskell.Exts.Syntax as Syn
 import qualified Language.Haskell.Exts.Extension as Ext
@@ -46,7 +47,7 @@ data ImportDecl = ImportDecl { imp_moduleName :: Name
 
 parse :: FilePath -> String -> IO (ParseResult Module)
 parse originalFileName input =
-    do r <- (evaluate $ Parser.parseModuleWithMode parseMode fixedInput)
+    do r <- (evaluate $ Exts.parseFileContentsWithMode parseMode fixedInput)
             `catch` (\(e::SomeException) ->
                          return $ Parser.ParseFailed unknownLoc (show e))
        case r of
@@ -67,15 +68,14 @@ parse originalFileName input =
          all operators are considered to be any sequence
          of the symbols _:"'>!#$%&*+./<=>?@\^|-~ with at most length 8 -}
       parseMode :: Parser.ParseMode
-      parseMode = Parser.defaultParseMode { Parser.parseFilename =
-                                              originalFileName
-                                          , Parser.extensions =
-                                              Ext.glasgowExts ++
-                                              [Ext.ExplicitForall, Ext.BangPatterns]
-                                          , Parser.fixities =
-                                              Fix.baseFixities ++
-                                              Fix.infixr_ 0 ["==>"]
-                                          }
+      parseMode = Parser.ParseMode { Parser.parseFilename = originalFileName
+                                   , Parser.ignoreLanguagePragmas = False
+                                   , Parser.ignoreLinePragmas = False
+                                   , Parser.extensions = Ext.glasgowExts
+                                   , Parser.fixities =
+                                       Fix.baseFixities ++
+                                       Fix.infixr_ 0 ["==>"]
+                                   }
       unknownLoc :: Syn.SrcLoc
       unknownLoc = Syn.SrcLoc originalFileName 0 0
       transformModule (Syn.Module _ (Syn.ModuleName moduleName) _ _ _
