@@ -34,6 +34,7 @@ module Test.Framework.TestManager (
 
 import Control.Monad
 import Control.Monad.State
+import System.Exit (ExitCode(..))
 import Data.List ( isInfixOf )
 import Text.PrettyPrint
 
@@ -187,17 +188,17 @@ runFlatTest (FlatTest sort id mloc ass) =
 runFlatTests :: [FlatTest] -> TR ()
 runFlatTests = mapM_ runFlatTest
 
-runTest :: TestableHTF t => t -> IO ()
+runTest :: TestableHTF t => t -> IO ExitCode
 runTest = runTestWithFilter (\_ -> True)
 
-runTestWithArgs :: TestableHTF t => [String] -> t -> IO ()
+runTestWithArgs :: TestableHTF t => [String] -> t -> IO ExitCode
 runTestWithArgs [] = runTest
 runTestWithArgs l = runTestWithFilter pred
     where pred (FlatTest _ id _ _) = any (\s -> s `isInfixOf` id) l
 
 type Filter = FlatTest -> Bool
 
-runTestWithFilter :: TestableHTF t => Filter -> t -> IO ()
+runTestWithFilter :: TestableHTF t => Filter -> t -> IO ExitCode
 runTestWithFilter pred t =
     do s <- execStateT (runFlatTests (filter pred (flatten t)))
                        initTestState
@@ -215,7 +216,10 @@ runTestWithFilter pred t =
        when (error > 0) $
           reportDoc (text "\nFailures:" $$ renderTestNames
                                              (reverse (ts_error s)))
-       return ()
+       return $ case () of
+                  _| failed == 0 && error == 0 -> ExitSuccess
+                   | error == 0                -> ExitFailure 1
+                   | otherwise                 -> ExitFailure 2
     where
       renderTestNames l =
           nest 2 (vcat (map (\name -> text "*" <+> text name) l))
