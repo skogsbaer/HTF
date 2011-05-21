@@ -1,3 +1,6 @@
+* 0.7.0.1 (2011-05-21)
+  - minor fix for the tutorial (thanks to Marnix)
+
 * 0.7.0.0 (2011-01-25)
   - htfpp parses extension from pragmas
   - runTest, runTestWithArgs, runTestWithFilter return an appropriate exit
