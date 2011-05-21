@@ -214,7 +214,7 @@ runTestWithFilter pred t =
           reportDoc (text "\nFailures:" $$ renderTestNames
                                              (reverse (ts_failed s)))
        when (error > 0) $
-          reportDoc (text "\nFailures:" $$ renderTestNames
+          reportDoc (text "\nErrors:" $$ renderTestNames
                                              (reverse (ts_error s)))
        return $ case () of
                   _| failed == 0 && error == 0 -> ExitSuccess
