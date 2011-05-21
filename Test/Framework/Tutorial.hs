@@ -66,7 +66,7 @@ takes a list of strings and the test.
 @
 main =
     do args <- getArgs
-       runTestWithArgs args reverseTests
+       runTestWithArgs args allHTFTests
 @
 
 Here is the skeleton of a @.cabal@ file which you may want to use to
