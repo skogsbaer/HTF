@@ -96,8 +96,7 @@ testableAsAssertion t =
                              then quickCheckTestPending err
                              else quickCheckTestError (Just err)
                       Right (Success { output=msg }) ->
-                          do report (adjustOutput msg)
-                             return ()
+                          quickCheckTestPass (adjustOutput msg)
                       Right (Failure { usedSize=size, usedSeed=gen, output=msg, reason=reason }) ->
                           if pendingPrefix `isPrefixOf` reason
                              then let pendingMsg = let s = drop (length pendingPrefix) reason

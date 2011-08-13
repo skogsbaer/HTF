@@ -20,9 +20,10 @@ module Test.Framework.TestManagerInternal (
 
   extractPendingMessage,
   quickCheckTestFail, quickCheckTestError, quickCheckTestPending,
+  quickCheckTestPass,
   unitTestFail, unitTestPending, blackBoxTestFail,
 
-  report
+  TestResult(..)
 
 ) where
 
@@ -30,6 +31,9 @@ import Data.List ( isPrefixOf )
 import qualified Test.HUnit.Lang as HU
 
 import Test.Framework.TestManager
+
+data TestResult = Error | Fail | Pending | Pass
+                  deriving (Show, Read, Eq)
 
 -- A pending test case is treated as a failed testcase, but the error message
 -- starts with the given prefix.
@@ -53,13 +57,16 @@ assertFailureHTF s = length s `seq` HU.assertFailure s
 -- This is a HACK: we encode a custom error message for QuickCheck
 -- failures and errors in a string, which is later parsed using read!
 quickCheckTestError :: Maybe String -> Assertion
-quickCheckTestError m = assertFailureHTF (show (False, m))
+quickCheckTestError m = assertFailureHTF (show (Error, m))
 
 quickCheckTestFail :: Maybe String -> Assertion
-quickCheckTestFail m = assertFailureHTF (show (True, m))
+quickCheckTestFail m = assertFailureHTF (show (Fail, m))
 
 quickCheckTestPending :: String -> Assertion
-quickCheckTestPending m = quickCheckTestFail (Just $ makePendingMessage m)
+quickCheckTestPending m = assertFailureHTF (show (Pending, Just m))
+
+quickCheckTestPass :: String -> Assertion
+quickCheckTestPass m = assertFailureHTF (show (Pass, Just m))
 
 unitTestFail :: String -> IO a
 unitTestFail s =
@@ -71,6 +78,3 @@ unitTestPending s = unitTestFail (makePendingMessage s)
 
 blackBoxTestFail :: String -> Assertion
 blackBoxTestFail = assertFailureHTF
-
-report :: String -> IO ()
-report = putStrLn

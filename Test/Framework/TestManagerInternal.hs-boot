@@ -1,5 +1,8 @@
 module Test.Framework.TestManagerInternal where
 
-extractPendingMessage :: String -> Maybe String
+data TestResult = Error | Fail | Pending | Pass
+instance Read TestResult
+instance Show TestResult
+instance Eq TestResult
 
-report :: String -> IO ()
+extractPendingMessage :: String -> Maybe String

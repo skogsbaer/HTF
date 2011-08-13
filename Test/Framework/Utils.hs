@@ -1,12 +1,12 @@
 {-# LANGUAGE PatternGuards #-}
--- 
+--
 -- Copyright (c) 2005   Stefan Wehr - http://www.stefanwehr.de
 --
 -- This library is free software; you can redistribute it and/or
 -- modify it under the terms of the GNU Lesser General Public
 -- License as published by the Free Software Foundation; either
 -- version 2.1 of the License, or (at your option) any later version.
--- 
+--
 -- This library is distributed in the hope that it will be useful,
 -- but WITHOUT ANY WARRANTY; without even the implied warranty of
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
@@ -20,7 +20,7 @@
 module Test.Framework.Utils where
 
 import System.Directory
-import Data.Char 
+import Data.Char
 
 infixr 6 </>
 
@@ -38,17 +38,17 @@ dirname p  =
         p' -> p'
 
 startswith :: String -> String -> Bool
-startswith s pref = 
+startswith s pref =
     let n = length pref
         in take n s == pref
 
 endswith :: String -> String -> Bool
-endswith s suf = 
+endswith s suf =
     let n = length s - length suf
         in drop n s == suf
 
 dropPrefix :: String -> String -> String
-dropPrefix s pref = 
+dropPrefix s pref =
     if startswith s pref
        then drop (length pref) s
        else s
@@ -63,11 +63,11 @@ replaceSuffix f suf = dropSuffix f ++ suf
 dropSpace :: [Char] -> [Char]
 dropSpace = let f = reverse . dropWhile isSpace in f . f
 
-data DirectoryEntryType = File | Directory | Other 
+data DirectoryEntryType = File | Directory | Other
                         deriving (Eq, Show)
 
 directoryEntryType :: FilePath -> IO DirectoryEntryType
-directoryEntryType fp = 
+directoryEntryType fp =
     do b <- doesFileExist fp
        if b then return File else do b <- doesDirectoryExist fp
                                      return $ if b then Directory else Other
@@ -76,16 +76,16 @@ collectFiles :: FilePath                -- the directory to start from
              -> String                  -- suffix of the file names to collect
              -> (FilePath -> [FilePath] -> IO Bool)
                -- predicate that determines
-               -- whether files below a certain 
+               -- whether files below a certain
                -- directory should be pruned.
                -- The first argument is the
                -- name of the directory, the
-               -- second the entries of the 
+               -- second the entries of the
                -- directory
              -> IO [FilePath]
-collectFiles root suf prune = 
+collectFiles root suf prune =
     do entries <- getDirectoryContents root
-       b <- prune root entries 
+       b <- prune root entries
        if b then return []
           else do all <- mapM (collect root) entries
                   return $ concat all
@@ -98,7 +98,7 @@ collectFiles root suf prune =
                    _ -> return []
 
 maybeFile :: FilePath -> IO (Maybe FilePath)
-maybeFile f = 
+maybeFile f =
     do b <- doesFileExist f
        return $ if b then Just f else Nothing
 
@@ -107,11 +107,11 @@ mapAccumLM :: Monad m
            => (acc -> x -> m (acc, y)) -- Function of elt of input list
                                        -- and accumulator, returning new
                                        -- accumulator and elt of result list
-          -> acc            -- Initial accumulator 
+          -> acc            -- Initial accumulator
           -> [x]            -- Input list
           -> m (acc, [y])   -- Final accumulator and result list
 mapAccumLM _ s []        = return (s, [])
-mapAccumLM f s (x:xs)    = do (s', y ) <- f s x 
+mapAccumLM f s (x:xs)    = do (s', y ) <- f s x
                               (s'',ys) <- mapAccumLM f s' xs
                               return (s'',y:ys)
 
@@ -121,3 +121,9 @@ readM s | [x] <- parse = return x
     where
       parse = [x | (x,t) <- reads s]
 
+ensureNewline :: String -> String
+ensureNewline s =
+    s ++ case dropWhile (== ' ') (reverse s) of
+           '\n':_ -> ""
+           _ | null s -> ""
+             | otherwise -> "\n"

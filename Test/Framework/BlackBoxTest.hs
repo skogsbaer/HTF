@@ -84,14 +84,16 @@ runBlackBoxTest bbt =
          ExitSuccess | bbtCfg_shouldFail bbt
            -> blackBoxTestFail ("test is supposed to fail but succeeded")
          ExitFailure i | not $ bbtCfg_shouldFail bbt
-           -> do when (bbtCfg_verbose bbt) $
-                   do hPutStrLn stderr ("stderr for " ++ show (bbtCfg_cmd bbt)
-                                        ++ ":")
-                      hPutStrLn stderr (err ++ (endOfOutput "output"))
-                      putStrLn $ "stdout for " ++ show (bbtCfg_cmd bbt) ++ ":"
-                      putStrLn (out ++ (endOfOutput "output"))
-                 blackBoxTestFail ("test is supposed to succeed but failed "
-                                   ++ "with exit code " ++ show i)
+           -> do let details =
+                         if (bbtCfg_verbose bbt)
+                            then ("stderr for " ++ show (bbtCfg_cmd bbt) ++ ":\n" ++
+                                  err ++ endOfOutput "stderr" ++ "\n" ++
+                                  "stdout for " ++ show (bbtCfg_cmd bbt) ++ ":\n" ++
+                                  out ++ endOfOutput "stdout") ++ "\n"
+                            else ""
+                 blackBoxTestFail (details ++
+                                   "test is supposed to succeed but failed " ++
+                                   "with exit code " ++ show i)
          _ -> do cmpOut <- cmp (bbtCfg_stdoutFile bbt) (bbtCfg_stdoutCmp bbt)
                              out "Mismatch on stdout:\n"
                  cmpErr <- cmp (bbtCfg_stderrFile bbt) (bbtCfg_stderrCmp bbt)
@@ -99,14 +101,8 @@ runBlackBoxTest bbt =
                  case (cmpOut, cmpErr) of
                   (Nothing, Nothing) -> return ()
                   (x1, x2) ->
-                      do when (bbtCfg_verbose bbt) $
-                              putStrLn (x1 `concatMaybes` x2)
-                         let mismatchOn =
-                                 case (cmpOut, cmpErr) of
-                                   (Just _, Just _) -> "stdout and stderr"
-                                   (Just _, Nothing) -> "stdout"
-                                   _ -> "stderr"
-                         blackBoxTestFail ("Mismatch on " ++ mismatchOn)
+                      do let details = ensureNewline (x1 `concatMaybes` x2)
+                         blackBoxTestFail details
     where cmp expectFile cmpAction real label =
               do res <- cmpAction expectFile real
                  case res of

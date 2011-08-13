@@ -1,3 +1,7 @@
+* 0.8.0.0 ?
+  - support for `--quiet' option to report failures only
+  - more uniform output
+
 * 0.7.1.0 (2011-07-08)
   - support for pending tests and quick check properties
   - support for ignoring certain tests in the argument list of

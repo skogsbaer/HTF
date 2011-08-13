@@ -30,17 +30,22 @@ module Test.Framework.TestManager (
 ) where
 
 import Control.Monad
-import Control.Monad.State
+import Control.Monad.RWS
 import System.Exit (ExitCode(..))
 import Data.List ( isInfixOf, isPrefixOf, partition )
 import Text.PrettyPrint
 import qualified Data.List as List
 
+import System.Directory (getTemporaryDirectory)
+import System.IO
+import GHC.IO.Handle
+
 import qualified Test.HUnit.Lang as HU
 
 import Test.Framework.Location ( Location, showLoc )
-import Test.Framework.Utils ( readM )
+import Test.Framework.Utils ( readM, ensureNewline )
 import {-# SOURCE #-} Test.Framework.TestManagerInternal
+import Test.Framework.TestConfig
 
 type Assertion = IO ()
 
@@ -118,53 +123,109 @@ data TestState = TestState { ts_passed  :: [String]
 initTestState :: TestState
 initTestState = TestState [] [] [] []
 
-type TR = StateT TestState IO
+type TR = RWST TestConfig () TestState IO
+
+data HandleRedirection = HandleRedirection { hr_original :: Handle
+                                           , hr_originalCopy :: Handle
+                                           , hr_newHandle :: Handle
+                                           , hr_newFilePath :: FilePath }
+
+redirectHandle :: String -> Handle -> IO HandleRedirection
+redirectHandle nameTmpl h =
+    do tmpDir <- getTemporaryDirectory
+       (path, new) <- openBinaryTempFile tmpDir nameTmpl
+       copy <- hDuplicate h
+       hDuplicateTo new h
+       return $ HandleRedirection { hr_original = h
+                                  , hr_originalCopy = copy
+                                  , hr_newHandle = new
+                                  , hr_newFilePath = path }
+
+unredirectHandle :: Bool -> HandleRedirection -> IO ()
+unredirectHandle printOutput hr =
+    do hClose (hr_newHandle hr)
+       hDuplicateTo (hr_originalCopy hr) (hr_original hr) -- restore
+       when (printOutput) $ do x <- readFile (hr_newFilePath hr)
+                               hPutStr (hr_original hr) x
 
 runFlatTest :: FlatTest -> TR ()
 runFlatTest (FlatTest sort id mloc ass) =
     do let name = id ++ case mloc of
                           Nothing -> ""
                           Just loc -> " (" ++ showLoc loc ++ ")"
-       liftIO $ report name
+       x <- atStart name
        res <- liftIO $ HU.performTestCase ass
-       case res of
-         Nothing -> reportSuccess name
-         Just (isFailure', msg') ->
-             let (isFailure, msg, doReport) =
-                     if sort /= QuickCheckTest
-                        then (isFailure', msg', True)
-                        else case readM msg' :: Maybe (Bool, Maybe String) of
-                               Nothing ->
-                                   error ("ERROR: " ++
-                                          "Cannot deserialize QuickCheck " ++
-                                          "error message " ++ show msg')
-                               Just (b, ms) ->
-                                   case ms of
-                                     Nothing -> (b, "", True)
-                                     Just s -> (b, s, True)
-             in if isFailure
-                   then case extractPendingMessage msg of
-                          Nothing -> do modify (\s -> s { ts_failed =
-                                                             name : (ts_failed s) })
-                                        when doReport $ reportFailure msg
-                          Just msg -> do modify (\s -> s { ts_pending =
-                                                             name : (ts_pending s) })
-                                         when doReport $ reportPending msg
-                   else do modify (\s -> s { ts_error =
-                                             name : (ts_error s) })
-                           when doReport $ reportError msg
-       liftIO $ report ""
+       let (testResult, msg) =
+             case res of
+               Nothing -> (Pass, "")
+               Just (isFailure, msg') ->
+                   if sort /= QuickCheckTest
+                      then if isFailure
+                              then case extractPendingMessage msg' of
+                                     Nothing -> (Fail, msg')
+                                     Just msg'' -> (Pending, msg'')
+                              else (Error, msg')
+                      else case readM msg' :: Maybe (TestResult, Maybe String) of
+                             Nothing ->
+                                 error ("ERROR: " ++
+                                        "Cannot deserialize QuickCheck " ++
+                                        "error message " ++ show msg')
+                             Just (r, ms) ->
+                                 case ms of
+                                   Nothing -> (r, "")
+                                   Just s -> (r, s)
+       afterRunning x name testResult
+       case testResult of
+         Pass -> reportSuccess name msg
+         Pending ->
+             do modify (\s -> s { ts_pending = name : (ts_pending s) })
+                reportPending msg
+         Fail ->
+             do modify (\s -> s { ts_failed = name : (ts_failed s) })
+                reportFailure msg
+         Error ->
+             do modify (\s -> s { ts_error = name : (ts_error s) })
+                reportError msg
+       atEnd testResult
     where
-      reportSuccess name =
+      testStartMessage name = "[TEST] " ++ name
+      atStart name =
+          do tc <- ask
+             if tc_quiet tc
+                then liftIO $
+                     do tmpDir <- getTemporaryDirectory
+                        stdoutRedir <- redirectHandle "HTF.out" stdout
+                        stderrRedir <- redirectHandle "HTF.err" stderr
+                        return $ Just (stdoutRedir, stderrRedir)
+                else do reportTR Debug (testStartMessage name)
+                        return Nothing
+      afterRunning x name testResult =
+          do tc <- ask
+             if tc_quiet tc
+                then case x of
+                       Just (stdoutRedir, stderrRedir) -> liftIO $
+                          do let printOutput = needsReport testResult
+                             when printOutput $ report tc Info (testStartMessage name)
+                             unredirectHandle printOutput stderrRedir
+                             unredirectHandle printOutput stdoutRedir
+                else return ()
+      atEnd testResult =
+          do tc <- ask
+             if not (tc_quiet tc) || needsReport testResult
+                then reportTR Info ""
+                else return ()
+      needsReport testResult = testResult `elem` [Fail, Error, Pending]
+      reportSuccess name msg =
           do modify (\s -> s { ts_passed = name : (ts_passed s) })
-             liftIO $ report "+++ OK"
+             reportTR Debug (ensureNewline msg ++ "+++ OK")
       reportPending msg =
-          reportMessage msg pendingPrefix
+          reportMessage Info msg pendingPrefix
       reportFailure msg =
-          reportMessage msg failurePrefix
+          reportMessage Info msg failurePrefix
       reportError msg =
-          reportMessage msg errorPrefix
-      reportMessage msg prefix = liftIO $ report (prefix ++ msg)
+          reportMessage Info msg errorPrefix
+      reportMessage isImportant msg prefix =
+          reportTR isImportant (ensureNewline msg ++ prefix)
       failurePrefix = "*** Failed! "
       errorPrefix = "@@@ Error! "
       pendingPrefix = "^^^ Pending! "
@@ -173,44 +234,57 @@ runFlatTests :: [FlatTest] -> TR ()
 runFlatTests = mapM_ runFlatTest
 
 runTest :: TestableHTF t => t -> IO ExitCode
-runTest = runTestWithFilter (\_ -> True)
+runTest = runTest' defaultTestConfig
+
+runTest' :: TestableHTF t => TestConfig -> t -> IO ExitCode
+runTest' tc = runTestWithFilter tc (\_ -> True)
 
 runTestWithArgs :: TestableHTF t => [String] -> t -> IO ExitCode
-runTestWithArgs l tests =
-    let (pos, neg') = partition (\x -> not $ "-" `isPrefixOf` x) l
-        neg = map tail neg'
-    in runTestWithFilter (pred pos neg) tests
+runTestWithArgs = runTestWithArgs' defaultTestConfig
+
+runTestWithArgs' :: TestableHTF t => TestConfig -> [String] -> t -> IO ExitCode
+runTestWithArgs' tc [] = runTest' tc
+runTestWithArgs' tc args = runTestWithFilter tc' pred
     where
-      pred pos neg (FlatTest _ id _ _) =
+      (pos, neg') = partition (\x -> not $ "-" `isPrefixOf` x) args
+      neg = map tail neg'
+      pred (FlatTest _ id _ _) =
           if (any (\s -> s `isInfixOf` id) neg)
              then False
              else null pos || any (\s -> s `isInfixOf` id) pos
+      options = ["--quiet", "--verbose"]
+      nonOptsArgs = filter (\x -> not (x `elem` options)) args
+      hasVerbose = "--verbose" `elem` args
+      hasQuiet = "--quiet" `elem` args
+      tc' = tc { tc_quiet = case () of
+                              _| hasVerbose -> False
+                               | hasQuiet -> True
+                               | otherwise -> tc_quiet tc }
 
 type Filter = FlatTest -> Bool
 
-runTestWithFilter :: TestableHTF t => Filter -> t -> IO ExitCode
-runTestWithFilter pred t =
-    do s <- execStateT (runFlatTests (filter pred (flatten t)))
-                       initTestState
+runTestWithFilter :: TestableHTF t => TestConfig -> Filter -> t -> IO ExitCode
+runTestWithFilter tc pred t =
+    do (_, s, _) <- runRWST (runFlatTests (filter pred (flatten t))) tc initTestState
        let passed = length (ts_passed s)
            pending = length (ts_pending s)
            failed = length (ts_failed s)
            error = length (ts_error s)
            total = passed + failed + error + pending
-       report ("* Tests:    " ++ show total ++ "\n" ++
-               "* Passed:   " ++ show passed ++ "\n" ++
-               "* Pending:  " ++ show pending ++ "\n" ++
-               "* Failures: " ++ show failed ++ "\n" ++
-               "* Errors:   " ++ show error )
+       report tc Info ("* Tests:    " ++ show total ++ "\n" ++
+                       "* Passed:   " ++ show passed ++ "\n" ++
+                       "* Pending:  " ++ show pending ++ "\n" ++
+                       "* Failures: " ++ show failed ++ "\n" ++
+                       "* Errors:   " ++ show error )
        when (pending > 0) $
-          reportDoc (text "\nPending:" $$ renderTestNames
-                                             (reverse (ts_pending s)))
+          reportDoc tc Info
+              (text "\nPending:" $$ renderTestNames (reverse (ts_pending s)))
        when (failed > 0) $
-          reportDoc (text "\nFailures:" $$ renderTestNames
-                                             (reverse (ts_failed s)))
+          reportDoc tc Info
+              (text "\nFailures:" $$ renderTestNames (reverse (ts_failed s)))
        when (error > 0) $
-          reportDoc (text "\nErrors:" $$ renderTestNames
-                                             (reverse (ts_error s)))
+          reportDoc tc Info
+              (text "\nErrors:" $$ renderTestNames (reverse (ts_error s)))
        return $ case () of
                   _| failed == 0 && error == 0 -> ExitSuccess
                    | error == 0                -> ExitFailure 1
@@ -219,5 +293,10 @@ runTestWithFilter pred t =
       renderTestNames l =
           nest 2 (vcat (map (\name -> text "*" <+> text name) l))
 
-reportDoc :: Doc -> IO ()
-reportDoc doc = report (render doc)
+reportDoc :: TestConfig -> ReportLevel -> Doc -> IO ()
+reportDoc tc level doc = report tc level (render doc)
+
+reportTR :: ReportLevel -> String -> TR ()
+reportTR level msg =
+    do tc <- ask
+       liftIO $ report tc level msg
