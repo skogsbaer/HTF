@@ -30,6 +30,7 @@ Cabal-Version:    >= 1.6
 Extra-Source-Files:
   README
   TODO
+  ChangeLog
 
 Source-Repository head
   Type:           darcs
