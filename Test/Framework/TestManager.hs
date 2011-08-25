@@ -25,7 +25,7 @@ module Test.Framework.TestManager (
   makeAnonTestSuite,
   addToTestSuite, testSuiteAsTest,
 
-  runTest, runTestWithArgs, runTestWithFilter
+  parseTestArgs, runTest, runTestWithArgs, runTestWithOptions
 
 ) where
 
@@ -38,6 +38,7 @@ import qualified Data.List as List
 
 import System.Directory (getTemporaryDirectory)
 import System.IO
+import System.Console.GetOpt
 import GHC.IO.Handle
 
 import qualified Test.HUnit.Lang as HU
@@ -234,64 +235,93 @@ runFlatTests :: [FlatTest] -> TR ()
 runFlatTests = mapM_ runFlatTest
 
 runTest :: TestableHTF t => t -> IO ExitCode
-runTest = runTest' defaultTestConfig
+runTest = runTestWithOptions defaultTestOptions
 
-runTest' :: TestableHTF t => TestConfig -> t -> IO ExitCode
-runTest' tc = runTestWithFilter tc (\_ -> True)
+optionDescriptions :: [OptDescr (TestOptions -> TestOptions)]
+optionDescriptions =
+    [ Option ['v']     ["verbose"] (NoArg (\o -> o { opts_quiet = False })) "chatty output"
+    , Option ['q']     ["quiet"]   (NoArg (\o -> o { opts_quiet = True })) "only display errors"
+    , Option ['h']     ["help"]    (NoArg (\o -> o { opts_help = True })) "display this message"
+    ]
 
 runTestWithArgs :: TestableHTF t => [String] -> t -> IO ExitCode
-runTestWithArgs = runTestWithArgs' defaultTestConfig
+runTestWithArgs args t =
+    case parseTestArgs args of
+      Left err ->
+          do hPutStrLn stderr err
+             return $ ExitFailure 1
+      Right opts ->
+          runTestWithOptions opts t
 
-runTestWithArgs' :: TestableHTF t => TestConfig -> [String] -> t -> IO ExitCode
-runTestWithArgs' tc [] = runTest' tc
-runTestWithArgs' tc args = runTestWithFilter tc' pred
-    where
-      (pos, neg') = partition (\x -> not $ "-" `isPrefixOf` x) args
-      neg = map tail neg'
-      pred (FlatTest _ id _ _) =
-          if (any (\s -> s `isInfixOf` id) neg)
-             then False
-             else null pos || any (\s -> s `isInfixOf` id) pos
-      options = ["--quiet", "--verbose"]
-      nonOptsArgs = filter (\x -> not (x `elem` options)) args
-      hasVerbose = "--verbose" `elem` args
-      hasQuiet = "--quiet" `elem` args
-      tc' = tc { tc_quiet = case () of
-                              _| hasVerbose -> False
-                               | hasQuiet -> True
-                               | otherwise -> tc_quiet tc }
+parseTestArgs :: [String] -> Either String TestOptions
+parseTestArgs args =
+    case getOpt Permute optionDescriptions args of
+      (optTrans, tests, []  ) ->
+          let (pos, neg') = partition (\x -> not $ "-" `isPrefixOf` x) tests
+              neg = map tail neg'
+              pred (FlatTest _ id _ _) =
+                  if (any (\s -> s `isInfixOf` id) neg)
+                     then False
+                     else null pos || any (\s -> s `isInfixOf` id) pos
+              opts = (foldr ($) defaultTestOptions optTrans) { opts_filter = pred }
+          in Right opts
+      (_,_,errs) ->
+          Left (concat errs ++ usageInfo usageHeader optionDescriptions)
+
+usageHeader :: String
+usageHeader = "USAGE: COMMAND [OPTION ...] TEST_NAME ...\n"
 
 type Filter = FlatTest -> Bool
 
-runTestWithFilter :: TestableHTF t => TestConfig -> Filter -> t -> IO ExitCode
-runTestWithFilter tc pred t =
-    do (_, s, _) <- runRWST (runFlatTests (filter pred (flatten t))) tc initTestState
-       let passed = length (ts_passed s)
-           pending = length (ts_pending s)
-           failed = length (ts_failed s)
-           error = length (ts_error s)
-           total = passed + failed + error + pending
-       report tc Info ("* Tests:    " ++ show total ++ "\n" ++
-                       "* Passed:   " ++ show passed ++ "\n" ++
-                       "* Pending:  " ++ show pending ++ "\n" ++
-                       "* Failures: " ++ show failed ++ "\n" ++
-                       "* Errors:   " ++ show error )
-       when (pending > 0) $
-          reportDoc tc Info
-              (text "\nPending:" $$ renderTestNames (reverse (ts_pending s)))
-       when (failed > 0) $
-          reportDoc tc Info
-              (text "\nFailures:" $$ renderTestNames (reverse (ts_failed s)))
-       when (error > 0) $
-          reportDoc tc Info
-              (text "\nErrors:" $$ renderTestNames (reverse (ts_error s)))
-       return $ case () of
-                  _| failed == 0 && error == 0 -> ExitSuccess
-                   | error == 0                -> ExitFailure 1
-                   | otherwise                 -> ExitFailure 2
+data TestOptions = TestOptions {
+      opts_quiet :: Bool
+    , opts_filter :: Filter
+    , opts_help :: Bool
+    }
+
+defaultTestOptions = TestOptions {
+      opts_quiet = tc_quiet defaultTestConfig
+    , opts_filter = const True
+    , opts_help = False
+    }
+
+runTestWithOptions :: TestableHTF t => TestOptions -> t -> IO ExitCode
+runTestWithOptions opts t =
+    if opts_help opts
+       then do hPutStrLn stderr (usageInfo usageHeader optionDescriptions)
+               return $ ExitFailure 1
+       else
+         do let pred = opts_filter opts
+                tc = optsToConfig opts
+            (_, s, _) <- runRWST (runFlatTests (filter pred (flatten t))) tc initTestState
+            let passed = length (ts_passed s)
+                pending = length (ts_pending s)
+                failed = length (ts_failed s)
+                error = length (ts_error s)
+                total = passed + failed + error + pending
+            report tc Info ("* Tests:    " ++ show total ++ "\n" ++
+                            "* Passed:   " ++ show passed ++ "\n" ++
+                            "* Pending:  " ++ show pending ++ "\n" ++
+                            "* Failures: " ++ show failed ++ "\n" ++
+                            "* Errors:   " ++ show error )
+            when (pending > 0) $
+               reportDoc tc Info
+                   (text "\nPending:" $$ renderTestNames (reverse (ts_pending s)))
+            when (failed > 0) $
+               reportDoc tc Info
+                   (text "\nFailures:" $$ renderTestNames (reverse (ts_failed s)))
+            when (error > 0) $
+               reportDoc tc Info
+                   (text "\nErrors:" $$ renderTestNames (reverse (ts_error s)))
+            return $ case () of
+                       _| failed == 0 && error == 0 -> ExitSuccess
+                        | error == 0                -> ExitFailure 1
+                        | otherwise                 -> ExitFailure 2
     where
       renderTestNames l =
           nest 2 (vcat (map (\name -> text "*" <+> text name) l))
+      optsToConfig opts =
+          TestConfig { tc_quiet = opts_quiet opts }
 
 reportDoc :: TestConfig -> ReportLevel -> Doc -> IO ()
 reportDoc tc level doc = report tc level (render doc)
