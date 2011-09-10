@@ -102,8 +102,8 @@ testableAsAssertion t =
                              then let pendingMsg = let s = drop (length pendingPrefix) reason
                                                    in take (length s - length pendingSuffix) s
                                   in quickCheckTestPending pendingMsg
-                          else do let replay = "Replay argument: " ++ (show (show (Just (gen, size))))
-                                  quickCheckTestFail (Just (adjustOutput msg ++ "\n" ++ replay))
+                             else do let replay = "Replay argument: " ++ (show (show (Just (gen, size))))
+                                     quickCheckTestFail (Just (adjustOutput msg ++ "\n" ++ replay))
                       Right (GaveUp { output=msg }) ->
                           quickCheckTestFail (Just (adjustOutput msg))
                       Right (NoExpectedFailure { output=msg }) ->

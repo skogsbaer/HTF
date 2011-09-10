@@ -70,6 +70,8 @@ import Test.Framework.TestManager
 import Test.Framework.TestManagerInternal
 import Test.Framework.Location
 import Test.Framework.Utils
+import Test.Framework.Diff
+import Test.Framework.Colors
 import Test.Framework.Pretty
 
 -- WARNING: do not forget to add a preprocessor macro for new assertions!!
@@ -119,26 +121,32 @@ CreateAssertions(assertBool, Bool)
 --
 -- Equality Assertions
 --
+
+equalityFailedMessage :: String -> String -> IO String
+equalityFailedMessage exp act =
+    do d <- diffWithSensibleConfig exp act
+       expected_ <- colorize firstDiffColor "expected:"
+       but_got_ <- colorize secondDiffColor "but got:"
+       return ("\n " ++ expected_ ++ " " ++ exp ++
+               "\n " ++ but_got_ ++ "  " ++ act ++
+               "\n diff:\n" ++ d)
+
 _assertEqual_ :: (Eq a, Show a)
                  => String -> Location -> String -> a -> a -> HU.Assertion
 _assertEqual_ name loc s expected actual =
     if expected /= actual
-       then assertFailure (mkMsg name s msg)
+       then do x <- equalityFailedMessage (show expected) (show actual)
+               assertFailure (mkMsg name s $ "failed at " ++ showLoc loc ++ x)
        else return ()
-    where msg = "failed at " ++ showLoc loc ++
-                "\n expected: " ++ show expected ++
-                "\n but got:  " ++ show actual
 CreateAssertionsCtx(assertEqual, (Eq a, Show a), a -> a)
 
 _assertEqualPretty_ :: (Eq a, Pretty a)
                        => String -> Location -> String -> a -> a -> HU.Assertion
 _assertEqualPretty_ name loc s expected actual =
     if expected /= actual
-       then assertFailure (mkMsg name s msg)
+       then do x <- equalityFailedMessage (showPretty expected) (showPretty actual)
+               assertFailure (mkMsg name s $ "failed at " ++ showLoc loc ++ x)
        else return ()
-    where msg = "assertEqual failed at " ++ showLoc loc ++
-                "\n expected:\n" ++ showPretty expected ++
-                "\n but got:\n" ++ showPretty actual
 CreateAssertionsCtx(assertEqualPretty, (Eq a, Pretty a), a -> a)
 
 _assertEqualNoShow_ :: Eq a
@@ -165,10 +173,9 @@ _assertListsEqualAsSets_ name loc s expected actual =
                                  ++ "\n expected length: " ++ show ne
                                  ++ "\n actual length: " ++ show na))
              | not (unorderedEq expected actual) ->
-                 assertFailure (mkMsg "assertSetEqual" s
-                                ("failed at " ++ showLoc loc
-                                 ++ "\n expected: " ++ show expected
-                                 ++ "\n actual: " ++ show actual))
+                 do x <- equalityFailedMessage (show expected) (show actual)
+                    assertFailure (mkMsg "assertSetEqual" s
+                                   ("failed at " ++ showLoc loc ++ x))
              | otherwise -> return ()
     where unorderedEq l1 l2 =
               null (l1 \\ l2) && null (l2 \\ l1)

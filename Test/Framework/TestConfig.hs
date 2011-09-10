@@ -17,10 +17,20 @@
 --
 
 module Test.Framework.TestConfig (
-  TestConfig(..), defaultTestConfig, ReportLevel(..), report
+
+    TestConfig(..), defaultTestConfig, ReportLevel(..), report
+  , useColors
+
 ) where
 
+import Data.Char (toLower)
 import Control.Monad (unless)
+import System.IO
+
+import System.Posix.Terminal
+import System.Posix.IO (stdOutput)
+import System.Posix.Types (Fd)
+import System.Posix.Env (getEnv)
 
 data TestConfig = TestConfig { tc_quiet :: Bool }
                 deriving (Read,Show,Eq)
@@ -31,6 +41,23 @@ defaultTestConfig = TestConfig { tc_quiet = False }
 data ReportLevel = Debug | Info
                  deriving (Eq,Ord)
 
+reportHandle :: Handle
+reportHandle = stdout -- keep in sync with reportFd!
+
+reportFd :: Fd
+reportFd = stdOutput -- keep in sync with reportHandle!
+
 report :: TestConfig -> ReportLevel -> String -> IO ()
 report tc level msg =
-    unless (tc_quiet tc && level < Info) $ putStrLn msg
+    unless (tc_quiet tc && level < Info) $ hPutStrLn reportHandle msg
+
+useColors :: IO Bool
+useColors =
+    do mterm <- getEnv "TERM"
+       case mterm of
+         Nothing -> return False
+         Just s | map toLower s == "dump" -> return False
+         _ -> do mx <- getEnv "HTF_NO_COLORS"
+                 case mx of
+                   Just s | map toLower s `elem` ["", "1", "y", "yes", "true"] -> return False
+                   _ -> queryTerminal reportFd

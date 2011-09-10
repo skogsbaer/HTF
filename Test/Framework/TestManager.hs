@@ -1,5 +1,5 @@
 --
--- Copyright (c) 2009   Stefan Wehr - http://www.stefanwehr.de
+-- Copyright (c) 2009-2011   Stefan Wehr - http://www.stefanwehr.de
 --
 -- This library is free software; you can redistribute it and/or
 -- modify it under the terms of the GNU Lesser General Public
@@ -47,6 +47,7 @@ import Test.Framework.Location ( Location, showLoc )
 import Test.Framework.Utils ( readM, ensureNewline )
 import {-# SOURCE #-} Test.Framework.TestManagerInternal
 import Test.Framework.TestConfig
+import Test.Framework.Colors
 
 type Assertion = IO ()
 
@@ -189,7 +190,9 @@ runFlatTest (FlatTest sort id mloc ass) =
                 reportError msg
        atEnd testResult
     where
-      testStartMessage name = "[TEST] " ++ name
+      testStartMessage name =
+          do t <- colorize testStartColor "[TEST] "
+             return $ t ++ name
       atStart name =
           do tc <- ask
              if tc_quiet tc
@@ -198,7 +201,8 @@ runFlatTest (FlatTest sort id mloc ass) =
                         stdoutRedir <- redirectHandle "HTF.out" stdout
                         stderrRedir <- redirectHandle "HTF.err" stderr
                         return $ Just (stdoutRedir, stderrRedir)
-                else do reportTR Debug (testStartMessage name)
+                else do msg <- liftIO $ testStartMessage name
+                        reportTR Debug msg
                         return Nothing
       afterRunning x name testResult =
           do tc <- ask
@@ -206,7 +210,9 @@ runFlatTest (FlatTest sort id mloc ass) =
                 then case x of
                        Just (stdoutRedir, stderrRedir) -> liftIO $
                           do let printOutput = needsReport testResult
-                             when printOutput $ report tc Info (testStartMessage name)
+                             when printOutput $
+                                  do msg <- testStartMessage name
+                                     report tc Info msg
                              unredirectHandle printOutput stderrRedir
                              unredirectHandle printOutput stdoutRedir
                 else return ()
@@ -218,18 +224,23 @@ runFlatTest (FlatTest sort id mloc ass) =
       needsReport testResult = testResult `elem` [Fail, Error, Pending]
       reportSuccess name msg =
           do modify (\s -> s { ts_passed = name : (ts_passed s) })
-             reportTR Debug (ensureNewline msg ++ "+++ OK")
+             pref <- okPrefix
+             reportTR Debug (ensureNewline msg ++ pref)
       reportPending msg =
-          reportMessage Info msg pendingPrefix
+          do pref <- pendingPrefix
+             reportMessage Info msg  pref
       reportFailure msg =
-          reportMessage Info msg failurePrefix
+          do pref <- failurePrefix
+             reportMessage Info msg pref
       reportError msg =
-          reportMessage Info msg errorPrefix
+          do pref <- errorPrefix
+             reportMessage Info msg pref
       reportMessage isImportant msg prefix =
           reportTR isImportant (ensureNewline msg ++ prefix)
-      failurePrefix = "*** Failed! "
-      errorPrefix = "@@@ Error! "
-      pendingPrefix = "^^^ Pending! "
+      failurePrefix = liftIO $ colorize warningColor "*** Failed! "
+      errorPrefix = liftIO $ colorize warningColor "@@@ Error! "
+      pendingPrefix = liftIO $ colorize pendingColor "^^^ Pending! "
+      okPrefix = liftIO $ colorize testOkColor  "+++ OK"
 
 runFlatTests :: [FlatTest] -> TR ()
 runFlatTests = mapM_ runFlatTest
@@ -299,20 +310,23 @@ runTestWithOptions opts t =
                 failed = length (ts_failed s)
                 error = length (ts_error s)
                 total = passed + failed + error + pending
+            pendings <- colorize pendingColor "* Pending:"
+            failures <- colorize warningColor "* Failures:"
+            errors <- colorize warningColor "* Errors:"
             report tc Info ("* Tests:    " ++ show total ++ "\n" ++
                             "* Passed:   " ++ show passed ++ "\n" ++
-                            "* Pending:  " ++ show pending ++ "\n" ++
-                            "* Failures: " ++ show failed ++ "\n" ++
-                            "* Errors:   " ++ show error )
+                            pendings ++ "  " ++ show pending ++ "\n" ++
+                            failures ++ " " ++ show failed ++ "\n" ++
+                            errors ++ "   " ++ show error )
             when (pending > 0) $
                reportDoc tc Info
-                   (text "\nPending:" $$ renderTestNames (reverse (ts_pending s)))
+                   (text ('\n' : pendings) $$ renderTestNames (reverse (ts_pending s)))
             when (failed > 0) $
                reportDoc tc Info
-                   (text "\nFailures:" $$ renderTestNames (reverse (ts_failed s)))
+                   (text ('\n' : failures) $$ renderTestNames (reverse (ts_failed s)))
             when (error > 0) $
                reportDoc tc Info
-                   (text "\nErrors:" $$ renderTestNames (reverse (ts_error s)))
+                   (text ('\n' : errors) $$ renderTestNames (reverse (ts_error s)))
             return $ case () of
                        _| failed == 0 && error == 0 -> ExitSuccess
                         | error == 0                -> ExitFailure 1

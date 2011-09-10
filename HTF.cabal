@@ -54,7 +54,9 @@ Library
                     process == 1.0.*,
                     directory >= 1.0 && < 1.2,
                     mtl >= 1.1 && < 2.1,
-                    pretty == 1.0.*
+                    pretty == 1.0.*,
+                    Diff >= 0.1.3 && < 0.2,
+                    unix == 2.4.*
   Exposed-Modules:
     Test.Framework
     Test.Framework.HUnitWrapper
@@ -68,4 +70,6 @@ Library
   Other-Modules:
     Test.Framework.TestManagerInternal
     Test.Framework.Utils
+    Test.Framework.Colors
+    Test.Framework.Diff
     Test.Framework.Process
