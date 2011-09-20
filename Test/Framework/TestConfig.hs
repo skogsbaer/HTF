@@ -49,7 +49,8 @@ reportFd = stdOutput -- keep in sync with reportHandle!
 
 report :: TestConfig -> ReportLevel -> String -> IO ()
 report tc level msg =
-    unless (tc_quiet tc && level < Info) $ hPutStrLn reportHandle msg
+    unless (tc_quiet tc && level < Info) $ do hPutStrLn reportHandle msg
+                                              hFlush reportHandle
 
 useColors :: IO Bool
 useColors =

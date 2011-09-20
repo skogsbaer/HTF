@@ -36,10 +36,11 @@ import Data.List ( isInfixOf, isPrefixOf, partition )
 import Text.PrettyPrint
 import qualified Data.List as List
 
-import System.Directory (getTemporaryDirectory)
+import System.Directory (getTemporaryDirectory, removeFile)
 import System.IO
 import System.Console.GetOpt
 import GHC.IO.Handle
+import qualified Data.ByteString.Lazy as BSL
 
 import qualified Test.HUnit.Lang as HU
 
@@ -143,12 +144,17 @@ redirectHandle nameTmpl h =
                                   , hr_newHandle = new
                                   , hr_newFilePath = path }
 
-unredirectHandle :: Bool -> HandleRedirection -> IO ()
-unredirectHandle printOutput hr =
+unredirectHandle :: HandleRedirection -> IO ()
+unredirectHandle hr =
     do hClose (hr_newHandle hr)
        hDuplicateTo (hr_originalCopy hr) (hr_original hr) -- restore
-       when (printOutput) $ do x <- readFile (hr_newFilePath hr)
-                               hPutStr (hr_original hr) x
+
+cleanupRedirection :: Bool -> HandleRedirection -> IO ()
+cleanupRedirection printOutput hr =
+    do when (printOutput) $ do x <- BSL.readFile (hr_newFilePath hr)
+                               BSL.hPut (hr_original hr) x
+                               hFlush (hr_original hr)
+       removeFile (hr_newFilePath hr)
 
 runFlatTest :: FlatTest -> TR ()
 runFlatTest (FlatTest sort id mloc ass) =
@@ -197,8 +203,7 @@ runFlatTest (FlatTest sort id mloc ass) =
           do tc <- ask
              if tc_quiet tc
                 then liftIO $
-                     do tmpDir <- getTemporaryDirectory
-                        stdoutRedir <- redirectHandle "HTF.out" stdout
+                     do stdoutRedir <- redirectHandle "HTF.out" stdout
                         stderrRedir <- redirectHandle "HTF.err" stderr
                         return $ Just (stdoutRedir, stderrRedir)
                 else do msg <- liftIO $ testStartMessage name
@@ -209,12 +214,14 @@ runFlatTest (FlatTest sort id mloc ass) =
              if tc_quiet tc
                 then case x of
                        Just (stdoutRedir, stderrRedir) -> liftIO $
-                          do let printOutput = needsReport testResult
+                          do unredirectHandle stderrRedir
+                             unredirectHandle stdoutRedir
+                             let printOutput = needsReport testResult
                              when printOutput $
                                   do msg <- testStartMessage name
                                      report tc Info msg
-                             unredirectHandle printOutput stderrRedir
-                             unredirectHandle printOutput stdoutRedir
+                             cleanupRedirection printOutput stderrRedir
+                             cleanupRedirection printOutput stdoutRedir
                 else return ()
       atEnd testResult =
           do tc <- ask
