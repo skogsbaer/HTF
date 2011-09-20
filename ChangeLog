@@ -1,6 +1,11 @@
 * 0.8.0.0 ?
   - support for `--quiet' option to report failures only
+  - color support
+  - diff support: if an equality assertions fails, HTF shows a diff of
+    the expected and the given value
   - more uniform output
+  - tests to execute are now given by a regular expression,
+    tests to ignored are prefixed with `--not'
 
 * 0.7.1.0 (2011-07-08)
   - support for pending tests and quick check properties
