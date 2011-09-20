@@ -35,12 +35,14 @@ import System.Exit (ExitCode(..))
 import Data.List ( isInfixOf, isPrefixOf, partition )
 import Text.PrettyPrint
 import qualified Data.List as List
+import Data.Maybe (isJust)
 
 import System.Directory (getTemporaryDirectory, removeFile)
 import System.IO
 import System.Console.GetOpt
 import GHC.IO.Handle
 import qualified Data.ByteString.Lazy as BSL
+import qualified Text.Regex as R
 
 import qualified Test.HUnit.Lang as HU
 
@@ -259,6 +261,8 @@ optionDescriptions :: [OptDescr (TestOptions -> TestOptions)]
 optionDescriptions =
     [ Option ['v']     ["verbose"] (NoArg (\o -> o { opts_quiet = False })) "chatty output"
     , Option ['q']     ["quiet"]   (NoArg (\o -> o { opts_quiet = True })) "only display errors"
+    , Option ['n']     ["not"]     (ReqArg (\s o -> o { opts_negated = s : (opts_negated o) })
+                                           "TEST_PATTERN") "tests to exclude"
     , Option ['h']     ["help"]    (NoArg (\o -> o { opts_help = True })) "display this message"
     ]
 
@@ -275,19 +279,25 @@ parseTestArgs :: [String] -> Either String TestOptions
 parseTestArgs args =
     case getOpt Permute optionDescriptions args of
       (optTrans, tests, []  ) ->
-          let (pos, neg') = partition (\x -> not $ "-" `isPrefixOf` x) tests
-              neg = map tail neg'
+          let posStrs = tests
+              negStrs = opts_negated opts
+              pos = map mkRegex posStrs
+              neg = map mkRegex negStrs
               pred (FlatTest _ id _ _) =
-                  if (any (\s -> s `isInfixOf` id) neg)
+                  if (any (\s -> s `matches` id) neg)
                      then False
-                     else null pos || any (\s -> s `isInfixOf` id) pos
+                     else null pos || any (\s -> s `matches` id) pos
               opts = (foldr ($) defaultTestOptions optTrans) { opts_filter = pred }
           in Right opts
       (_,_,errs) ->
           Left (concat errs ++ usageInfo usageHeader optionDescriptions)
+    where
+      matches r s = isJust $ R.matchRegex r s
+      mkRegex s = R.mkRegexWithOpts s True False
 
 usageHeader :: String
-usageHeader = "USAGE: COMMAND [OPTION ...] TEST_NAME ...\n"
+usageHeader = ("USAGE: COMMAND [OPTION ...] TEST_PATTERN ...\n\n" ++
+               "       where TEST_PATTERN is a posix regular expression.\n")
 
 type Filter = FlatTest -> Bool
 
@@ -295,12 +305,14 @@ data TestOptions = TestOptions {
       opts_quiet :: Bool
     , opts_filter :: Filter
     , opts_help :: Bool
+    , opts_negated :: [String]
     }
 
 defaultTestOptions = TestOptions {
       opts_quiet = tc_quiet defaultTestConfig
     , opts_filter = const True
     , opts_help = False
+    , opts_negated = []
     }
 
 runTestWithOptions :: TestableHTF t => TestOptions -> t -> IO ExitCode
