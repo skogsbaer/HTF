@@ -59,6 +59,21 @@ test_someError = error "Bart Simpson!!"
 
 test_pendingTest = unitTestPending "This test is pending"
 
+data Expr = PlusExpr Expr Expr
+          | MultExpr Expr Expr
+          | Literal Int
+          | Variable String
+            deriving (Eq, Show)
+
+test_diff = assertEqual (mkExpr 1) (mkExpr 2)
+    where
+      mkExpr i =
+          PlusExpr (PlusExpr (MultExpr (PlusExpr (Variable "foo")
+                                                     (MultExpr (Literal 42) (Variable "bar")))
+                                       (PlusExpr (Literal i) (Literal 2)))
+                             (Literal 581))
+                   (Variable "egg")
+
 prop_ok :: [Int] -> Property
 prop_ok xs = classify (null xs) "trivial" $ xs == (reverse (reverse xs))
 

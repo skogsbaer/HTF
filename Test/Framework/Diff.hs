@@ -66,8 +66,8 @@ noColorsDiffConfig f s = DiffConfig {
     , dc_fromSecondSuffix = ""
     , dc_fromBothPrefix = "C "
     , dc_fromBothSuffix = ""
-    , dc_skipPrefix = "<"
-    , dc_skipSuffix = ">"
+    , dc_skipPrefix = "<..."
+    , dc_skipSuffix = "...>"
     , dc_sep = "\n"
     }
 
@@ -79,8 +79,8 @@ coloredDiffConfig c1 c2 c3 = DiffConfig {
     , dc_fromSecondSuffix = reset
     , dc_fromBothPrefix = ""
     , dc_fromBothSuffix = ""
-    , dc_skipPrefix = startColor c3
-    , dc_skipSuffix = reset
+    , dc_skipPrefix = startColor c3 ++ "..."
+    , dc_skipSuffix = "..." ++ reset
     , dc_sep = ""
     }
 
