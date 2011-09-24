@@ -1,0 +1,43 @@
+<html>
+<head>
+  <title>HTF Blogposts</title>
+  </head>
+  <body>
+    <p>
+      I've just uploaded version 0.8.0.1 of <a href="http://hackage.haskell.org/package/HTF">HTF</a>
+      to hackage. HTF (Haskell Test Framework) allows you to define unit
+      tests (<a href="http://hunit.sourceforge.net">http://hunit.sourceforge.net</a>),
+      QuickCheck properties (<a href="http://www.cs.chalmers.se/~rjmh/QuickCheck/">http://www.cs.chalmers.se/~rjmh/QuickCheck/</a>),
+      and black box tests in an easy and convenient way.
+      We use HTF at work all the time, where it has proven to be quite valuable for organizing our test suite.
+      An <a href="http://factisresearch.blogspot.com/2010/03/htf-test-framework-for-haskell.html">earlier blog post</a>
+      describes HTF in more detail.
+    </p>
+    <p>
+      The new version comes with some cool new features:
+      <ul>
+        <li>
+          Support for diffs. If an equality assertions fails, you now get a proper diff of the two values
+          invovled. Here's an example:
+    <pre>
+<b>[TEST]</b> Main:diff (TestHTF.hs:68)
+assertEqual failed at TestHTF.hs:68
+ <font color="Magenta">expected:</font> PlusExpr (PlusExpr (MultExpr (PlusExpr (Variable "foo") (MultExpr (Literal 42) (Variable "bar"))) (PlusExpr (Literal 1) (Literal 2))) (Literal 581)) (Variable "egg")
+ <font color="Blue">but got:</font>  PlusExpr (PlusExpr (MultExpr (PlusExpr (Variable "foo") (MultExpr (Literal 42) (Variable "bar"))) (PlusExpr (Literal 2) (Literal 2))) (Literal 581)) (Variable "egg")
+ diff:
+<font color="Grey">...skipped 107 chars...</font> (Literal <font color="Blue">2</font><font color="Magenta">1</font>) (Literal<font color="Grey">...skipped 37 chars...</font>
+<font color="Red">*** Failed!</font>
+    </pre>
+        </li>
+        <li>As you can see from the example above, HTF now supports colored output.</li>
+        <li>
+          There's a new commandline option <tt>--quiet</tt> which causes HTF to produce
+          output only if absolutely necessary (e.g. for failed test cases).
+        </li>
+      </ul>
+    </p>
+    <p>
+      Just get HTF from <a href="http://hackage.haskell.org/package/HTF">hackage</a>, it now also works with GHC 7.2.1!
+    </p>
+  </body>
+</html>
