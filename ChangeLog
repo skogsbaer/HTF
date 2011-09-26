@@ -1,6 +1,7 @@
 * 0.8.1.0 (2011-09-?)
   - improved multi-line diff with pretty-printing
   - bugfixes
+  - build support for GHC 7.2.1
 
 * 0.8.0.0 (2011-09-20)
   - support for `--quiet' option to report failures only
