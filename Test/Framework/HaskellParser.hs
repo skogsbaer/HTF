@@ -73,8 +73,8 @@ parse originalFileName input =
                                    , Parser.ignoreLinePragmas = False
                                    , Parser.extensions = Ext.glasgowExts
                                    , Parser.fixities =
-                                       Fix.baseFixities ++
-                                       Fix.infixr_ 0 ["==>"]
+                                       Just (Fix.baseFixities ++
+                                             Fix.infixr_ 0 ["==>"])
                                    }
       unknownLoc :: Syn.SrcLoc
       unknownLoc = Syn.SrcLoc originalFileName 0 0
