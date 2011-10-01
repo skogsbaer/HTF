@@ -20,7 +20,7 @@ module Test.Framework.Colors (
 
     Color(..), PrimColor(..), startColor, withColor, colorize
   , reset
-  , firstDiffColor, secondDiffColor, skipDiffColor
+  , firstDiffColor, secondDiffColor, skipDiffColor, diffColor
   , warningColor, testStartColor, testOkColor, pendingColor
 
 ) where
@@ -32,6 +32,7 @@ import Test.Framework.TestConfig
 firstDiffColor = Color Magenta False
 secondDiffColor = Color Blue False
 skipDiffColor = Color DarkGray False
+diffColor = Color Brown False
 warningColor = Color Red True
 testStartColor = Color NoColor True
 testOkColor = Color Green False

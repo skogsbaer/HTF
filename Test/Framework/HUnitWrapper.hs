@@ -65,6 +65,8 @@ import Data.List ( (\\) )
 import Control.Exception
 import Control.Monad
 import qualified Test.HUnit as HU hiding ( assertFailure )
+import qualified Language.Haskell.Exts.Parser as HE
+import qualified Language.Haskell.Exts.Pretty as HE
 
 import Test.Framework.TestManager
 import Test.Framework.TestManagerInternal
@@ -124,12 +126,36 @@ CreateAssertions(assertBool, Bool)
 
 equalityFailedMessage :: String -> String -> IO String
 equalityFailedMessage exp act =
-    do d <- diffWithSensibleConfig exp act
-       expected_ <- colorize firstDiffColor "expected:"
-       but_got_ <- colorize secondDiffColor "but got:"
-       return ("\n " ++ expected_ ++ " " ++ exp ++
-               "\n " ++ but_got_ ++ "  " ++ act ++
-               "\n diff:\n" ++ d)
+    do d <- diffWithSensibleConfig expP actP
+       expected_ <- colorize firstDiffColor "* expected:"
+       but_got_ <- colorize secondDiffColor "* but got:"
+       diff_ <- colorize diffColor "* diff:"
+       return ("\n" ++ expected_ ++ " " ++ withNewline expP ++
+               "\n" ++ but_got_ ++ "  " ++ withNewline actP ++
+               "\n" ++ diff_ ++ "     " ++ withNewline d ++
+               (if stringEq
+                   then "\nWARNING: strings are equal but actual values differ!"
+                   else ""))
+    where
+      withNewline s =
+          case lines s of
+            [] -> s
+            [_] -> s
+            _ -> '\n':s
+      (expP, actP, stringEq) =
+          case (pp exp, pp act) of
+            (Nothing, _) -> (exp, act, exp == act)
+            (_, Nothing) -> (exp, act, exp == act)
+            (Just expP, Just actP)
+                | expP == actP ->
+                    if exp /= act
+                       then (exp, act, exp == act)
+                       else (expP, actP, True)
+                | otherwise -> (expP, actP, False)
+      pp s =
+          case HE.parseExp s of
+            HE.ParseOk x -> Just $ HE.prettyPrint x
+            HE.ParseFailed{} -> Nothing
 
 _assertEqual_ :: (Eq a, Show a)
                  => String -> Location -> String -> a -> a -> HU.Assertion
