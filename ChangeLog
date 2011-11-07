@@ -1,4 +1,7 @@
-* 0.8.1.0 (2011-09-?)
+* 0.8.1.0 (2011-11-07)
+  - fixed build dependencies to include process 1.1.*
+
+* 0.8.1.0 (2011-10-01)
   - multi-line diff with pretty-printing
   - bugfixes
   - build support for GHC 7.2.1

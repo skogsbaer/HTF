@@ -1,5 +1,5 @@
 Name:             HTF
-Version:          0.8.1.0
+Version:          0.8.1.1
 License:          LGPL
 License-File:     LICENSE
 Copyright:        (c) 2005-2011 Stefan Wehr
@@ -51,7 +51,7 @@ Library
                     base == 4.*,
                     random == 1.0.*,
                     containers >= 0.3 && < 0.5,
-                    process == 1.0.*,
+                    process >= 1.0 && < 1.2,
                     directory >= 1.0 && < 1.2,
                     mtl >= 1.1 && < 2.1,
                     pretty >= 1.0 && < 1.2,
