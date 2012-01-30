@@ -1,3 +1,11 @@
+* 0.8.2.0 (2012-01-30)
+  - Assertions can be run via runTest
+  - Support for assertNotEqual
+  - Bugfixes
+
+* 0.8.1.1 (2011-11-07)
+  - Bugfixes
+
 * 0.8.1.0 (2011-11-07)
   - fixed build dependencies to include process 1.1.*
 
