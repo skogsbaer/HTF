@@ -182,7 +182,8 @@ runFlatTest (FlatTest sort id mloc ass) =
                              Nothing ->
                                  error ("ERROR: " ++
                                         "Cannot deserialize QuickCheck " ++
-                                        "error message " ++ show msg')
+                                        "error message.\n[BEGIN]\n" ++
+                                        show msg' ++ "\n[END]\n")
                              Just (r, ms) ->
                                  case ms of
                                    Nothing -> (r, "")
