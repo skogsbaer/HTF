@@ -37,6 +37,9 @@ module Test.Framework.HUnitWrapper (
   assertEqual_, assertEqualVerbose_,
   assertEqualPretty_, assertEqualPrettyVerbose_,
   assertEqualNoShow_, assertEqualNoShowVerbose_,
+  assertNotEqual_, assertNotEqualVerbose_,
+  assertNotEqualPretty_, assertNotEqualPrettyVerbose_,
+  assertNotEqualNoShow_, assertNotEqualNoShowVerbose_,
 
   -- * Assertions on lists
   assertListsEqualAsSets_, assertListsEqualAsSetsVerbose_,
@@ -157,6 +160,15 @@ equalityFailedMessage exp act =
             HE.ParseOk x -> Just $ HE.prettyPrint x
             HE.ParseFailed{} -> Nothing
 
+notEqualityFailedMessage :: String -> IO String
+notEqualityFailedMessage exp =
+    do return (": Objects are equal\n" ++ pp exp)
+    where
+      pp s =
+          case HE.parseExp s of
+            HE.ParseOk x -> HE.prettyPrint x
+            HE.ParseFailed{} -> s
+
 _assertEqual_ :: (Eq a, Show a)
                  => String -> Location -> String -> a -> a -> HU.Assertion
 _assertEqual_ name loc s expected actual =
@@ -165,6 +177,15 @@ _assertEqual_ name loc s expected actual =
                assertFailure (mkMsg name s $ "failed at " ++ showLoc loc ++ x)
        else return ()
 CreateAssertionsCtx(assertEqual, (Eq a, Show a), a -> a)
+
+_assertNotEqual_ :: (Eq a, Show a)
+                 => String -> Location -> String -> a -> a -> HU.Assertion
+_assertNotEqual_ name loc s expected actual =
+    if expected == actual
+       then do x <- notEqualityFailedMessage (show expected)
+               assertFailure (mkMsg name s $ "failed at " ++ showLoc loc ++ x)
+       else return ()
+CreateAssertionsCtx(assertNotEqual, (Eq a, Show a), a -> a)
 
 _assertEqualPretty_ :: (Eq a, Pretty a)
                        => String -> Location -> String -> a -> a -> HU.Assertion
@@ -175,6 +196,15 @@ _assertEqualPretty_ name loc s expected actual =
        else return ()
 CreateAssertionsCtx(assertEqualPretty, (Eq a, Pretty a), a -> a)
 
+_assertNotEqualPretty_ :: (Eq a, Pretty a)
+                       => String -> Location -> String -> a -> a -> HU.Assertion
+_assertNotEqualPretty_ name loc s expected actual =
+    if expected == actual
+       then do x <- notEqualityFailedMessage (showPretty expected)
+               assertFailure (mkMsg name s $ "failed at " ++ showLoc loc ++ x)
+       else return ()
+CreateAssertionsCtx(assertNotEqualPretty, (Eq a, Pretty a), a -> a)
+
 _assertEqualNoShow_ :: Eq a
                     => String -> Location -> String -> a -> a -> HU.Assertion
 _assertEqualNoShow_ name loc s expected actual =
@@ -182,6 +212,14 @@ _assertEqualNoShow_ name loc s expected actual =
        then assertFailure (mkMsg name s ("failed at " ++ showLoc loc))
        else return ()
 CreateAssertionsCtx(assertEqualNoShow, Eq a, a -> a)
+
+_assertNotEqualNoShow_ :: Eq a
+                    => String -> Location -> String -> a -> a -> HU.Assertion
+_assertNotEqualNoShow_ name loc s expected actual =
+    if expected == actual
+       then assertFailure (mkMsg name s ("failed at " ++ showLoc loc))
+       else return ()
+CreateAssertionsCtx(assertNotEqualNoShow, Eq a, a -> a)
 
 --
 -- Assertions on Lists
