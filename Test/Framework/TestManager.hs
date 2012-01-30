@@ -46,7 +46,7 @@ import qualified Text.Regex as R
 
 import qualified Test.HUnit.Lang as HU
 
-import Test.Framework.Location ( Location, showLoc )
+import Test.Framework.Location
 import Test.Framework.Utils ( readM, ensureNewline )
 import {-# SOURCE #-} Test.Framework.TestManagerInternal
 import Test.Framework.TestConfig
@@ -100,6 +100,9 @@ instance TestableHTF TestSuite where
 
 instance TestableHTF t => TestableHTF [t] where
     flatten = concatMap flatten
+
+instance TestableHTF (IO a) where
+    flatten action = flatten (makeUnitTest "unnamed test" unknownLocation action)
 
 type Path = Maybe String
 
