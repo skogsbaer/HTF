@@ -71,7 +71,9 @@ parse originalFileName input =
       parseMode = Parser.ParseMode { Parser.parseFilename = originalFileName
                                    , Parser.ignoreLanguagePragmas = False
                                    , Parser.ignoreLinePragmas = False
-                                   , Parser.extensions = Ext.glasgowExts
+                                   , Parser.extensions =
+                                       Ext.glasgowExts ++
+                                       [Ext.BangPatterns, Ext.TemplateHaskell]
                                    , Parser.fixities =
                                        Just (Fix.baseFixities ++
                                              Fix.infixr_ 0 ["==>"])
