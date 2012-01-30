@@ -85,7 +85,8 @@ testableAsAssertion t =
                             (Just ("Cannot evaluate custom arguments: "
                                    ++ err))
              Right args ->
-                 do res <- do x <- t `seq` quickCheckWithResult args t
+                 do res <- do t' <- evaluate t
+                              x <- quickCheckWithResult args t'
                               return (Right x)
                           `catches`
                            [Handler $ \(QCPendingException msg) -> return $ Left (True, msg)
