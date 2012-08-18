@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables,CPP #-}
 
 --
 -- Copyright (c) 2009   Stefan Wehr - http://www.stefanwehr.de
@@ -18,7 +18,9 @@
 -- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
 --
 
+#if !MIN_VERSION_base(4,6,0)
 import Prelude hiding ( catch )
+#endif
 import System.IO
 import System.Environment
 import System.Exit

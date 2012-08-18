@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables,CPP #-}
 
 -- This library is free software; you can redistribute it and/or
 -- modify it under the terms of the GNU Lesser General Public
@@ -20,7 +20,9 @@ module Test.Framework.HaskellParser where
 import Data.Maybe
 import Data.Char ( isSpace )
 import Control.Exception ( evaluate, catch, SomeException )
+#if !MIN_VERSION_base(4,6,0)
 import Prelude hiding ( catch )
+#endif
 
 import qualified Language.Haskell.Exts as Exts
 import qualified Language.Haskell.Exts.Parser as Parser

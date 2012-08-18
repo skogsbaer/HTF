@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleInstances,OverlappingInstances,ExistentialQuantification,
-             DeriveDataTypeable,ScopedTypeVariables #-}
+             DeriveDataTypeable,ScopedTypeVariables,CPP #-}
 
 --
 -- Copyright (c) 2005,2009-2011 Stefan Wehr - http://www.stefanwehr.de
@@ -32,7 +32,9 @@ module Test.Framework.QuickCheckWrapper (
 
 import qualified Data.Map as Map
 import Control.Concurrent.MVar
+#if !MIN_VERSION_base(4,6,0)
 import Prelude hiding ( catch )
+#endif
 import Control.Exception ( SomeException, Exception, Handler(..),
                            throw, catch, catches, evaluate )
 import System.IO

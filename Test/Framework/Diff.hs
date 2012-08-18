@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 --
 -- Copyright (c) 2011   Stefan Wehr - http://www.stefanwehr.de
 --
@@ -24,7 +25,9 @@ module Test.Framework.Diff (
 
 ) where
 
+#if !MIN_VERSION_base(4,6,0)
 import Prelude hiding (catch)
+#endif
 
 import Control.Exception (catch, finally, IOException)
 import qualified Data.List as List

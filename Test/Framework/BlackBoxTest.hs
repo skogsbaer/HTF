@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 --
 -- Copyright (c) 2005,2009   Stefan Wehr - http://www.stefanwehr.de
 --
@@ -34,7 +35,9 @@ module Test.Framework.BlackBoxTest (
 
 ) where
 
+#if !MIN_VERSION_base(4,6,0)
 import Prelude hiding ( catch )
+#endif
 
 import System.IO
 import System.Exit
