@@ -57,11 +57,16 @@ test_assertThrows' = assertThrows (error "ERROR") (handleExc False)
 
 test_someError = error "Bart Simpson!!"
 
+test_pendingTest = unitTestPending "This test is pending"
+
 prop_ok :: [Int] -> Property
 prop_ok xs = classify (null xs) "trivial" $ xs == (reverse (reverse xs))
 
 prop_fail :: [Int] -> Bool
 prop_fail xs = xs == (reverse xs)
+
+prop_pendingProp :: Int -> Bool
+prop_pendingProp x = qcPending "This property is pending" (x == 0)
 
 prop_exhaust = False ==> True
 

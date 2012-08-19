@@ -21,9 +21,6 @@ module Test.Framework.TestManager (
   TestID, Assertion, Test, TestSuite, Filter, FlatTest(..), TestSort(..),
   TestableHTF,
 
-  quickCheckTestFail, quickCheckTestError,
-  unitTestFail, blackBoxTestFail,
-
   makeQuickCheckTest, makeUnitTest, makeBlackBoxTest, makeTestSuite,
   makeAnonTestSuite,
   addToTestSuite, testSuiteAsTest,
@@ -35,39 +32,19 @@ module Test.Framework.TestManager (
 import Control.Monad
 import Control.Monad.State
 import System.Exit (ExitCode(..))
-import Data.List ( isInfixOf )
+import Data.List ( isInfixOf, isPrefixOf, partition )
 import Text.PrettyPrint
+import qualified Data.List as List
 
 import qualified Test.HUnit.Lang as HU
 
 import Test.Framework.Location ( Location, showLoc )
 import Test.Framework.Utils ( readM )
+import {-# SOURCE #-} Test.Framework.TestManagerInternal
 
 type Assertion = IO ()
 
 type TestID = String
-
-assertFailureHTF :: String -> Assertion
--- Important: force the string argument, otherwise an error embedded
--- lazily inside the string might escape.
-assertFailureHTF s = length s `seq` HU.assertFailure s
-
--- This is a HACK: we encode a custom error message for QuickCheck
--- failures and errors in a string, which is later parsed using read!
-
-quickCheckTestError :: Maybe String -> Assertion
-quickCheckTestError m = assertFailureHTF (show (False, m))
-
-quickCheckTestFail :: Maybe String -> Assertion
-quickCheckTestFail m = assertFailureHTF (show (True, m))
-
-unitTestFail :: String -> IO a
-unitTestFail s =
-    do assertFailureHTF s
-       error "unitTestFail: UNREACHABLE"
-
-blackBoxTestFail :: String -> Assertion
-blackBoxTestFail = assertFailureHTF
 
 makeQuickCheckTest :: TestID -> Location -> Assertion -> Test
 makeQuickCheckTest id loc ass = BaseTest QuickCheckTest id (Just loc) ass
@@ -133,12 +110,13 @@ concatPath Nothing s = s
 concatPath (Just s1) s2 = s1 ++ pathSep ++ s2
     where pathSep = ":"
 
-data TestState = TestState { ts_passed :: [String]
-                           , ts_failed :: [String]
-                           , ts_error  :: [String] }
+data TestState = TestState { ts_passed  :: [String]
+                           , ts_failed  :: [String]
+                           , ts_error   :: [String]
+                           , ts_pending :: [String] }
 
 initTestState :: TestState
-initTestState = TestState [] [] []
+initTestState = TestState [] [] [] []
 
 type TR = StateT TestState IO
 
@@ -162,12 +140,16 @@ runFlatTest (FlatTest sort id mloc ass) =
                                           "error message " ++ show msg')
                                Just (b, ms) ->
                                    case ms of
-                                     Nothing -> (b, "", False)
+                                     Nothing -> (b, "", True)
                                      Just s -> (b, s, True)
              in if isFailure
-                   then do modify (\s -> s { ts_failed =
-                                             name : (ts_failed s) })
-                           when doReport $ reportFailure msg
+                   then case extractPendingMessage msg of
+                          Nothing -> do modify (\s -> s { ts_failed =
+                                                             name : (ts_failed s) })
+                                        when doReport $ reportFailure msg
+                          Just msg -> do modify (\s -> s { ts_pending =
+                                                             name : (ts_pending s) })
+                                         when doReport $ reportPending msg
                    else do modify (\s -> s { ts_error =
                                              name : (ts_error s) })
                            when doReport $ reportError msg
@@ -175,8 +157,9 @@ runFlatTest (FlatTest sort id mloc ass) =
     where
       reportSuccess name =
           do modify (\s -> s { ts_passed = name : (ts_passed s) })
-             when (sort /= QuickCheckTest) $
-                  liftIO $ report "+++ OK"
+             liftIO $ report "+++ OK"
+      reportPending msg =
+          reportMessage msg pendingPrefix
       reportFailure msg =
           reportMessage msg failurePrefix
       reportError msg =
@@ -184,6 +167,7 @@ runFlatTest (FlatTest sort id mloc ass) =
       reportMessage msg prefix = liftIO $ report (prefix ++ msg)
       failurePrefix = "*** Failed! "
       errorPrefix = "@@@ Error! "
+      pendingPrefix = "^^^ Pending! "
 
 runFlatTests :: [FlatTest] -> TR ()
 runFlatTests = mapM_ runFlatTest
@@ -192,9 +176,15 @@ runTest :: TestableHTF t => t -> IO ExitCode
 runTest = runTestWithFilter (\_ -> True)
 
 runTestWithArgs :: TestableHTF t => [String] -> t -> IO ExitCode
-runTestWithArgs [] = runTest
-runTestWithArgs l = runTestWithFilter pred
-    where pred (FlatTest _ id _ _) = any (\s -> s `isInfixOf` id) l
+runTestWithArgs l tests =
+    let (pos, neg') = partition (\x -> not $ "-" `isPrefixOf` x) l
+        neg = map tail neg'
+    in runTestWithFilter (pred pos neg) tests
+    where
+      pred pos neg (FlatTest _ id _ _) =
+          if (any (\s -> s `isInfixOf` id) neg)
+             then False
+             else null pos || any (\s -> s `isInfixOf` id) pos
 
 type Filter = FlatTest -> Bool
 
@@ -203,13 +193,18 @@ runTestWithFilter pred t =
     do s <- execStateT (runFlatTests (filter pred (flatten t)))
                        initTestState
        let passed = length (ts_passed s)
+           pending = length (ts_pending s)
            failed = length (ts_failed s)
            error = length (ts_error s)
-           total = passed + failed + error
+           total = passed + failed + error + pending
        report ("* Tests:    " ++ show total ++ "\n" ++
                "* Passed:   " ++ show passed ++ "\n" ++
+               "* Pending:  " ++ show pending ++ "\n" ++
                "* Failures: " ++ show failed ++ "\n" ++
                "* Errors:   " ++ show error )
+       when (pending > 0) $
+          reportDoc (text "\nPending:" $$ renderTestNames
+                                             (reverse (ts_pending s)))
        when (failed > 0) $
           reportDoc (text "\nFailures:" $$ renderTestNames
                                              (reverse (ts_failed s)))
@@ -223,10 +218,6 @@ runTestWithFilter pred t =
     where
       renderTestNames l =
           nest 2 (vcat (map (\name -> text "*" <+> text name) l))
-
-
-report :: String -> IO ()
-report = putStrLn
 
 reportDoc :: Doc -> IO ()
 reportDoc doc = report (render doc)

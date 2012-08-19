@@ -1,5 +1,5 @@
 Name:             HTF
-Version:          0.7.0.1
+Version:          0.7.1.0
 License:          LGPL
 License-File:     LICENSE
 Copyright:        (c) 2005-2011 Stefan Wehr
@@ -46,7 +46,7 @@ Executable htfpp
 
 Library
   Build-Depends:    HUnit == 1.2.*,
-                    QuickCheck >= 2.1 && < 2.4,
+                    QuickCheck >= 2.3 && < 2.4,
                     base >= 4 && < 5,
                     random == 1.0.*,
                     containers >= 0.3 && < 0.5,
@@ -64,5 +64,6 @@ Library
     Test.Framework.Tutorial
     Test.Framework.Pretty
   Other-Modules:
+    Test.Framework.TestManagerInternal
     Test.Framework.Utils
     Test.Framework.Process

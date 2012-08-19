@@ -1,11 +1,11 @@
--- 
+--
 -- Copyright (c) 2005,2009   Stefan Wehr - http://www.stefanwehr.de
 --
 -- This library is free software; you can redistribute it and/or
 -- modify it under the terms of the GNU Lesser General Public
 -- License as published by the Free Software Foundation; either
 -- version 2.1 of the License, or (at your option) any later version.
--- 
+--
 -- This library is distributed in the hope that it will be useful,
 -- but WITHOUT ANY WARRANTY; without even the implied warranty of
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
@@ -24,9 +24,9 @@ file, the HTF checks that the driver program exits with the
 correct exit code and that it produces the expected output.
 
 -}
-module Test.Framework.BlackBoxTest ( 
-  
-  BBTArgs(..), defaultBBTArgs, 
+module Test.Framework.BlackBoxTest (
+
+  BBTArgs(..), defaultBBTArgs,
 
   blackBoxTests,
 
@@ -39,22 +39,23 @@ import Prelude hiding ( catch )
 import System.IO
 import System.Exit
 import Control.Exception
-import System.Directory 
+import System.Directory
 import Data.List ( mapAccumL )
 import qualified Data.Map as Map
 import Control.Monad
 
 import Test.Framework.Process
 import Test.Framework.TestManager
+import Test.Framework.TestManagerInternal
 import Test.Framework.Utils
 
-{- | 
+{- |
 The type of a function comparing the content of a file
 against a string, similar to the unix tool @diff@.
-The first parameter is the name of the file containing the 
+The first parameter is the name of the file containing the
 expected output. If this parameter is 'Nothing', then no output
 is expected. The second parameter is the actual output produced.
-If the result is 'Nothing' then no difference was found. 
+If the result is 'Nothing' then no difference was found.
 Otherwise, a 'Just' value contains a string explaining the
 different.
 -}
@@ -73,18 +74,18 @@ data BlackBoxTestCfg = BlackBoxTestCfg
                        }
 
 runBlackBoxTest :: BlackBoxTestCfg -> Assertion
-runBlackBoxTest bbt = 
+runBlackBoxTest bbt =
     do inp <- case bbtCfg_stdinFile bbt of
                 Nothing -> return Nothing
                 Just f -> do s <- readFile f
                              return $ Just s
        (out,err,exit) <- popenShell (bbtCfg_cmd bbt) inp
        case exit of
-         ExitSuccess | bbtCfg_shouldFail bbt 
+         ExitSuccess | bbtCfg_shouldFail bbt
            -> blackBoxTestFail ("test is supposed to fail but succeeded")
          ExitFailure i | not $ bbtCfg_shouldFail bbt
            -> do when (bbtCfg_verbose bbt) $
-                   do hPutStrLn stderr ("stderr for " ++ show (bbtCfg_cmd bbt) 
+                   do hPutStrLn stderr ("stderr for " ++ show (bbtCfg_cmd bbt)
                                         ++ ":")
                       hPutStrLn stderr (err ++ (endOfOutput "output"))
                       putStrLn $ "stdout for " ++ show (bbtCfg_cmd bbt) ++ ":"
@@ -97,16 +98,16 @@ runBlackBoxTest bbt =
                              err "Mismatch on stderr:\n"
                  case (cmpOut, cmpErr) of
                   (Nothing, Nothing) -> return ()
-                  (x1, x2) -> 
-                      do when (bbtCfg_verbose bbt) $ 
+                  (x1, x2) ->
+                      do when (bbtCfg_verbose bbt) $
                               putStrLn (x1 `concatMaybes` x2)
-                         let mismatchOn = 
+                         let mismatchOn =
                                  case (cmpOut, cmpErr) of
                                    (Just _, Just _) -> "stdout and stderr"
                                    (Just _, Nothing) -> "stdout"
                                    _ -> "stderr"
                          blackBoxTestFail ("Mismatch on " ++ mismatchOn)
-    where cmp expectFile cmpAction real label = 
+    where cmp expectFile cmpAction real label =
               do res <- cmpAction expectFile real
                  case res of
                    Nothing -> return Nothing
@@ -137,7 +138,7 @@ defaultBBTArgs = BBTArgs { bbtArgs_stdinSuffix    = ".in"
                          , bbtArgs_verbose        = False }
 
 defaultDiff :: Diff
-defaultDiff expectFile real = 
+defaultDiff expectFile real =
     do mexe <- findExecutable "diff"
        let exe = case mexe of
                    Just p -> p
@@ -148,7 +149,7 @@ defaultDiff expectFile real =
                                                "given:\n" ++ real ++
                                                (endOfOutput "given output"))
          Just expect ->
-             do (out, err, exitCode) <- popen exe ["-u", expect, "-"] 
+             do (out, err, exitCode) <- popen exe ["-u", expect, "-"]
                                           (Just real)
                 case exitCode of
                   ExitSuccess -> return Nothing       -- no difference
@@ -162,26 +163,26 @@ blackBoxTests :: FilePath  -- root directory of the test hierarchy
               -> String    -- filename suffix for input file
               -> BBTArgs   -- configuration
               -> IO [Test]
-blackBoxTests root exe suf cfg =     
+blackBoxTests root exe suf cfg =
     do let prune root _ = do dynCfg <- readDynCfg Map.empty
-                                                  (root </> 
+                                                  (root </>
                                                    bbtArgs_dynArgsName cfg)
                              return $ dyn_skip dynCfg
        inputFiles <- collectFiles root suf prune
        (_, tests) <- mapAccumLM genTest Map.empty inputFiles
        return tests
-    where genTest :: DynamicConfigMap -> FilePath -> IO (DynamicConfigMap, 
+    where genTest :: DynamicConfigMap -> FilePath -> IO (DynamicConfigMap,
                                                          Test)
           genTest map fname =
-            do stdinf <- maybeFile $ replaceSuffix fname 
+            do stdinf <- maybeFile $ replaceSuffix fname
                                        (bbtArgs_stdinSuffix cfg)
-               stdoutf <- maybeFile $  replaceSuffix fname 
+               stdoutf <- maybeFile $  replaceSuffix fname
                                          (bbtArgs_stdoutSuffix cfg)
-               stderrf <- maybeFile $ replaceSuffix fname 
+               stderrf <- maybeFile $ replaceSuffix fname
                                         (bbtArgs_stderrSuffix cfg)
                let configFile = dirname fname </> bbtArgs_dynArgsName cfg
                dynCfg <- readDynCfg map configFile
-               let cmd = exe ++ " " ++ dropSpace (dyn_flags dynCfg) ++ " " ++ 
+               let cmd = exe ++ " " ++ dropSpace (dyn_flags dynCfg) ++ " " ++
                          fname
                    shouldFail = dyn_shouldFail dynCfg
                    verbose = bbtArgs_verbose cfg || dyn_verbose dynCfg
@@ -211,15 +212,15 @@ defaultDynCfg = DynamicConfig { dyn_skip       = False
                               , dyn_verbose    = False }
 
 readDynCfg :: DynamicConfigMap -> FilePath -> IO DynamicConfig
-readDynCfg m f = 
+readDynCfg m f =
     do case Map.lookup f m of
          Just dynCfg -> return dynCfg
          Nothing ->
              do b <- doesFileExist f
                 if not b then return $ defaultDynCfg
                    else do s <- readFile f
-                           return $ foldl (parse f) defaultDynCfg $ 
-                                 filter (not . isUseless) (map dropSpace 
+                           return $ foldl (parse f) defaultDynCfg $
+                                 filter (not . isUseless) (map dropSpace
                                                                (lines s))
     where isUseless :: String -> Bool
           isUseless []      = True
@@ -232,4 +233,3 @@ readDynCfg m f =
           parse _ cfg ('F':'l':'a':'g':'s':':':flags) = cfg { dyn_flags = flags }
           parse f _ l = error ("invalid line in dynamic configuration file `" ++
                                f ++ "': " ++ show l)
-    

@@ -1,3 +1,9 @@
+* 0.7.1.0 (2011-07-08)
+  - support for pending tests and quick check properties
+  - support for ignoring certain tests in the argument list of
+    Test.Framework.TestManager.runTestWithArgs (simply prefix the
+    test names with a '-')
+
 * 0.7.0.1 (2011-05-21)
   - minor fix for the tutorial (thanks to Marnix)
 

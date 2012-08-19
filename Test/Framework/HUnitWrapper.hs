@@ -28,7 +28,7 @@ the "Location" parameter automatically.
 module Test.Framework.HUnitWrapper (
 
   -- * General failure
-  assertFailure,
+  assertFailure, unitTestPending, unitTestPending',
 
   -- * Assertions on Bool values
   assertBool_, assertBoolVerbose_,
@@ -67,6 +67,7 @@ import Control.Monad
 import qualified Test.HUnit as HU hiding ( assertFailure )
 
 import Test.Framework.TestManager
+import Test.Framework.TestManagerInternal
 import Test.Framework.Location
 import Test.Framework.Utils
 import Test.Framework.Pretty
@@ -75,6 +76,9 @@ import Test.Framework.Pretty
 
 assertFailure :: String -> IO a
 assertFailure s = unitTestFail s
+
+unitTestPending' :: String -> IO a -> IO a
+unitTestPending' msg _ = unitTestPending msg
 
 mkMsg :: String -> String -> String -> String
 mkMsg fun extraInfo s =
