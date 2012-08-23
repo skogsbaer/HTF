@@ -127,3 +127,6 @@ ensureNewline s =
            '\n':_ -> ""
            _ | null s -> ""
              | otherwise -> "\n"
+
+strip :: String -> String
+strip = reverse . dropWhile isSpace . reverse . dropWhile isSpace

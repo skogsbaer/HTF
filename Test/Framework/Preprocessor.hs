@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 --
--- Copyright (c) 2009   Stefan Wehr - http://www.stefanwehr.de
+-- Copyright (c) 2009-2012 Stefan Wehr - http://www.stefanwehr.de
 --
 -- This library is free software; you can redistribute it and/or
 -- modify it under the terms of the GNU Lesser General Public
@@ -20,8 +20,9 @@
 
 module Test.Framework.Preprocessor ( transform, progName ) where
 
+import Data.Char ( toLower )
 import Data.Maybe ( mapMaybe )
-import Data.List ( intercalate )
+import qualified Data.List as List
 import System.IO ( hPutStrLn, stderr )
 import Language.Preprocessor.Cpphs ( runCpphs,
                                      CpphsOptions(..),
@@ -36,8 +37,30 @@ progName = "htfpp"
 htfModule :: String
 htfModule = "Test.Framework"
 
-testDeclName :: String
-testDeclName = "allHTFTests"
+mkName varName fullModuleName =
+    "htf_" ++
+    map (\c -> if c == '.' then '_' else c)
+        (fullModuleName ++ "." ++
+         (case varName of
+            'h':'t':'f':'_':s -> s
+            s -> s))
+
+thisModulesTestsFullName :: String -> String
+thisModulesTestsFullName = mkName thisModulesTestsName
+
+importedTestListFullName :: String -> String
+importedTestListFullName = mkName importedTestListName
+
+thisModulesTestsName :: String
+thisModulesTestsName = "htf_thisModulesTests"
+
+importedTestListName :: String
+importedTestListName = "htf_importedTests"
+
+nameDefines :: ModuleInfo -> [(String, String)]
+nameDefines info =
+    [(thisModulesTestsName, thisModulesTestsFullName (mi_moduleName info)),
+     (importedTestListName, importedTestListFullName (mi_moduleName info))]
 
 allAsserts :: [String]
 allAsserts = ["assertBool"
@@ -76,32 +99,36 @@ warn :: String -> IO ()
 warn s =
     hPutStrLn stderr $ progName ++ " warning: " ++ s
 
-data ModuleInfo = ModuleInfo { mi_prefix     :: String
+data ModuleInfo = ModuleInfo { mi_htfPrefix  :: String
+                             , mi_htfImports :: [ImportDecl]
                              , mi_defs       :: [Definition]
                              , mi_moduleName :: String }
 
 data Definition = TestDef String Location String
                 | PropDef String Location String
 
+data ImportOrPragma = IsImport ImportDecl | IsPragma Pragma
+
 analyse :: FilePath -> String
         -> IO (ParseResult ModuleInfo)
-analyse originalFileName s =
-    do parseResult <- parse originalFileName s
+analyse originalFileName inputString =
+    do parseResult <- parse originalFileName inputString
        case parseResult of
-         ParseOK (Module moduleName imports decls) ->
+         ParseOK (Module moduleName imports decls pragmas) ->
              do -- putStrLn $ show decls
                 let defs = mapMaybe defFromDecl decls
+                    htfImports = findHtfImports imports pragmas
                 htfPrefix <-
                   case mapMaybe prefixFromImport imports of
                     (s:_) -> return s
                     [] -> do warn ("No import found for " ++ htfModule ++
                                    " in " ++ originalFileName)
                              return (htfModule ++ ".")
-                return $ ParseOK (ModuleInfo htfPrefix defs moduleName)
+                return $ ParseOK (ModuleInfo htfPrefix htfImports defs moduleName)
          ParseError loc err -> return (ParseError loc err)
     where
       prefixFromImport :: ImportDecl -> Maybe String
-      prefixFromImport (ImportDecl s qualified alias)
+      prefixFromImport (ImportDecl s qualified alias _)
           | s == htfModule =
               if qualified
                   then case alias of
@@ -119,6 +146,20 @@ analyse originalFileName s =
             ('p':'r':'o':'p':'_':rest) | not (null rest) ->
                 Just (PropDef rest loc name)
             _ -> Nothing
+      findHtfImports allImports allPragmas =
+          let importPragmas = filter (\p -> pr_name p == "HTF_TESTS") allPragmas
+              importsAndPragmas = List.sortBy cmpByLine (map IsImport allImports ++
+                                                         map IsPragma importPragmas)
+              loop (IsImport imp : IsPragma prag : rest) =
+                  if lineNumber (imp_loc imp) == lineNumber (pr_loc prag)
+                     then imp : loop rest
+                     else loop rest
+              loop (_ : rest) = loop rest
+              loop [] = []
+          in loop importsAndPragmas
+      cmpByLine x y = getLine x `compare` getLine y
+      getLine (IsImport imp) = (lineNumber (imp_loc imp))
+      getLine (IsPragma prag) = (lineNumber (pr_loc prag))
 
 transform :: Bool -> FilePath -> String -> IO String
 transform hunitBackwardsCompat originalFileName input =
@@ -127,7 +168,7 @@ transform hunitBackwardsCompat originalFileName input =
          ParseError loc err ->
              do warn ("Parsing of " ++ originalFileName ++ " failed at line "
                       ++ show (lineNumber loc) ++ ": " ++ err)
-                preprocess (ModuleInfo "" [] "UNKNOWN_MODULE")
+                preprocess (ModuleInfo "" [] [] "UNKNOWN_MODULE")
          ParseOK info ->
              preprocess info
     where
@@ -140,17 +181,19 @@ transform hunitBackwardsCompat originalFileName input =
       cpphsOptions info =
           defaultCpphsOptions { defines =
                                     defines defaultCpphsOptions ++
-                                            assertDefines hunitBackwardsCompat
-                                                          (mi_prefix info)
+                                    assertDefines hunitBackwardsCompat (mi_htfPrefix info) ++
+                                    nameDefines info
                               }
       additionalCode :: ModuleInfo -> String
       additionalCode info =
-          testDeclName ++ " :: " ++ mi_prefix info ++ "TestSuite\n" ++
-          testDeclName ++ " = " ++ mi_prefix info ++ "makeTestSuite" ++
+          thisModulesTestsFullName (mi_moduleName info) ++ " :: " ++
+            mi_htfPrefix info ++ "TestSuite\n" ++
+          thisModulesTestsFullName (mi_moduleName info) ++ " = " ++
+            mi_htfPrefix info ++ "makeTestSuite" ++
           " " ++ show (mi_moduleName info) ++
-          " [\n    " ++ intercalate ",\n    "
-                          (map (codeForDef (mi_prefix info)) (mi_defs info))
-          ++ "\n  ]"
+          " [\n    " ++ List.intercalate ",\n    "
+                          (map (codeForDef (mi_htfPrefix info)) (mi_defs info))
+          ++ "\n  ]\n" ++ importedTestListCode info
       codeForDef :: String -> Definition -> String
       codeForDef pref (TestDef s loc name) =
           pref ++ "makeUnitTest " ++ (show s) ++ " " ++ codeForLoc pref loc ++
@@ -162,3 +205,20 @@ transform hunitBackwardsCompat originalFileName input =
       codeForLoc :: String -> Location -> String
       codeForLoc pref loc = "(" ++ pref ++ "makeLoc " ++ show (fileName loc) ++
                             " " ++ show (lineNumber loc) ++ ")"
+      importedTestListCode :: ModuleInfo -> String
+      importedTestListCode info =
+          let l = mi_htfImports info
+          in importedTestListFullName (mi_moduleName info)
+               ++ " :: [" ++ mi_htfPrefix info ++ "TestSuite]\n" ++
+             importedTestListFullName (mi_moduleName info)
+               ++ " = [\n    " ++
+             List.intercalate ",\n     " (map htfTestsInModule l) ++
+             "\n  ]\n"
+      htfTestsInModule :: ImportDecl -> String
+      htfTestsInModule imp = qualify imp (thisModulesTestsFullName (imp_moduleName imp))
+      qualify :: ImportDecl -> String -> String
+      qualify imp name =
+          case (imp_qualified imp, imp_alias imp) of
+            (False, _) -> name
+            (True, Just alias) -> alias ++ "." ++ name
+            (True, _) -> imp_moduleName imp ++ "." ++ name

@@ -19,6 +19,7 @@ module Test.Framework.HaskellParser where
 
 import Data.Maybe
 import Data.Char ( isSpace )
+import qualified Data.List as List
 import Control.Exception ( evaluate, catch, SomeException )
 #if !MIN_VERSION_base(4,6,0)
 import Prelude hiding ( catch )
@@ -29,32 +30,40 @@ import qualified Language.Haskell.Exts.Parser as Parser
 import qualified Language.Haskell.Exts.Syntax as Syn
 import qualified Language.Haskell.Exts.Extension as Ext
 import qualified Language.Haskell.Exts.Fixity as Fix
+import qualified Language.Haskell.Exts.SrcLoc as Src
 
 import Test.Framework.Location
+import Test.Framework.Utils
 
 type Name = String
 
 data Decl = Decl { decl_loc :: Location
                  , decl_name :: Name }
 
+data Pragma = Pragma { pr_name :: String
+                     , pr_args :: String
+                     , pr_loc :: Location }
+
 data ParseResult a = ParseOK a | ParseError Location String
 
 data Module = Module { mod_name :: Name
                      , mod_imports :: [ImportDecl]
-                     , mod_decls :: [Decl] }
+                     , mod_decls :: [Decl]
+                     , mod_htfPragmas :: [Pragma] }
 
 data ImportDecl = ImportDecl { imp_moduleName :: Name
                              , imp_qualified :: Bool
-                             , imp_alias :: Maybe Name }
+                             , imp_alias :: Maybe Name
+                             , imp_loc :: Location }
 
 parse :: FilePath -> String -> IO (ParseResult Module)
 parse originalFileName input =
-    do r <- (evaluate $ Exts.parseFileContentsWithMode parseMode fixedInput)
+    do r <- (evaluate $ Exts.parseFileContentsWithComments parseMode fixedInput)
             `catch` (\(e::SomeException) ->
                          return $ Parser.ParseFailed unknownLoc (show e))
        case r of
          Parser.ParseFailed loc err -> return (ParseError (transformLoc loc) err)
-         Parser.ParseOk m -> return $ ParseOK (transformModule m)
+         Parser.ParseOk (m, comments) -> return $ ParseOK (transformModule m comments)
     where
       -- fixedInput serves two purposes:
       -- 1. add a trailing \n
@@ -82,22 +91,36 @@ parse originalFileName input =
                                    }
       unknownLoc :: Syn.SrcLoc
       unknownLoc = Syn.SrcLoc originalFileName 0 0
-      transformModule (Syn.Module _ (Syn.ModuleName moduleName) _ _ _
-                          imports decls) =
+      transformModule (Syn.Module _ (Syn.ModuleName moduleName) _ _ _ imports decls)
+                      comments =
           Module moduleName (map transformImport imports)
                             (mapMaybe transformDecl decls)
+                            (mapMaybe transformComment comments)
       transformImport (Syn.ImportDecl loc (Syn.ModuleName s)
                                       qualified _ _ alias _) =
           let alias' = case alias of
                          Nothing -> Nothing
                          Just (Syn.ModuleName s) -> Just s
-          in ImportDecl s qualified alias'
+          in ImportDecl s qualified alias' (transformLoc loc)
       transformDecl (Syn.PatBind loc (Syn.PVar name) _ _ _) =
           Just $ Decl (transformLoc loc) (transformName name)
       transformDecl (Syn.FunBind (Syn.Match loc name _ _ _ _ : _)) =
           Just $ Decl (transformLoc loc) (transformName name)
       transformDecl _ = Nothing
+      transformSpan span = makeLoc (Src.srcSpanFilename span) (Src.srcSpanStartLine span)
       transformLoc (Syn.SrcLoc f n _) = makeLoc f n
       transformName :: Syn.Name -> String
       transformName (Syn.Ident s) = s
       transformName (Syn.Symbol s) = s
+      transformComment (Exts.Comment True span ('@':s)) =
+          case reverse s of
+            '@':r ->
+                let stripped = strip (reverse r)
+                in if "HTF_" `List.isPrefixOf` stripped
+                      then let (name, args) = List.span (not . isSpace) stripped
+                               argsStripped = dropWhile isSpace args
+                               loc = transformSpan span
+                           in Just $ Pragma name argsStripped loc
+                      else Nothing
+            _ -> Nothing
+      transformComment _ = Nothing

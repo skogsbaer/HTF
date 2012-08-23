@@ -21,7 +21,9 @@
 import Test.Framework
 import System.Environment
 import Control.Exception
-import qualified TestHTFHunitBackwardsCompatible
+import {-@ HTF_TESTS @-} qualified TestHTFHunitBackwardsCompatible
+import {-@ HTF_TESTS @-} qualified Foo.A as A
+import {-@ HTF_TESTS @-} Foo.B
 
 data T = A | B
        deriving Eq
@@ -106,5 +108,5 @@ main =
     do args <- getArgs
        bbts <- blackBoxTests "bbt" "./run-bbt.sh" ".x"
                  (defaultBBTArgs { bbtArgs_verbose = False })
-       runTestWithArgs args [addToTestSuite allHTFTests bbts,
-                             TestHTFHunitBackwardsCompatible.allHTFTests]
+       runTestWithArgs args ([addToTestSuite htf_thisModulesTests bbts] ++
+                             htf_importedTests)

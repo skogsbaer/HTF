@@ -29,6 +29,7 @@ module Test.Framework.Location (
 
 -- | An abstract type representing locations in a file.
 data Location = Location String Int
+                deriving (Eq, Ord)
 
 showLoc :: Location -> String
 showLoc (Location f n) = f ++ ":" ++ show n
