@@ -31,7 +31,7 @@ module Test.Framework.TestManager (
 
 import Control.Monad
 import Control.Monad.RWS
-import System.Exit (ExitCode(..))
+import System.Exit (ExitCode(..), exitWith)
 import Data.List ( isInfixOf, isPrefixOf, partition )
 import Text.PrettyPrint
 import qualified Data.List as List
@@ -350,10 +350,10 @@ runTestWithOptions opts t =
             when (error > 0) $
                reportDoc tc Info
                    (text ('\n' : errors) $$ renderTestNames (reverse (ts_error s)))
-            return $ case () of
-                       _| failed == 0 && error == 0 -> ExitSuccess
-                        | error == 0                -> ExitFailure 1
-                        | otherwise                 -> ExitFailure 2
+            exitWith $ case () of
+                         _| failed == 0 && error == 0 -> ExitSuccess
+                          | error == 0                -> ExitFailure 1
+                          | otherwise                 -> ExitFailure 2
     where
       renderTestNames l =
           nest 2 (vcat (map (\name -> text "*" <+> text name) l))
