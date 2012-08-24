@@ -1,5 +1,5 @@
 Name:             HTF
-Version:          0.8.2.1
+Version:          0.8.2.2
 License:          LGPL
 License-File:     LICENSE
 Copyright:        (c) 2005-2011 Stefan Wehr
@@ -53,13 +53,13 @@ Library
                     containers >= 0.3 && < 0.6,
                     process >= 1.0 && < 1.2,
                     directory >= 1.0 && < 1.2,
-                    mtl >= 1.1 && < 2.1,
+                    mtl >= 1.1 && < 2.2,
                     pretty >= 1.0 && < 1.2,
                     Diff >= 0.1.3 && < 0.2,
                     unix >= 2.4 && < 2.6,
                     bytestring == 0.9.*,
                     regex-compat >= 0.92 && < 0.96,
-                    haskell-src-exts == 1.11.*
+                    haskell-src-exts >= 1.11 && < 1.14
   Exposed-Modules:
     Test.Framework
     Test.Framework.HUnitWrapper
