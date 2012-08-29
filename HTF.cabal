@@ -24,7 +24,40 @@ Description:
     The documentation of the "Test.Framework.Tutorial" module
     provides a tutorial for the HTF.
 
-Tested-With:      GHC==7.0.4, GHC==7.2.1, GHC==7.4.1
+    .
+
+    /HEADS UP, backwards incomatibility with prior versions:/
+
+    .
+    Starting with version 0.9.0.0, HTF uses a new strategy
+    for collecting the testcases defined in your project
+    (see "Test.Framework.Tutorial" for a description of this strategy).
+    If you used version 0.8.* or earlier of HTF, this /will break your build!/
+    However, it's rather easy to bring you project in line with the new HTF
+    version. Here are the steps that will most likely resolve
+    your backwards incompatibility problems:
+
+    .
+
+    * If a module exports the @allHTFTests@ symbol, this export must
+      be changed to @htf_thisModulesTests@.
+
+    .
+
+    * If an import declaration of some module hides the @allHTFTests@
+      symbol, you can simply remove the hiding clause for @allHTFTests@.
+
+    .
+
+    * If a module collects and executes tests from several other modules,
+      the collecting module has to be changed as follows: add
+      @&#x7b;-&#x23; OPTIONS_GHC -F -pgmF htfpp &#x23;-&#x7d;@ to the top
+      of the collecting module, import
+      the other modules with the @&#x7b;-&#x40; HTF_TESTS &#x40;-&#x7d;@
+      annotation, use the symbol @htf_importedTests@ for referencing
+      the imported tests. See "Test.Framework.Tutorial" for details.
+
+Tested-With:      GHC==7.0.4, GHC==7.2.1, GHC==7.4.1, GHC==7.4.2
 Build-Type:       Simple
 Cabal-Version:    >= 1.6
 Extra-Source-Files:

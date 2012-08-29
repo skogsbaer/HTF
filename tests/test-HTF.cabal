@@ -1,12 +1,15 @@
 Name:          test-HTF
 Version:       0.1
-Cabal-Version: >= 1.6
+Cabal-Version: >= 1.10
 Build-type:    Simple
 
 Executable test
   Main-is: TestHTF.hs
   Build-depends: base >= 4, HTF
+  Default-language:  Haskell2010
 
-Executable tutorial
-  Main-is: Tutorial.hs
-  Build-depends: base >= 4, HTF
+Test-Suite tutorial
+  Type:              exitcode-stdio-1.0
+  Main-is:           Tutorial.hs
+  Build-depends:     base == 4.*, HTF == 0.9.*
+  Default-language:  Haskell2010

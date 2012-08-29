@@ -23,6 +23,8 @@ A /black box test/ in the terminology of the HTF consists of a
 driver program that is run in various input files. For each input
 file, the HTF checks that the driver program exits with the
 correct exit code and that it produces the expected output.
+The samples directory of the HTF source tree shows an example
+for a black box test, see <https://github.com/skogsbaer/HTF/tree/master/sample>.
 
 -}
 module Test.Framework.BlackBoxTest (
@@ -119,14 +121,32 @@ runBlackBoxTest bbt =
 endOfOutput :: String -> String
 endOfOutput s = "[end of " ++ s ++ "]"
 
-data BBTArgs = BBTArgs { bbtArgs_stdinSuffix    :: String
-                       , bbtArgs_stdoutSuffix   :: String
-                       , bbtArgs_stderrSuffix   :: String
-                       , bbtArgs_dynArgsName    :: String
-                       , bbtArgs_verbose        :: Bool
-                       , bbtArgs_stdoutDiff     :: Diff
-                       , bbtArgs_stderrDiff     :: Diff }
+{- |
+Use a value of this datatype to customize various aspects
+of your black box tests.
+-}
+data BBTArgs = BBTArgs { bbtArgs_stdinSuffix    :: String -- ^ File extension for the file used as stdin.
+                       , bbtArgs_stdoutSuffix   :: String -- ^ File extension for the file specifying expected output on stdout.
+                       , bbtArgs_stderrSuffix   :: String -- ^ File extension for the file specifying expected output on stderr.
+                       , bbtArgs_dynArgsName    :: String -- ^ Name of a file defining various arguments for executing the tests contained in a subdirectory of the test hierarchy. If a directory contains a such-named file, the arguments apply to all testfiles directly contained in this directory. See the documentation of 'blackBoxTests' for a specification of the argument file format.
+                       , bbtArgs_verbose        :: Bool   -- ^ Ge verbose or not.
+                       , bbtArgs_stdoutDiff     :: Diff   -- ^ Diff program for comparing output on stdout with the expected value.
+                       , bbtArgs_stderrDiff     :: Diff   -- ^ Diff program for comparing output on stderr with the expected value.
+                       }
 
+{- |
+Sensible default values for 'BBTArgs':
+
+@
+defaultBBTArgs = BBTArgs { bbtArgs_stdinSuffix    = \".in\"
+                         , bbtArgs_stdoutSuffix   = \".out\"
+                         , bbtArgs_stderrSuffix   = \".err\"
+                         , bbtArgs_dynArgsName    = "BBTArgs"
+                         , bbtArgs_stdoutDiff     = defaultDiff
+                         , bbtArgs_stderrDiff     = defaultDiff
+                         , bbtArgs_verbose        = False }
+@
+-}
 defaultBBTArgs :: BBTArgs
 defaultBBTArgs = BBTArgs { bbtArgs_stdinSuffix    = ".in"
                          , bbtArgs_stdoutSuffix   = ".out"
@@ -136,6 +156,10 @@ defaultBBTArgs = BBTArgs { bbtArgs_stdinSuffix    = ".in"
                          , bbtArgs_stderrDiff     = defaultDiff
                          , bbtArgs_verbose        = False }
 
+{- |
+A default value for the 'Diff' datatype that simple resorts to the
+@diff@ commandline utility.
+-}
 defaultDiff :: Diff
 defaultDiff expectFile real =
     do mexe <- findExecutable "diff"
@@ -157,10 +181,42 @@ defaultDiff expectFile real =
                   ExitFailure i -> error ("diff command failed with exit " ++
                                           "code " ++ show i ++ ": " ++ err)
 
-blackBoxTests :: FilePath  -- root directory of the test hierarchy
-              -> String    -- name of executable
-              -> String    -- filename suffix for input file
-              -> BBTArgs   -- configuration
+{- |
+Collects all black box tests with the given file extension stored in a specific directory.
+For example, the invocation
+
+> blackBoxTests "bbt-dir" "dist/build/sample/sample" ".num" defaultBBTArgs
+
+returns a list of 'Test' values, one 'Test' for each @.num@ file found in
+@bbt-dir@ and its subdirectories. (The samples directory of the HTF source tree
+contains the example shown here,
+see <https://github.com/skogsbaer/HTF/tree/master/sample>.)
+
+Suppose that one of the @.num@ files
+is @bbt-dir\/should-pass\/x.num@. Running the corresponding 'Test' invokes
+@dist\/build\/sample\/sample@ (the program under test) with @bbt-dir\/should-pass\/x.num@
+as input file. If @bbt-dir\/should-pass\/x.num@ existed, its content
+would be used as stdin. The tests succeeds
+if the exit code of the program is zero and
+the output on stdout and stderr matches the contents of
+@bbt-dir\/should-pass\/x.out@ and @bbt-dir\/should-pass\/x.err@, respectively.
+
+The directory @bbt-dir\/should-fail@ contains the file @BBTArgs@. If this file
+exists, then its content specifies various
+arguments for the test run. The file defines the arguments separated by newlines.
+Supported arguments:
+
+ [@Skip@] Skips all tests in the same directory as the argument file.
+
+ [@Fail@] Specify that the test should succeed if it exits with a non-zero exit code.
+
+ [@Flags: flags@] Passes the given @flags@ to the program under test.
+
+-}
+blackBoxTests :: FilePath  -- ^ root directory of the test hierarchy
+              -> String    -- ^ name of program under test
+              -> String    -- ^ filename suffix for input file
+              -> BBTArgs   -- ^ configuration
               -> IO [Test]
 blackBoxTests root exe suf cfg =
     do let prune root _ = do dynCfg <- readDynCfg Map.empty

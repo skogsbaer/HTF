@@ -34,5 +34,3 @@ import Test.Framework.QuickCheckWrapper
 import Test.Framework.BlackBoxTest
 import Test.Framework.TestManager
 import qualified Test.Framework.Location as Loc
-
-          

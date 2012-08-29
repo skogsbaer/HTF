@@ -25,13 +25,14 @@ module Test.Framework.TestManager (
   makeAnonTestSuite,
   addToTestSuite, testSuiteAsTest,
 
-  parseTestArgs, runTest, runTestWithArgs, runTestWithOptions
+  parseTestArgs, runTest, runTestWithArgs, runTestWithOptions, htfMain
 
 ) where
 
 import Control.Monad
 import Control.Monad.RWS
-import System.Exit (ExitCode(..))
+import System.Exit (ExitCode(..), exitWith)
+import System.Environment (getArgs)
 import Data.List ( isInfixOf, isPrefixOf, partition )
 import Text.PrettyPrint
 import qualified Data.List as List
@@ -367,3 +368,9 @@ reportTR :: ReportLevel -> String -> TR ()
 reportTR level msg =
     do tc <- ask
        liftIO $ report tc level msg
+
+htfMain :: TestableHTF t => t -> IO ()
+htfMain tests =
+    do args <- getArgs
+       ecode <- runTestWithArgs args tests
+       exitWith ecode
