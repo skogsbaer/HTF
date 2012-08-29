@@ -1,0 +1,12 @@
+A very simple and trivial sample project showing how to use HTF,
+the Haskell Test Framework (https://github.com/skogsbaer/HTF/).
+
+Usage:
+
+$ cabal configure --enable-tests
+$ cabal build
+$ cabal test
+
+To execute the tests directly, run
+
+$ dist/build/sample-tests/sample-tests

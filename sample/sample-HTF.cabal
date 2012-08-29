@@ -1,0 +1,24 @@
+name:                sample-HTF
+version:             0.1.0.0
+synopsis:            Sample project showing how to use HTF
+homepage:            https://github.com/skogsbaer/HTF/
+license:             BSD3
+license-file:        LICENSE
+author:              Stefan Wehr
+maintainer:          mail@stefanwehr.de
+category:            Testing
+build-type:          Simple
+cabal-version:       >=1.10
+
+executable sample
+  main-is:           Main.hs
+  other-modules:     MyPkg.A MyPkg.B
+  build-depends:     base == 4.5.*, HTF == 0.9.*
+  default-language:  Haskell2010
+
+test-suite sample-tests
+  type:              exitcode-stdio-1.0
+  main-is:           TestMain.hs
+  other-modules:     MyPkg.A MyPkg.B
+  build-depends:     base == 4.5.*, HTF == 0.9.*
+  default-language:  Haskell2010
