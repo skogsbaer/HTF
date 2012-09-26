@@ -2,6 +2,7 @@
 
 * Documentation:     http://hackage.haskell.org/package/HTF
 * Source Repository: https://github.com/skogsbaer/HTF/
+* Issue tracker:     https://github.com/skogsbaer/HTF/issues?state=open
 * Author:            Stefan Wehr (http://www.stefanwehr.de)
 * License: LGPL
 
@@ -30,3 +31,8 @@ demonstrates HTF's coloring, pretty-printing and diff functionality.
         $ git clone git@github.com:skogsbaer/HTF.git
         $ cd HTF
         $ cabal install
+
+## Getting started
+
+* Read the [tutorial](http://hackage.haskell.org/packages/archive/HTF/latest/doc/html/Test-Framework-Tutorial.html).
+* Experiment with the sample project located in the `sample` directory of HTF's source tree.
