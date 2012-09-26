@@ -66,8 +66,8 @@ Tested-With:      GHC==7.0.4, GHC==7.2.1, GHC==7.4.1, GHC==7.4.2, GHC==7.6.1
 Build-Type:       Simple
 Cabal-Version:    >= 1.6
 Extra-Source-Files:
-  README
-  TODO
+  README.md
+  TODO.org
   ChangeLog
 
 Source-Repository head
