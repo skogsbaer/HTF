@@ -1,7 +1,3 @@
-* Write proper documentation
-** Fix all github issues
-** Haddock comments for all exported functions
-** Proper README.md
 * Replace haskell-src-exts by the GHC parser
 * diff if assertEqualsP fails
 * LATER: Support for Smallcheck and/or Lazy Smallcheck
