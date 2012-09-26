@@ -1,5 +1,5 @@
 --
--- Copyright (c) 2005   Stefan Wehr - http://www.stefanwehr.de
+-- Copyright (c) 2005, 2012   Stefan Wehr - http://www.stefanwehr.de
 --
 -- This library is free software; you can redistribute it and/or
 -- modify it under the terms of the GNU Lesser General Public
@@ -16,6 +16,12 @@
 -- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
 --
 
+{- |
+
+This module defines types and functions dealing with source code locations.
+
+-}
+
 module Test.Framework.Location (
 
   Location, unknownLocation,
@@ -31,12 +37,15 @@ module Test.Framework.Location (
 data Location = Location String Int
                 deriving (Eq, Ord)
 
+-- | Render a 'Location' as a 'String'.
 showLoc :: Location -> String
 showLoc (Location f n) = f ++ ":" ++ show n
 
+-- | Extract the file name of a 'Location'.
 fileName :: Location -> String
 fileName (Location f _ ) = f
 
+-- | Extract the line number of a 'Location'.
 lineNumber :: Location -> Int
 lineNumber (Location _ i) = i
 
@@ -46,5 +55,6 @@ makeLoc :: String -- ^ The file name
         -> Location
 makeLoc = Location
 
+-- | The unknown location (file @?@ and line @0@).
 unknownLocation :: Location
 unknownLocation = Location "?" 0

@@ -1,5 +1,5 @@
 --
--- Copyright (c) 2009-2011   Stefan Wehr - http://www.stefanwehr.de
+-- Copyright (c) 2009-2012   Stefan Wehr - http://www.stefanwehr.de
 --
 -- This library is free software; you can redistribute it and/or
 -- modify it under the terms of the GNU Lesser General Public
@@ -73,6 +73,7 @@ unitTestFail s =
     do assertFailureHTF s
        error "unitTestFail: UNREACHABLE"
 
+-- |Mark a unit test as pending without removing it from the test suite.
 unitTestPending :: String -> IO a
 unitTestPending s = unitTestFail (makePendingMessage s)
 

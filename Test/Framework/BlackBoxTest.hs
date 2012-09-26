@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 --
--- Copyright (c) 2005,2009   Stefan Wehr - http://www.stefanwehr.de
+-- Copyright (c) 2005,2009,2012   Stefan Wehr - http://www.stefanwehr.de
 --
 -- This library is free software; you can redistribute it and/or
 -- modify it under the terms of the GNU Lesser General Public
@@ -25,6 +25,10 @@ file, the HTF checks that the driver program exits with the
 correct exit code and that it produces the expected output.
 The samples directory of the HTF source tree shows an example
 for a black box test, see <https://github.com/skogsbaer/HTF/tree/master/sample>.
+
+/NOTE:/ If you use black box tests, you have to compile your program
+with the @-threaded@ option. Otherwise, your program just blocks
+indefinitely!
 
 -}
 module Test.Framework.BlackBoxTest (

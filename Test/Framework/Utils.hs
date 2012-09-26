@@ -1,6 +1,6 @@
 {-# LANGUAGE PatternGuards #-}
 --
--- Copyright (c) 2005   Stefan Wehr - http://www.stefanwehr.de
+-- Copyright (c) 2005, 2012   Stefan Wehr - http://www.stefanwehr.de
 --
 -- This library is free software; you can redistribute it and/or
 -- modify it under the terms of the GNU Lesser General Public

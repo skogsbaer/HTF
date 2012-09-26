@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -cpp -pgmPcpphs -optP --layout -optP --hashes -optP --cpp #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 --
--- Copyright (c) 2005, 2009   Stefan Wehr - http://www.stefanwehr.de
+-- Copyright (c) 2005, 2009, 2012  Stefan Wehr - http://www.stefanwehr.de
 --
 -- This library is free software; you can redistribute it and/or
 -- modify it under the terms of the GNU Lesser General Public
@@ -19,16 +19,22 @@
 --
 
 {-|
-You should not use the functions provided by this module directly.
-Instead, for each function @assertXXX_@ defined in this module,
+
+This module provides assert-like functions for writing unit tests.
+
+/Hint:/ Do not use the @assertXXX_@ functions
+directly. Instead, for each function @assertXXX_@,
 there exist a preprocessor macro @assertXXX@, which provides
-the "Location" parameter automatically.
-|-}
+the "Location" parameter automatically. Use these macros, which
+are available automatically if you add
+
+@&#x7b;-&#x23; OPTIONS_GHC -F -pgmF htfpp &#x23;-&#x7d;@
+
+at the top of your source file (see the 'Test.Framework.Tutorial').
+
+-}
 
 module Test.Framework.HUnitWrapper (
-
-  -- * General failure
-  assertFailure, unitTestPending, unitTestPending',
 
   -- * Assertions on Bool values
   assertBool_, assertBoolVerbose_,
@@ -59,7 +65,10 @@ module Test.Framework.HUnitWrapper (
   -- * Assertions on Just values
   assertJust_, assertJustVerbose_,
   assertNothing_, assertNothingVerbose_,
-  assertNothingNoShow_, assertNothingNoShowVerbose_
+  assertNothingNoShow_, assertNothingNoShowVerbose_,
+
+  -- * General failure
+  assertFailure, unitTestPending, unitTestPending'
 
 ) where
 
@@ -81,9 +90,16 @@ import Test.Framework.Pretty
 
 -- WARNING: do not forget to add a preprocessor macro for new assertions!!
 
+{- |
+Fail with the given reason.
+-}
 assertFailure :: String -> IO a
 assertFailure s = unitTestFail s
 
+{- |
+Use @unitTestPending' msg test@ to mark the given test as pending
+without removing it from the test suite and without deleting or commenting out the test code.
+-}
 unitTestPending' :: String -> IO a -> IO a
 unitTestPending' msg _ = unitTestPending msg
 
@@ -96,6 +112,10 @@ mkMsg fun extraInfo s =
 --
 -- Dirty macro hackery (I'm too lazy ...)
 --
+#define NO_DIRECT_USE(__name) Don't use __name##_ directly, \
+  instead use the macro __name which provides the 'Location' parameter \
+  automatically.
+
 #define CreateAssertionsGeneric(__name__, __ctx__, __type__, __ret__) \
 __name__##Verbose_ :: __ctx__ Location -> String -> __type__ -> __ret__; \
 __name__##Verbose_ = _##__name__##_ (#__name__ ++ "Verbose"); \
@@ -114,13 +134,23 @@ CreateAssertionsGeneric(__name__, __ctx__ =>, __type__, __ret__)
 #define CreateAssertionsRet(__name__, __type__, __ret__) \
 CreateAssertionsGeneric(__name__, , __type__, __ret__)
 
+#define DocAssertion(__name__, __text__) \
+  {- | __text__ The 'String' parameter in the @Verbose@ \
+      variant can be used to provide extra information about the error. Do not use \
+      @__name__##_@ and @__name__##Verbose_@ directly, use the macros @__name__@ \
+      and @__name__##Verbose@ instead. These macros, provided by the @htfpp@ preprocessor, \
+      insert the 'Location' parameter automatically. -}
+
 --
 -- Boolean Assertions
 --
+
 _assertBool_ :: String -> Location -> String -> Bool -> HU.Assertion
 _assertBool_ name loc s False =
     assertFailure (mkMsg name s ("failed at " ++ showLoc loc))
 _assertBool_ _ _ _   True = return ()
+
+DocAssertion(assertBool, Fail if the 'Bool' value is 'False'.)
 CreateAssertions(assertBool, Bool)
 
 --
@@ -176,6 +206,10 @@ _assertEqual_ name loc s expected actual =
        then do x <- equalityFailedMessage (show expected) (show actual)
                assertFailure (mkMsg name s $ "failed at " ++ showLoc loc ++ x)
        else return ()
+
+DocAssertion(assertEqual, Fail if the two values of type @a@ are not equal.
+             The first parameter denotes the expected value. Use these two functions
+             of @a@ is an instance of 'Show' but not of 'Pretty'.)
 CreateAssertionsCtx(assertEqual, (Eq a, Show a), a -> a)
 
 _assertNotEqual_ :: (Eq a, Show a)
@@ -185,6 +219,10 @@ _assertNotEqual_ name loc s expected actual =
        then do x <- notEqualityFailedMessage (show expected)
                assertFailure (mkMsg name s $ "failed at " ++ showLoc loc ++ x)
        else return ()
+
+DocAssertion(assertNotEqual, Fail if the two values of type @a@ are equal.
+             The first parameter denotes the expected value. Use these two functions
+             of @a@ is an instance of 'Show' but not of 'Pretty'.)
 CreateAssertionsCtx(assertNotEqual, (Eq a, Show a), a -> a)
 
 _assertEqualPretty_ :: (Eq a, Pretty a)
@@ -194,6 +232,10 @@ _assertEqualPretty_ name loc s expected actual =
        then do x <- equalityFailedMessage (showPretty expected) (showPretty actual)
                assertFailure (mkMsg name s $ "failed at " ++ showLoc loc ++ x)
        else return ()
+
+DocAssertion(assertEqualPretty, Fail if the two values of type @a@ are not equal.
+             The first parameter denotes the expected value. Use these two functions
+             of @a@ is an instance of 'Pretty'.)
 CreateAssertionsCtx(assertEqualPretty, (Eq a, Pretty a), a -> a)
 
 _assertNotEqualPretty_ :: (Eq a, Pretty a)
@@ -203,6 +245,9 @@ _assertNotEqualPretty_ name loc s expected actual =
        then do x <- notEqualityFailedMessage (showPretty expected)
                assertFailure (mkMsg name s $ "failed at " ++ showLoc loc ++ x)
        else return ()
+DocAssertion(assertNotEqualPretty, Fail if the two values of type @a@ are equal.
+             The first parameter denotes the expected value. Use these two functions
+             of @a@ is an instance of 'Pretty'.)
 CreateAssertionsCtx(assertNotEqualPretty, (Eq a, Pretty a), a -> a)
 
 _assertEqualNoShow_ :: Eq a
@@ -211,6 +256,10 @@ _assertEqualNoShow_ name loc s expected actual =
     if expected /= actual
        then assertFailure (mkMsg name s ("failed at " ++ showLoc loc))
        else return ()
+DocAssertion(assertEqualNoShow, Fail if the two values of type @a@ are not equal.
+             The first parameter denotes the expected value. Use these two functions
+             of @a@ is neither an instance of 'Show' nor 'Pretty'. Be aware that in this
+             case the generated error message might not be very helpful.)
 CreateAssertionsCtx(assertEqualNoShow, Eq a, a -> a)
 
 _assertNotEqualNoShow_ :: Eq a
@@ -219,6 +268,10 @@ _assertNotEqualNoShow_ name loc s expected actual =
     if expected == actual
        then assertFailure (mkMsg name s ("failed at " ++ showLoc loc))
        else return ()
+DocAssertion(assertNotEqualNoShow, Fail if the two values of type @a@ are equal.
+             The first parameter denotes the expected value. Use these two functions
+             of @a@ is neither an instance of 'Show' nor 'Pretty'. Be aware that in this
+             case the generated error message might not be very helpful.)
 CreateAssertionsCtx(assertNotEqualNoShow, Eq a, a -> a)
 
 --
@@ -243,18 +296,23 @@ _assertListsEqualAsSets_ name loc s expected actual =
              | otherwise -> return ()
     where unorderedEq l1 l2 =
               null (l1 \\ l2) && null (l2 \\ l1)
+DocAssertion(assertListsEqualAsSets, Fail if the two given lists are not equal
+                                     when considered as sets. The first list parameter
+                                     denotes the expected value.)
 CreateAssertionsCtx(assertListsEqualAsSets, (Eq a, Show a), [a] -> [a])
 
 _assertNotEmpty_ :: String -> Location -> String -> [a] -> HU.Assertion
 _assertNotEmpty_ name loc s [] =
     assertFailure (mkMsg name s ("failed at " ++ showLoc loc))
 _assertNotEmpty_ _ _ _ (_:_) = return ()
+DocAssertion(assertNotEmpty, Fail if the given list is empty.)
 CreateAssertions(assertNotEmpty, [a])
 
 _assertEmpty_ :: String -> Location -> String -> [a] -> HU.Assertion
 _assertEmpty_ name loc s (_:_) =
     assertFailure (mkMsg name s ("failed at " ++ showLoc loc))
 _assertEmpty_ _ _ _ [] = return ()
+DocAssertion(assertEmpty, Fail if the given list is a non-empty list.)
 CreateAssertions(assertEmpty, [a])
 
 --
@@ -275,6 +333,8 @@ _assertThrows_ name loc s x f =
                                         showLoc loc ++
                                         ": wrong exception was thrown: " ++
                                         show e))
+DocAssertion(assertThrows, Fail if evaluating the expression of type @a@ does not
+             throw an exception satisfying the given predicate @(e -> Bool)@.)
 CreateAssertionsCtx(assertThrows, Exception e, a -> (e -> Bool))
 
 _assertThrowsSome_ :: String -> Location -> String -> a -> HU.Assertion
@@ -294,6 +354,8 @@ _assertLeft_ name loc s (Right x) =
                    ("failed at " ++ showLoc loc ++
                     ": expected a Left value, given " ++
                     show (Right x :: Either b b)))
+DocAssertion(assertLeft, Fail if the given @Either a b@ value is a 'Right'.
+             Use this function if @b@ is an instance of 'Show')
 CreateAssertionsCtxRet(assertLeft, Show b, Either a b, IO a)
 
 _assertLeftNoShow_ :: String -> Location -> String -> Either a b -> IO a
@@ -301,6 +363,7 @@ _assertLeftNoShow_ _ _ _ (Left x) = return x
 _assertLeftNoShow_ name loc s (Right _) =
     assertFailure (mkMsg name s ("failed at " ++ showLoc loc ++
                                  ": expected a Left value, given a Right value"))
+DocAssertion(assertLeftNoShow, Fail if the given @Either a b@ value is a 'Right'.)
 CreateAssertionsRet(assertLeftNoShow, Either a b, IO a)
 
 _assertRight_ :: forall a b . Show a
@@ -310,6 +373,8 @@ _assertRight_ name loc s (Left x) =
     assertFailure (mkMsg name s ("failed at " ++ showLoc loc ++
                                  ": expected a Right value, given " ++
                                  show (Left x :: Either a a)))
+DocAssertion(assertRight, Fail if the given @Either a b@ value is a 'Left'.
+             Use this function if @a@ is an instance of 'Show')
 CreateAssertionsCtxRet(assertRight, Show a, Either a b, IO b)
 
 _assertRightNoShow_ :: String -> Location -> String -> Either a b -> IO b
@@ -317,6 +382,7 @@ _assertRightNoShow_ _ _ _ (Right x) = return x
 _assertRightNoShow_ name loc s (Left _) =
     assertFailure (mkMsg name s ("failed at " ++ showLoc loc ++
                                  ": expected a Right value, given a Left value"))
+DocAssertion(assertRightNoShow, Fail if the given @Either a b@ value is a 'Left'.)
 CreateAssertionsRet(assertRightNoShow, Either a b, IO b)
 
 --
@@ -328,6 +394,7 @@ _assertJust_ _ _ _ (Just x) = return x
 _assertJust_ name loc s Nothing =
     assertFailure (mkMsg name s ("failed at " ++ showLoc loc ++
                                  ": expected a Just value, given Nothing"))
+DocAssertion(assertJust, Fail is the given @Maybe a@ value is a 'Nothing'.)
 CreateAssertionsRet(assertJust, Maybe a, IO a)
 
 _assertNothing_ :: Show a
@@ -336,6 +403,8 @@ _assertNothing_ _ _ _ Nothing = return ()
 _assertNothing_ name loc s jx =
     assertFailure (mkMsg name s ("failed at " ++ showLoc loc ++
                                  ": expected Nothing, given " ++ show jx))
+DocAssertion(assertNothing, Fail is the given @Maybe a@ value is a 'Just'.
+             Use this function if @a@ is an instance of 'Show'.)
 CreateAssertionsCtx(assertNothing, Show a, Maybe a)
 
 _assertNothingNoShow_ :: String -> Location -> String -> Maybe a -> HU.Assertion
@@ -343,4 +412,5 @@ _assertNothingNoShow_ _ _ _ Nothing = return ()
 _assertNothingNoShow_ name loc s _ =
     assertFailure (mkMsg name s ("failed at " ++ showLoc loc ++
                                  ": expected Nothing, given a Just value"))
+DocAssertion(assertNothingNoShow, Fail is the given @Maybe a@ value is a 'Just'.)
 CreateAssertions(assertNothingNoShow, Maybe a)
