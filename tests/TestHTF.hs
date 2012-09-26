@@ -57,6 +57,10 @@ test_assertThrows = assertThrows (return () :: IO ()) (handleExc True)
 
 test_assertThrows' = assertThrows (error "ERROR") (handleExc False)
 
+test_assertThrowsIO1 = assertThrows (fail "ERROR" :: IO ()) (handleExc False)
+
+test_assertThrowsIO2 = assertThrowsIO (fail "ERROR") (handleExc True)
+
 test_someError = error "Bart Simpson!!"
 
 test_pendingTest = unitTestPending "This test is pending"

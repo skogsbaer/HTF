@@ -55,6 +55,8 @@ module Test.Framework.HUnitWrapper (
   -- * Assertions for exceptions
   assertThrows_, assertThrowsVerbose_,
   assertThrowsSome_, assertThrowsSomeVerbose_,
+  assertThrowsIO_, assertThrowsIOVerbose_,
+  assertThrowsSomeIO_, assertThrowsSomeIOVerbose_,
 
   -- * Assertions on Either values
   assertLeft_, assertLeftVerbose_,
@@ -112,10 +114,6 @@ mkMsg fun extraInfo s =
 --
 -- Dirty macro hackery (I'm too lazy ...)
 --
-#define NO_DIRECT_USE(__name) Don't use __name##_ directly, \
-  instead use the macro __name which provides the 'Location' parameter \
-  automatically.
-
 #define CreateAssertionsGeneric(__name__, __ctx__, __type__, __ret__) \
 __name__##Verbose_ :: __ctx__ Location -> String -> __type__ -> __ret__; \
 __name__##Verbose_ = _##__name__##_ (#__name__ ++ "Verbose"); \
@@ -319,10 +317,10 @@ CreateAssertions(assertEmpty, [a])
 -- Assertions for Exceptions
 --
 
-_assertThrows_ :: Exception e
-               => String -> Location -> String -> a -> (e -> Bool) -> HU.Assertion
-_assertThrows_ name loc s x f =
-    do res <- try (evaluate x)
+_assertThrowsIO_ :: Exception e
+                 => String -> Location -> String -> IO a -> (e -> Bool) -> HU.Assertion
+_assertThrowsIO_ name loc s x f =
+    do res <- try x
        case res of
          Right _ -> assertFailure (mkMsg name s
                                    ("failed at " ++ showLoc loc ++
@@ -333,6 +331,19 @@ _assertThrows_ name loc s x f =
                                         showLoc loc ++
                                         ": wrong exception was thrown: " ++
                                         show e))
+DocAssertion(assertThrowsIO, Fail if executing the 'IO' action does not
+             throw an exception satisfying the given predicate @(e -> Bool)@.)
+CreateAssertionsCtx(assertThrowsIO, Exception e, IO a -> (e -> Bool))
+
+_assertThrowsSomeIO_ :: String -> Location -> String -> IO a -> HU.Assertion
+_assertThrowsSomeIO_ name loc s x = _assertThrowsIO_ name loc s x (\ (e::SomeException) -> True)
+DocAssertion(assertThrowsSomeIO, Fail if executing the 'IO' action does not
+             throw an exception.)
+CreateAssertions(assertThrowsSomeIO, IO a)
+
+_assertThrows_ :: Exception e
+               => String -> Location -> String -> a -> (e -> Bool) -> HU.Assertion
+_assertThrows_ name loc s x f = _assertThrowsIO_ name loc s (evaluate x) f
 DocAssertion(assertThrows, Fail if evaluating the expression of type @a@ does not
              throw an exception satisfying the given predicate @(e -> Bool)@.)
 CreateAssertionsCtx(assertThrows, Exception e, a -> (e -> Bool))
@@ -340,6 +351,8 @@ CreateAssertionsCtx(assertThrows, Exception e, a -> (e -> Bool))
 _assertThrowsSome_ :: String -> Location -> String -> a -> HU.Assertion
 _assertThrowsSome_ name loc s x =
     _assertThrows_ name loc s x (\ (e::SomeException) -> True)
+DocAssertion(assertThrowsSome, Fail if evaluating the expression of type @a@ does not
+             throw an exception.)
 CreateAssertions(assertThrowsSome, a)
 
 --
