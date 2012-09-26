@@ -4,7 +4,6 @@
 * Source Repository: https://github.com/skogsbaer/HTF/
 * Author:            Stefan Wehr (http://www.stefanwehr.de)
 * License: LGPL
-* [Change log](ChangeLog)
 
 ## Summary
 
