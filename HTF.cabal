@@ -57,7 +57,7 @@ Description:
       annotation, use the symbol @htf_importedTests@ for referencing
       the imported tests. See "Test.Framework.Tutorial" for details.
 
-Tested-With:      GHC==7.0.4, GHC==7.2.1, GHC==7.4.1, GHC==7.4.2
+Tested-With:      GHC==7.0.4, GHC==7.2.1, GHC==7.4.1, GHC==7.4.2, GHC==7.6.1
 Build-Type:       Simple
 Cabal-Version:    >= 1.6
 Extra-Source-Files:
@@ -85,7 +85,7 @@ Library
                     random == 1.0.*,
                     containers >= 0.3 && < 0.6,
                     process >= 1.0 && < 1.2,
-                    directory >= 1.0 && < 1.2,
+                    directory >= 1.0 && < 1.3,
                     mtl >= 1.1 && < 2.2,
                     pretty >= 1.0 && < 1.2,
                     Diff >= 0.1.3 && < 0.2,
