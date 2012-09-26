@@ -14,15 +14,20 @@ Description:
     The Haskell Test Framework (/HTF/ for short) lets you define unit
     tests (<http://hunit.sourceforge.net>), QuickCheck properties
     (<http://www.cs.chalmers.se/~rjmh/QuickCheck/>), and black box
-    tests in an easy and convenient way. The HTF uses a custom
+    tests in an easy and convenient way. HTF uses a custom
     preprocessor that collects test definitions automatically.
-    Furthermore, the preprocessor allows the HTF to report failing
+    Furthermore, the preprocessor allows HTF to report failing
     test cases with exact file name and line number information.
+    Additionally, HTF tries to produce highly readable output
+    for failing tests: for example, it colors and pretty prints expected and
+    actual results and provides a diff between the two values.
 
     .
 
     The documentation of the "Test.Framework.Tutorial" module
-    provides a tutorial for the HTF.
+    provides a tutorial for HTF. There is also a slightly out-dated
+    blog article (<http://factisresearch.blogspot.de/2011/10/new-version-of-htf-with-diffs-colors.html>)
+    demonstrating HTF's coloring, pretty-printing and diff functionality.
 
     .
 
