@@ -23,17 +23,14 @@ module Test.Framework.TestManagerInternal (
   quickCheckTestPass,
   unitTestFail, unitTestPending, blackBoxTestFail,
 
-  TestResult(..)
-
 ) where
+
+import Test.Framework.TestTypes
 
 import Data.List ( isPrefixOf )
 import qualified Test.HUnit.Lang as HU
 
-import Test.Framework.TestManager
-
-data TestResult = Error | Fail | Pending | Pass
-                  deriving (Show, Read, Eq)
+-- import Test.Framework.TestManager
 
 -- A pending test case is treated as a failed testcase, but the error message
 -- starts with the given prefix.

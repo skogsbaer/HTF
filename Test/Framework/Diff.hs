@@ -35,16 +35,13 @@ import Data.Algorithm.Diff
 import Data.Char (isDigit)
 import Test.QuickCheck
 import Text.PrettyPrint
-import Debug.Trace (trace)
 
 import Test.Framework.Colors
-import Test.Framework.TestConfig
 
 -- for testing
 import System.IO
 import System.Environment
 import System.Directory
-import System.IO.Unsafe (unsafePerformIO)
 import System.Exit
 import System.Process
 

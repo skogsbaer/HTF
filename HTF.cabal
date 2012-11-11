@@ -102,6 +102,9 @@ Library
     Test.Framework
     Test.Framework.HUnitWrapper
     Test.Framework.TestManager
+    Test.Framework.TestTypes
+    Test.Framework.TestReporter
+    Test.Framework.CmdlineOptions
     Test.Framework.QuickCheckWrapper
     Test.Framework.BlackBoxTest
     Test.Framework.Location
@@ -113,4 +116,3 @@ Library
     Test.Framework.Colors
     Test.Framework.Diff
     Test.Framework.Process
-    Test.Framework.TestConfig

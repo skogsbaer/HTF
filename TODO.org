@@ -1,3 +1,14 @@
-* Replace haskell-src-exts by the GHC parser
-* diff if assertEqualsP fails
-* LATER: Support for Smallcheck and/or Lazy Smallcheck
+* Release 0.10
+** Machine readable output
+*** option --output-format=(human|machine)
+**** Output format:
+** Parallel test execution
+*** Options --threads=[N] or -j [N]
+*** Some test cannot be run in parallel
+** Support for timeouts (--timeout=SECS)
+*** Refactorings
+**** Check imports with warn-unused-imports
+**** Check unused functions
+** API documentation
+* External interface for integrating other test frameworks (such as Smallcheck)
+** Support for Smallcheck and/or Lazy Smallcheck

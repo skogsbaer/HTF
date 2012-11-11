@@ -23,9 +23,11 @@ module Test.Framework.Colors (
   , firstDiffColor, secondDiffColor, skipDiffColor, diffColor
   , warningColor, testStartColor, testOkColor, pendingColor
 
+  , setUseColors, useColors
 ) where
 
-import Test.Framework.TestConfig
+import System.IO.Unsafe (unsafePerformIO)
+import Data.IORef
 
 -- REVERSE            = "\033[2m"
 
@@ -78,3 +80,15 @@ colorize :: Color -> String -> IO String
 colorize c s =
     do b <- useColors
        return $ if b then withColor c s else s
+
+-- We store the info about the use of colors in a global variable instead of the TestConfigs because
+-- hunit tests must known whether to colorize diffs.
+_useColors :: IORef Bool
+_useColors = unsafePerformIO (newIORef False)
+{-# NOINLINE _useColors #-}
+
+useColors :: IO Bool
+useColors = readIORef _useColors
+
+setUseColors :: Bool -> IO ()
+setUseColors b = atomicModifyIORef _useColors (\_ -> (b, ()))
