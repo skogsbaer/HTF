@@ -4,6 +4,7 @@ import Test.Framework.TestTypes
 import Test.Framework.Location
 import Test.Framework.Colors
 import Test.Framework.Utils
+import Test.Framework.JsonOutput
 
 import System.IO
 import Control.Monad.RWS
@@ -60,7 +61,24 @@ defaultTestReporters inParallel forMachine =
            , tr_reportTestResult = reportTestResultHP
            , tr_reportGlobalResults = reportGlobalResultsH
            }]
-      x -> error ("no reporter defined for combination " ++ show x)
+      (False, True) ->
+          [TestReporter
+           { tr_id = "rep_seq_human"
+           , tr_reportAllTests = reportAllTestsM
+           , tr_reportGlobalStart = reportGlobalStartMS
+           , tr_reportTestStart = reportTestStartMS
+           , tr_reportTestResult = reportTestResultMS
+           , tr_reportGlobalResults = reportGlobalResultsM
+           }]
+      (True, True) ->
+          [TestReporter
+           { tr_id = "rep_par_human"
+           , tr_reportAllTests = reportAllTestsM
+           , tr_reportGlobalStart = reportGlobalStartMP
+           , tr_reportTestStart = reportTestStartMP
+           , tr_reportTestResult = reportTestResultMP
+           , tr_reportGlobalResults = reportGlobalResultsM
+           }]
 
 --
 -- output for humans
@@ -78,7 +96,6 @@ reportHumanTestStartMessage level id mloc =
        reportTR level (t ++ (humanTestName id mloc))
 
 -- sequential
-
 reportGlobalStartHS :: ReportGlobalStart
 reportGlobalStartHS _ = return ()
 
@@ -114,8 +131,7 @@ reportTestResultHS rr msg =
      pendingPrefix = liftIO $ colorize pendingColor "^^^ Pending!\n"
      okPrefix = liftIO $ colorize testOkColor  "+++ OK\n"
 
--- parallels
-
+-- parallel
 reportGlobalStartHP :: ReportGlobalStart
 reportGlobalStartHP _ = return ()
 
@@ -128,8 +144,7 @@ reportTestResultHP rr msg =
     do reportHumanTestStartMessage Debug (rr_id rr) (rr_location rr)
        reportTestResultHS rr msg
 
--- results
-
+-- results and all tests
 reportAllTestsH :: ReportAllTests
 reportAllTestsH l =
     reportDoc Info (renderTestNames (map (\ft -> (ft_id ft, ft_location ft)) l))
@@ -167,6 +182,43 @@ renderTestNames l =
     vcat (map (\(tid, loc) -> text "*" <+>
                               text (humanTestName tid loc)) l)
 
+--
+-- output for machines
+--
+
+-- sequential
+reportGlobalStartMS :: ReportGlobalStart
+reportGlobalStartMS _ = return ()
+
+reportTestStartMS :: ReportTestStart
+reportTestStartMS ft =
+    let json = mkTestStartEventObj (ft_id ft) (ft_location ft)
+    in reportJsonTR json
+
+reportTestResultMS :: ReportTestResult
+reportTestResultMS rr msg =
+    let json = mkTestEndEventObj (rr_id rr) (rr_location rr) (rr_result rr) msg 0 -- FIXME: time
+    in reportJsonTR json
+
+-- parallel
+reportGlobalStartMP :: ReportGlobalStart
+reportGlobalStartMP _ = return ()
+
+reportTestStartMP :: ReportTestStart
+reportTestStartMP = reportTestStartMS
+
+reportTestResultMP :: ReportTestResult
+reportTestResultMP = reportTestResultMS
+
+-- results and all tests
+reportAllTestsM :: ReportAllTests
+reportAllTestsM l =
+    let json = mkTestListObj (map (\ft -> (ft_id ft, ft_location ft)) l)
+    in reportJsonTR json
+
+reportGlobalResultsM :: ReportGlobalResults
+reportGlobalResultsM _ _ _ _ = return ()
+
 
 --
 -- General reporting routines
@@ -189,6 +241,10 @@ reportLazyBytesTR :: ReportLevel -> BSL.ByteString -> TR ()
 reportLazyBytesTR level msg =
     do tc <- ask
        liftIO $ reportLazyBytes tc level msg
+
+reportJsonTR :: HTFJsonObj a => a -> TR ()
+reportJsonTR x =
+    reportLazyBytesTR Info (decodeObj x)
 
 data ReportLevel = Debug | Info
                  deriving (Eq,Ord)
