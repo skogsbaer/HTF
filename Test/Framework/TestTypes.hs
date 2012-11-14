@@ -4,6 +4,8 @@ import Test.Framework.Location
 
 import Control.Monad.RWS
 import System.IO
+import Data.Maybe
+import qualified Data.List as List
 
 -- | An assertion is just an 'IO' action.
 type Assertion = IO ()
@@ -15,38 +17,56 @@ type TestID = String
 data TestSort = UnitTest | QuickCheckTest | BlackBoxTest
               deriving (Eq,Show,Read)
 
--- | Abstract type for tests.
+-- | Abstract type for tests and their results
 data Test = BaseTest TestSort TestID (Maybe Location) Assertion
           | CompoundTest TestSuite
 
--- | Abstract type for test suites.
+-- | Abstract type for test suites and their results.
 data TestSuite = TestSuite TestID [Test]
                | AnonTestSuite [Test]
 
--- | Type for flattened tests.
-data FlatTest
+data TestPath = TestPathBase TestID
+              | TestPathCompound (Maybe TestID) TestPath
+
+testPathToList :: TestPath -> [Maybe TestID]
+testPathToList (TestPathBase i) = [Just i]
+testPathToList (TestPathCompound mi p) =
+    mi : testPathToList p
+
+flatName :: TestPath -> String
+flatName p =
+    List.intercalate ":" (map (fromMaybe "") (testPathToList p))
+
+-- | Type for flattened tests and their results
+data GenFlatTest a
     = FlatTest
       { ft_sort :: TestSort
-      , ft_id :: TestID
+      , ft_path :: TestPath
       , ft_location :: Maybe Location
-      , ft_assertion :: Assertion }
+      , ft_payload :: a }
+
+type FlatTest = GenFlatTest Assertion
+
+type FlatTestResult = GenFlatTest RunResult
 
 data TestResult = Pass | Pending | Fail | Error
-                  deriving (Show, Read, Eq)
+                deriving (Show, Read, Eq)
 
-data TestState = TestState { ts_results  :: [RunResult] }
+type Milliseconds = Int
+
+data RunResult
+    = RunResult
+      { rr_result :: TestResult
+      , rr_message :: String
+      , rr_wallTimeMs :: Milliseconds
+      }
+
+data TestState = TestState { ts_results :: [FlatTestResult] }
 
 initTestState :: TestState
 initTestState = TestState []
 
 type TR = RWST TestConfig () TestState IO
-
-data RunResult
-    = RunResult
-      { rr_sort :: TestSort
-      , rr_id :: TestID
-      , rr_location :: Maybe Location
-      , rr_result :: TestResult }
 
 -- | A filter is a predicate on 'FlatTest'. If the predicate is 'True', the flat test is run.
 type TestFilter = FlatTest -> Bool
@@ -74,11 +94,12 @@ instance Show TestConfig where
 type ReportAllTests = [FlatTest] -> TR ()
 type ReportGlobalStart = [FlatTest] -> TR ()
 type ReportTestStart = FlatTest -> TR ()
-type ReportTestResult = RunResult -> String -> TR ()
-type ReportGlobalResults = [RunResult] -- ^ passed tests
-                        -> [RunResult] -- ^ pending tests
-                        -> [RunResult] -- ^ failed tests
-                        -> [RunResult] -- ^ erroneous tests
+type ReportTestResult = FlatTestResult -> TR ()
+type ReportGlobalResults = Milliseconds     -- ^ wall time in ms
+                        -> [FlatTestResult] -- ^ passed tests
+                        -> [FlatTestResult] -- ^ pending tests
+                        -> [FlatTestResult] -- ^ failed tests
+                        -> [FlatTestResult] -- ^ erroneous tests
                         -> TR ()
 
 data TestReporter

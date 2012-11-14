@@ -1,14 +1,13 @@
 * Release 0.10
-** Machine readable output
-*** option --output-format=(human|machine)
-**** Output format:
 ** Parallel test execution
 *** Options --threads=[N] or -j [N]
 *** Some test cannot be run in parallel
-** Support for timeouts (--timeout=SECS)
-*** Refactorings
-**** Check imports with warn-unused-imports
-**** Check unused functions
+** Refactorings
+*** Check imports with warn-unused-imports
+*** Check unused functions
 ** API documentation
 * External interface for integrating other test frameworks (such as Smallcheck)
 ** Support for Smallcheck and/or Lazy Smallcheck
+* Other ideads
+** option --xml-result to output a junit-style XML document summarizing the test results
+** Support for timeouts (--timeout=SECS)

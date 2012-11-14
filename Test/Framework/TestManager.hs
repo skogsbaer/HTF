@@ -55,7 +55,7 @@ import qualified Data.ByteString.Lazy as BSL
 
 import qualified Test.HUnit.Lang as HU
 
-import Test.Framework.Utils ( readM, ensureNewline )
+import Test.Framework.Utils
 import Test.Framework.TestManagerInternal
 import Test.Framework.TestTypes
 import Test.Framework.CmdlineOptions
@@ -104,10 +104,10 @@ class TestableHTF t where
     flatten :: t -> [FlatTest]
 
 instance TestableHTF Test where
-    flatten = flattenTest Nothing
+    flatten = flattenTest
 
 instance TestableHTF TestSuite where
-    flatten = flattenTestSuite Nothing
+    flatten = flattenTestSuite
 
 instance TestableHTF t => TestableHTF [t] where
     flatten = concatMap flatten
@@ -115,29 +115,24 @@ instance TestableHTF t => TestableHTF [t] where
 instance TestableHTF (IO a) where
     flatten action = flatten (makeUnitTest "unnamed test" unknownLocation action)
 
-type Path = Maybe String
+flattenTest :: Test -> [FlatTest]
+flattenTest (BaseTest sort id mloc x) =
+    [FlatTest sort (TestPathBase id) mloc x]
+flattenTest (CompoundTest ts) =
+    flattenTestSuite ts
 
-flattenTest :: Path -> Test -> [FlatTest]
-flattenTest path (BaseTest sort id mloc ass) =
-    [FlatTest sort (path `concatPath` id) mloc ass]
-flattenTest path (CompoundTest ts) =
-    flattenTestSuite path ts
+flattenTestSuite :: TestSuite -> [FlatTest]
+flattenTestSuite (TestSuite id ts) =
+    let fts = concatMap flattenTest ts
+    in map (\ft -> ft { ft_path = TestPathCompound (Just id) (ft_path ft) }) fts
+flattenTestSuite (AnonTestSuite ts) =
+    let fts = concatMap flattenTest ts
+    in map (\ft -> ft { ft_path = TestPathCompound Nothing (ft_path ft) }) fts
 
-flattenTestSuite :: Path -> TestSuite -> [FlatTest]
-flattenTestSuite path (TestSuite id ts) =
-    concatMap (flattenTest (Just (path `concatPath` id))) ts
-flattenTestSuite path (AnonTestSuite ts) =
-    concatMap (flattenTest path) ts
-
-concatPath :: Path -> String -> String
-concatPath Nothing s = s
-concatPath (Just s1) s2 = s1 ++ pathSep ++ s2
-    where pathSep = ":"
-
-runFlatTest :: FlatTest -> TR (RunResult, String)
+runFlatTest :: FlatTest -> TR FlatTestResult
 runFlatTest ft =
     do reportTestStart ft
-       res <- liftIO $ HU.performTestCase (ft_assertion ft)
+       (res, time) <- liftIO $ measure $ HU.performTestCase (ft_payload ft)
        let (testResult, msg) =
              case res of
                Nothing -> (Pass, "")
@@ -158,17 +153,17 @@ runFlatTest ft =
                                  case ms of
                                    Nothing -> (r, "")
                                    Just s -> (r, s)
-           rr = RunResult
-                  { rr_sort = ft_sort ft
-                  , rr_id = ft_id ft
-                  , rr_location = ft_location ft
-                  , rr_result = testResult }
-       return (rr, msg)
+           rr = FlatTest
+                  { ft_sort = ft_sort ft
+                  , ft_path = ft_path ft
+                  , ft_location = ft_location ft
+                  , ft_payload = RunResult testResult msg time }
+       return rr
 
-handleRunResult :: (RunResult, String) -> TR ()
-handleRunResult (rr, msg) =
-    do modify (\s -> s { ts_results = rr : ts_results s })
-       reportTestResult rr msg
+handleRunResult :: FlatTestResult -> TR ()
+handleRunResult r =
+    do modify (\s -> s { ts_results = r : ts_results s })
+       reportTestResult r
 
 runAllFlatTests :: [FlatTest] -> TR ()
 runAllFlatTests tests =
@@ -215,13 +210,15 @@ runTestWithOptions opts t =
 -- A test is said to /fail/ if an assertion fails but no other error occur.
 runTestWithConfig :: TestableHTF t => TestConfig -> t -> IO ExitCode
 runTestWithConfig tc t =
-     do (_, s, _) <- runRWST (runAllFlatTests (filter (tc_filter tc) (flatten t))) tc initTestState
+     do ((_, s, _), time) <-
+            measure $
+            runRWST (runAllFlatTests (filter (tc_filter tc) (flatten t))) tc initTestState
         let results = reverse (ts_results s)
-            passed = filter (\rr -> rr_result rr == Pass) results
-            pending = filter (\rr -> rr_result rr == Pending) results
-            failed = filter (\rr -> rr_result rr == Fail) results
-            error = filter (\rr -> rr_result rr == Error) results
-        runRWST (reportGlobalResults passed pending failed error) tc (TestState [])
+            passed = filter (\ft -> (rr_result . ft_payload) ft == Pass) results
+            pending = filter (\ft -> (rr_result . ft_payload) ft == Pending) results
+            failed = filter (\ft -> (rr_result . ft_payload) ft == Fail) results
+            error = filter (\ft -> (rr_result . ft_payload) ft == Error) results
+        runRWST (reportGlobalResults time passed pending failed error) tc (TestState [])
         return $ case () of
                    _| length failed == 0 && length error == 0 -> ExitSuccess
                     | length error == 0 -> ExitFailure 1

@@ -27,6 +27,7 @@ module Test.Framework.CmdlineOptions (
 import Test.Framework.TestReporter
 import Test.Framework.TestTypes
 import Test.Framework.Colors
+import Test.Framework.Utils
 
 import Data.Char (toLower)
 import Data.Maybe
@@ -90,17 +91,23 @@ optionDescriptions =
     [ Option ['q']     ["quiet"]   (NoArg (\o -> o { opts_quiet = True })) "only display errors"
     , Option ['n']     ["not"]     (ReqArg (\s o -> o { opts_negated = s : (opts_negated o) })
                                            "PATTERN") "tests to exclude"
+    , Option ['l']     ["list"]   (NoArg (\o -> o { opts_listTests = True })) "list all matching tests"
+--     , Option ['j']     ["threads"]   (OptArg (\ms o -> o { opts_threads = Just (parseThreads ms) }) "N")
+--                                      ("run N tests in parallel, default N=" ++ show processorCount)
     , Option ['o']     ["output-file"] (ReqArg (\s o -> o { opts_outputFile = Just s })
                                                "FILE") "name of output file"
-    , Option []     ["json"] (NoArg (\o -> o { opts_machineOutput = True }))
-                             "output results in machine-readable JSON format"
-    , Option ['l']     ["list"]   (NoArg (\o -> o { opts_listTests = True })) "list all matching tests"
+    , Option [   ]     ["json"] (NoArg (\o -> o { opts_machineOutput = True }))
+                               "output results in machine-readable JSON format"
     , Option []        ["colors"]  (ReqArg (\s o -> o { opts_useColors = Just (parseBool s) })
                                            "BOOL") "use colors or not"
-
     , Option ['h']     ["help"]    (NoArg (\o -> o { opts_help = True })) "display this message"
     ]
     where
+      parseThreads Nothing = processorCount
+      parseThreads (Just s) =
+          case readM s of
+            Just i -> i
+            Nothing -> error ("invalid number of threads: " ++ s)
       parseBool s =
           if map toLower s `elem` ["1", "true", "yes", "on"] then True else False
 
@@ -120,10 +127,11 @@ parseTestArgs args =
               negStrs = opts_negated opts
               pos = map mkRegex posStrs
               neg = map mkRegex negStrs
-              pred (FlatTest _ id _ _) =
-                  if (any (\s -> s `matches` id) neg)
-                     then False
-                     else null pos || any (\s -> s `matches` id) pos
+              pred (FlatTest _ path _ _) =
+                  let flat = flatName path
+                  in if (any (\s -> s `matches` flat) neg)
+                        then False
+                        else null pos || any (\s -> s `matches` flat) pos
               opts = (foldr ($) defaultCmdlineOptions optTrans) { opts_filter = pred }
           in Right opts
       (_,_,errs) ->

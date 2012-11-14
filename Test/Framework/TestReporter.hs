@@ -29,14 +29,14 @@ reportTestStart t =
        mapM_ (\r -> tr_reportTestStart r t) reps
 
 reportTestResult :: ReportTestResult
-reportTestResult t msg =
+reportTestResult t =
     do reps <- asks tc_reporters
-       mapM_ (\r -> tr_reportTestResult r t msg) reps
+       mapM_ (\r -> tr_reportTestResult r t) reps
 
 reportGlobalResults :: ReportGlobalResults
-reportGlobalResults l1 l2 l3 l4 =
+reportGlobalResults t l1 l2 l3 l4 =
     do reps <- asks tc_reporters
-       mapM_ (\r -> tr_reportGlobalResults r l1 l2 l3 l4) reps
+       mapM_ (\r -> tr_reportGlobalResults r t l1 l2 l3 l4) reps
 
 defaultTestReporters :: Bool -- ^ 'True' if tests are run in parallel
                      -> Bool -- ^ 'True' if machine output should be produced
@@ -84,52 +84,56 @@ defaultTestReporters inParallel forMachine =
 -- output for humans
 --
 
-humanTestName :: TestID -> Maybe Location -> String
-humanTestName id mloc =
-    id ++ case mloc of
-            Nothing -> ""
-            Just loc -> " (" ++ showLoc loc ++ ")"
+humanTestName :: GenFlatTest a -> String
+humanTestName ft =
+    flatName (ft_path ft) ++
+    case ft_location ft of
+      Nothing -> ""
+      Just loc -> " (" ++ showLoc loc ++ ")"
 
-reportHumanTestStartMessage :: ReportLevel -> TestID -> Maybe Location -> TR ()
-reportHumanTestStartMessage level id mloc =
+reportHumanTestStartMessage :: ReportLevel -> GenFlatTest a -> TR ()
+reportHumanTestStartMessage level ft =
     do t <- liftIO $ colorize testStartColor "[TEST] "
-       reportTR level (t ++ (humanTestName id mloc))
+       reportTR level (t ++ (humanTestName ft))
 
 -- sequential
 reportGlobalStartHS :: ReportGlobalStart
 reportGlobalStartHS _ = return ()
 
 reportTestStartHS :: ReportTestStart
-reportTestStartHS ft = reportHumanTestStartMessage Debug (ft_id ft) (ft_location ft)
+reportTestStartHS ft = reportHumanTestStartMessage Debug ft
 
 reportTestResultHS :: ReportTestResult
-reportTestResultHS rr msg =
-   case rr_result rr of
-     Pass ->
-         do pref <- okPrefix
-            reportMessage Debug msg pref
-     Pending ->
-         do reportHumanTestStartMessageIfNeeded
-            pref <- pendingPrefix
-            reportMessage Info msg pref
-     Fail ->
-         do reportHumanTestStartMessageIfNeeded
-            pref <- failurePrefix
-            reportMessage Info msg pref
-     Error ->
-         do reportHumanTestStartMessageIfNeeded
-            pref <- errorPrefix
-            reportMessage Info msg pref
+reportTestResultHS ftr =
+    let res = rr_result (ft_payload ftr)
+        msg = rr_message (ft_payload ftr)
+    in case res of
+         Pass ->
+             do suf <- okSuffix
+                reportMessage Debug msg suf
+         Pending ->
+             do reportHumanTestStartMessageIfNeeded
+                suf <- pendingSuffix
+                reportMessage Info msg suf
+         Fail ->
+             do reportHumanTestStartMessageIfNeeded
+                suf <- failureSuffix
+                reportMessage Info msg suf
+         Error ->
+             do reportHumanTestStartMessageIfNeeded
+                suf <- errorSuffix
+                reportMessage Info msg suf
    where
      reportHumanTestStartMessageIfNeeded =
          do tc <- ask
-            when (tc_quiet tc) (reportHumanTestStartMessage Info (rr_id rr) (rr_location rr))
-     reportMessage level msg prefix =
-         reportTR level (ensureNewline msg ++ prefix)
-     failurePrefix = liftIO $ colorize warningColor "*** Failed!\n"
-     errorPrefix = liftIO $ colorize warningColor "@@@ Error!\n"
-     pendingPrefix = liftIO $ colorize pendingColor "^^^ Pending!\n"
-     okPrefix = liftIO $ colorize testOkColor  "+++ OK\n"
+            when (tc_quiet tc) (reportHumanTestStartMessage Info ftr)
+     reportMessage level msg suffix =
+         reportTR level (ensureNewline msg ++ suffix ++ timeStr)
+     timeStr = " (" ++ show (rr_wallTimeMs (ft_payload ftr)) ++ "ms)\n"
+     failureSuffix = liftIO $ colorize warningColor "*** Failed!"
+     errorSuffix = liftIO $ colorize warningColor "@@@ Error!"
+     pendingSuffix = liftIO $ colorize pendingColor "^^^ Pending!"
+     okSuffix = liftIO $ colorize testOkColor  "+++ OK"
 
 -- parallel
 reportGlobalStartHP :: ReportGlobalStart
@@ -137,20 +141,20 @@ reportGlobalStartHP _ = return ()
 
 reportTestStartHP :: ReportTestStart
 reportTestStartHP ft =
-     do reportTR Debug ("Starting " ++ (humanTestName (ft_id ft) (ft_location ft)))
+     do reportTR Debug ("Starting " ++ (humanTestName ft))
 
 reportTestResultHP :: ReportTestResult
-reportTestResultHP rr msg =
-    do reportHumanTestStartMessage Debug (rr_id rr) (rr_location rr)
-       reportTestResultHS rr msg
+reportTestResultHP ftr =
+    do reportHumanTestStartMessage Debug ftr
+       reportTestResultHS ftr
 
 -- results and all tests
 reportAllTestsH :: ReportAllTests
 reportAllTestsH l =
-    reportDoc Info (renderTestNames (map (\ft -> (ft_id ft, ft_location ft)) l))
+    reportDoc Info (renderTestNames l)
 
 reportGlobalResultsH :: ReportGlobalResults
-reportGlobalResultsH passedL pendingL failedL errorL =
+reportGlobalResultsH t passedL pendingL failedL errorL =
     do let passed = length passedL
            pending = length pendingL
            failed = length failedL
@@ -163,7 +167,7 @@ reportGlobalResultsH passedL pendingL failedL errorL =
                       "* Passed:   " ++ show passed ++ "\n" ++
                       pendings ++ "  " ++ show pending ++ "\n" ++
                       failures ++ " " ++ show failed ++ "\n" ++
-                      errors ++ "   " ++ show error )
+                      errors ++ "   " ++ show error)
        when (pending > 0) $
           reportDoc Info
               (text ('\n' : pendings) $$ renderTestNames' (reverse pendingL))
@@ -173,14 +177,15 @@ reportGlobalResultsH passedL pendingL failedL errorL =
        when (error > 0) $
           reportDoc Info
               (text ('\n' : errors) $$ renderTestNames' (reverse errorL))
+       reportTR Info ("\nTotal execution time: " ++ show t ++ "ms")
     where
       renderTestNames' rrs =
-          nest 2 $ renderTestNames $ map (\rr -> (rr_id rr, rr_location rr)) rrs
+          nest 2 $ renderTestNames rrs
 
-renderTestNames :: [(TestID, Maybe Location)] -> Doc
+renderTestNames :: [GenFlatTest a] -> Doc
 renderTestNames l =
-    vcat (map (\(tid, loc) -> text "*" <+>
-                              text (humanTestName tid loc)) l)
+    vcat (map (\ft -> text "*" <+>
+                      text (humanTestName ft)) l)
 
 --
 -- output for machines
@@ -192,12 +197,12 @@ reportGlobalStartMS _ = return ()
 
 reportTestStartMS :: ReportTestStart
 reportTestStartMS ft =
-    let json = mkTestStartEventObj (ft_id ft) (ft_location ft)
+    let json = mkTestStartEventObj ft (flatName (ft_path ft))
     in reportJsonTR json
 
 reportTestResultMS :: ReportTestResult
-reportTestResultMS rr msg =
-    let json = mkTestEndEventObj (rr_id rr) (rr_location rr) (rr_result rr) msg 0 -- FIXME: time
+reportTestResultMS ftr =
+    let json = mkTestEndEventObj ftr (flatName (ft_path ftr))
     in reportJsonTR json
 
 -- parallel
@@ -213,12 +218,13 @@ reportTestResultMP = reportTestResultMS
 -- results and all tests
 reportAllTestsM :: ReportAllTests
 reportAllTestsM l =
-    let json = mkTestListObj (map (\ft -> (ft_id ft, ft_location ft)) l)
+    let json = mkTestListObj (map (\ft -> (ft, flatName (ft_path ft))) l)
     in reportJsonTR json
 
 reportGlobalResultsM :: ReportGlobalResults
-reportGlobalResultsM _ _ _ _ = return ()
-
+reportGlobalResultsM t pass pending failed errors =
+    let json = mkTestResultsObj t (length pass) (length pending) (length failed) (length errors)
+    in reportJsonTR json
 
 --
 -- General reporting routines
