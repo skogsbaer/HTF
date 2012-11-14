@@ -26,10 +26,15 @@ import qualified Data.ByteString.Lazy.Char8 as BSLC
 HTF's machine-readable output is a sequence of JSON messages. Each message is terminated
 by a newline followed by two semicolons followed again by a newline.
 
-There are three types of JSON messages. Each JSON object has a "type" attribute denoting
+There are four types of JSON messages. Each JSON object has a "type" attribute denoting
 this type. The types are: "test-start", "test-end", and "test-list", "test-results".
 Their haskell representations are TestStartEventObj, TestEndEventObj, TestListObj, and
 TestResultObj. The corresponding JSON rendering is defined below.
+
+- The "test-start" message denotes the start of a single test case.
+- The "test-end" message denotes the end of a single test case.
+- The "test-results" message occurs after all tests have been run and summarizes their results.
+- The "test-list" message contains all tests defined. It is used for the --list commandline options.
 
 -}
 
