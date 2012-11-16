@@ -38,10 +38,12 @@ import System.IO
 import System.Console.GetOpt
 import qualified Text.Regex as R
 
+#ifndef mingw32_HOST_OS
 import System.Posix.Terminal
 import System.Posix.IO (stdOutput)
 import System.Posix.Types (Fd)
 import System.Posix.Env (getEnv)
+#endif
 
 #ifdef COMPILER_GHC
 import GHC.Conc ( numCapabilities )
@@ -165,6 +167,18 @@ testConfigFromCmdlineOptions opts =
                            , tc_reporters = reporters
                            , tc_filter = opts_filter opts }
     where
+#ifdef mingw32_HOST_OS
+      openOutputFile =
+          case opts_outputFile opts of
+            Nothing -> return (stdout, Nothing)
+            Just fname ->
+                do f <- openFile fname WriteMode
+                   return (f, Nothing)
+      checkColors mOutputFd =
+          case opts_useColors opts of
+            Just b -> return b
+            Nothing -> return False                   
+#else    
       openOutputFile =
           case opts_outputFile opts of
             Nothing -> return (stdout, Just stdOutput)
@@ -185,3 +199,4 @@ testConfigFromCmdlineOptions opts =
                                _ -> case mOutputFd of
                                       Just fd -> queryTerminal fd
                                       _ -> return False
+#endif
