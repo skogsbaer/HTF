@@ -70,7 +70,7 @@ module Test.Framework.HUnitWrapper (
   assertNothingNoShow_, assertNothingNoShowVerbose_,
 
   -- * General failure
-  assertFailure, unitTestPending, unitTestPending'
+  assertFailure_, assertFailureWithLoc, unitTestPending, unitTestPending'
 
 ) where
 
@@ -93,10 +93,17 @@ import Test.Framework.Pretty
 -- WARNING: do not forget to add a preprocessor macro for new assertions!!
 
 {- |
-Fail with the given reason.
+Fail with the given reason, supplying the error location and the error message.
 -}
-assertFailure :: String -> IO a
-assertFailure s = unitTestFail s
+assertFailureWithLoc :: Location -> String -> IO a
+assertFailureWithLoc loc s = unitTestFail (Just loc) s
+
+{- |
+Fail with the given reason, supplying the name of the assertion, the error location,
+and the error message.
+-}
+assertFailure_ :: String -> Location -> String -> IO a
+assertFailure_ name loc s = assertFailureWithLoc loc (mkMsg name s ("failed at " ++ showLoc loc))
 
 {- |
 Use @unitTestPending' msg test@ to mark the given test as pending
@@ -145,7 +152,7 @@ CreateAssertionsGeneric(__name__, , __type__, __ret__)
 
 _assertBool_ :: String -> Location -> String -> Bool -> HU.Assertion
 _assertBool_ name loc s False =
-    assertFailure (mkMsg name s ("failed at " ++ showLoc loc))
+    assertFailureWithLoc loc (mkMsg name s ("failed at " ++ showLoc loc))
 _assertBool_ _ _ _   True = return ()
 
 DocAssertion(assertBool, Fail if the 'Bool' value is 'False'.)
@@ -202,7 +209,7 @@ _assertEqual_ :: (Eq a, Show a)
 _assertEqual_ name loc s expected actual =
     if expected /= actual
        then do x <- equalityFailedMessage (show expected) (show actual)
-               assertFailure (mkMsg name s $ "failed at " ++ showLoc loc ++ x)
+               assertFailureWithLoc loc (mkMsg name s $ "failed at " ++ showLoc loc ++ x)
        else return ()
 
 DocAssertion(assertEqual, Fail if the two values of type @a@ are not equal.
@@ -215,7 +222,7 @@ _assertNotEqual_ :: (Eq a, Show a)
 _assertNotEqual_ name loc s expected actual =
     if expected == actual
        then do x <- notEqualityFailedMessage (show expected)
-               assertFailure (mkMsg name s $ "failed at " ++ showLoc loc ++ x)
+               assertFailureWithLoc loc (mkMsg name s $ "failed at " ++ showLoc loc ++ x)
        else return ()
 
 DocAssertion(assertNotEqual, Fail if the two values of type @a@ are equal.
@@ -228,7 +235,7 @@ _assertEqualPretty_ :: (Eq a, Pretty a)
 _assertEqualPretty_ name loc s expected actual =
     if expected /= actual
        then do x <- equalityFailedMessage (showPretty expected) (showPretty actual)
-               assertFailure (mkMsg name s $ "failed at " ++ showLoc loc ++ x)
+               assertFailureWithLoc loc (mkMsg name s $ "failed at " ++ showLoc loc ++ x)
        else return ()
 
 DocAssertion(assertEqualPretty, Fail if the two values of type @a@ are not equal.
@@ -241,7 +248,7 @@ _assertNotEqualPretty_ :: (Eq a, Pretty a)
 _assertNotEqualPretty_ name loc s expected actual =
     if expected == actual
        then do x <- notEqualityFailedMessage (showPretty expected)
-               assertFailure (mkMsg name s $ "failed at " ++ showLoc loc ++ x)
+               assertFailureWithLoc loc (mkMsg name s $ "failed at " ++ showLoc loc ++ x)
        else return ()
 DocAssertion(assertNotEqualPretty, Fail if the two values of type @a@ are equal.
              The first parameter denotes the expected value. Use these two functions
@@ -252,7 +259,7 @@ _assertEqualNoShow_ :: Eq a
                     => String -> Location -> String -> a -> a -> HU.Assertion
 _assertEqualNoShow_ name loc s expected actual =
     if expected /= actual
-       then assertFailure (mkMsg name s ("failed at " ++ showLoc loc))
+       then assertFailureWithLoc loc (mkMsg name s ("failed at " ++ showLoc loc))
        else return ()
 DocAssertion(assertEqualNoShow, Fail if the two values of type @a@ are not equal.
              The first parameter denotes the expected value. Use these two functions
@@ -264,7 +271,7 @@ _assertNotEqualNoShow_ :: Eq a
                     => String -> Location -> String -> a -> a -> HU.Assertion
 _assertNotEqualNoShow_ name loc s expected actual =
     if expected == actual
-       then assertFailure (mkMsg name s ("failed at " ++ showLoc loc))
+       then assertFailureWithLoc loc (mkMsg name s ("failed at " ++ showLoc loc))
        else return ()
 DocAssertion(assertNotEqualNoShow, Fail if the two values of type @a@ are equal.
              The first parameter denotes the expected value. Use these two functions
@@ -283,13 +290,13 @@ _assertListsEqualAsSets_ name loc s expected actual =
         na = length actual
         in case () of
             _| ne /= na ->
-                 assertFailure (mkMsg name s
+                 assertFailureWithLoc loc (mkMsg name s
                                 ("failed at " ++ showLoc loc
                                  ++ "\n expected length: " ++ show ne
                                  ++ "\n actual length: " ++ show na))
              | not (unorderedEq expected actual) ->
                  do x <- equalityFailedMessage (show expected) (show actual)
-                    assertFailure (mkMsg "assertSetEqual" s
+                    assertFailureWithLoc loc (mkMsg "assertSetEqual" s
                                    ("failed at " ++ showLoc loc ++ x))
              | otherwise -> return ()
     where unorderedEq l1 l2 =
@@ -301,14 +308,14 @@ CreateAssertionsCtx(assertListsEqualAsSets, (Eq a, Show a), [a] -> [a])
 
 _assertNotEmpty_ :: String -> Location -> String -> [a] -> HU.Assertion
 _assertNotEmpty_ name loc s [] =
-    assertFailure (mkMsg name s ("failed at " ++ showLoc loc))
+    assertFailureWithLoc loc (mkMsg name s ("failed at " ++ showLoc loc))
 _assertNotEmpty_ _ _ _ (_:_) = return ()
 DocAssertion(assertNotEmpty, Fail if the given list is empty.)
 CreateAssertions(assertNotEmpty, [a])
 
 _assertEmpty_ :: String -> Location -> String -> [a] -> HU.Assertion
 _assertEmpty_ name loc s (_:_) =
-    assertFailure (mkMsg name s ("failed at " ++ showLoc loc))
+    assertFailureWithLoc loc (mkMsg name s ("failed at " ++ showLoc loc))
 _assertEmpty_ _ _ _ [] = return ()
 DocAssertion(assertEmpty, Fail if the given list is a non-empty list.)
 CreateAssertions(assertEmpty, [a])
@@ -322,11 +329,11 @@ _assertThrowsIO_ :: Exception e
 _assertThrowsIO_ name loc s x f =
     do res <- try x
        case res of
-         Right _ -> assertFailure (mkMsg name s
+         Right _ -> assertFailureWithLoc loc (mkMsg name s
                                    ("failed at " ++ showLoc loc ++
                                     ": no exception was thrown"))
          Left e -> if f e then return ()
-                   else assertFailure (mkMsg name s
+                   else assertFailureWithLoc loc (mkMsg name s
                                        ("failed at " ++
                                         showLoc loc ++
                                         ": wrong exception was thrown: " ++
@@ -363,7 +370,7 @@ _assertLeft_ :: forall a b . Show b
              => String -> Location -> String -> Either a b -> IO a
 _assertLeft_ _ _ _ (Left x) = return x
 _assertLeft_ name loc s (Right x) =
-    assertFailure (mkMsg name s
+    assertFailureWithLoc loc (mkMsg name s
                    ("failed at " ++ showLoc loc ++
                     ": expected a Left value, given " ++
                     show (Right x :: Either b b)))
@@ -374,7 +381,7 @@ CreateAssertionsCtxRet(assertLeft, Show b, Either a b, IO a)
 _assertLeftNoShow_ :: String -> Location -> String -> Either a b -> IO a
 _assertLeftNoShow_ _ _ _ (Left x) = return x
 _assertLeftNoShow_ name loc s (Right _) =
-    assertFailure (mkMsg name s ("failed at " ++ showLoc loc ++
+    assertFailureWithLoc loc (mkMsg name s ("failed at " ++ showLoc loc ++
                                  ": expected a Left value, given a Right value"))
 DocAssertion(assertLeftNoShow, Fail if the given @Either a b@ value is a 'Right'.)
 CreateAssertionsRet(assertLeftNoShow, Either a b, IO a)
@@ -383,7 +390,7 @@ _assertRight_ :: forall a b . Show a
               => String -> Location -> String -> Either a b -> IO b
 _assertRight_ _ _ _ (Right x) = return x
 _assertRight_ name loc s (Left x) =
-    assertFailure (mkMsg name s ("failed at " ++ showLoc loc ++
+    assertFailureWithLoc loc (mkMsg name s ("failed at " ++ showLoc loc ++
                                  ": expected a Right value, given " ++
                                  show (Left x :: Either a a)))
 DocAssertion(assertRight, Fail if the given @Either a b@ value is a 'Left'.
@@ -393,7 +400,7 @@ CreateAssertionsCtxRet(assertRight, Show a, Either a b, IO b)
 _assertRightNoShow_ :: String -> Location -> String -> Either a b -> IO b
 _assertRightNoShow_ _ _ _ (Right x) = return x
 _assertRightNoShow_ name loc s (Left _) =
-    assertFailure (mkMsg name s ("failed at " ++ showLoc loc ++
+    assertFailureWithLoc loc (mkMsg name s ("failed at " ++ showLoc loc ++
                                  ": expected a Right value, given a Left value"))
 DocAssertion(assertRightNoShow, Fail if the given @Either a b@ value is a 'Left'.)
 CreateAssertionsRet(assertRightNoShow, Either a b, IO b)
@@ -405,7 +412,7 @@ CreateAssertionsRet(assertRightNoShow, Either a b, IO b)
 _assertJust_ :: String -> Location -> String -> Maybe a -> IO a
 _assertJust_ _ _ _ (Just x) = return x
 _assertJust_ name loc s Nothing =
-    assertFailure (mkMsg name s ("failed at " ++ showLoc loc ++
+    assertFailureWithLoc loc (mkMsg name s ("failed at " ++ showLoc loc ++
                                  ": expected a Just value, given Nothing"))
 DocAssertion(assertJust, Fail is the given @Maybe a@ value is a 'Nothing'.)
 CreateAssertionsRet(assertJust, Maybe a, IO a)
@@ -414,7 +421,7 @@ _assertNothing_ :: Show a
                 => String -> Location -> String -> Maybe a -> HU.Assertion
 _assertNothing_ _ _ _ Nothing = return ()
 _assertNothing_ name loc s jx =
-    assertFailure (mkMsg name s ("failed at " ++ showLoc loc ++
+    assertFailureWithLoc loc (mkMsg name s ("failed at " ++ showLoc loc ++
                                  ": expected Nothing, given " ++ show jx))
 DocAssertion(assertNothing, Fail is the given @Maybe a@ value is a 'Just'.
              Use this function if @a@ is an instance of 'Show'.)
@@ -423,7 +430,7 @@ CreateAssertionsCtx(assertNothing, Show a, Maybe a)
 _assertNothingNoShow_ :: String -> Location -> String -> Maybe a -> HU.Assertion
 _assertNothingNoShow_ _ _ _ Nothing = return ()
 _assertNothingNoShow_ name loc s _ =
-    assertFailure (mkMsg name s ("failed at " ++ showLoc loc ++
+    assertFailureWithLoc loc (mkMsg name s ("failed at " ++ showLoc loc ++
                                  ": expected Nothing, given a Just value"))
 DocAssertion(assertNothingNoShow, Fail is the given @Maybe a@ value is a 'Just'.)
 CreateAssertions(assertNothingNoShow, Maybe a)

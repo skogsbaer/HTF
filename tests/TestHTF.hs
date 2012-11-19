@@ -71,7 +71,8 @@ data Expr = PlusExpr Expr Expr
           | Variable String
             deriving (Eq, Show)
 
-test_diff = assertEqual (mkExpr 1) (mkExpr 2)
+test_diff =
+    assertEqual (mkExpr 1) (mkExpr 2)
     where
       mkExpr i =
           PlusExpr (PlusExpr (MultExpr (PlusExpr (Variable "foo")
