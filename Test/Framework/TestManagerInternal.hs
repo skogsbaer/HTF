@@ -20,12 +20,15 @@ module Test.Framework.TestManagerInternal (
 
   extractPendingMessage,
   quickCheckTestFail, quickCheckTestError, quickCheckTestPending,
-  quickCheckTestPass,
-  unitTestFail, unitTestPending, blackBoxTestFail,
+  quickCheckTestPass, deserializeQuickCheckMsg,
+  unitTestFail, unitTestPending, deserializeHUnitMsg,
+  blackBoxTestFail,
 
 ) where
 
 import Test.Framework.TestTypes
+import Test.Framework.Utils
+import Test.Framework.Location
 
 import Data.List ( isPrefixOf )
 import qualified Test.HUnit.Lang as HU
@@ -65,14 +68,33 @@ quickCheckTestPending m = assertFailureHTF (show (Pending, Just m))
 quickCheckTestPass :: String -> Assertion
 quickCheckTestPass m = assertFailureHTF (show (Pass, Just m))
 
-unitTestFail :: String -> IO a
-unitTestFail s =
-    do assertFailureHTF s
+deserializeQuickCheckMsg :: String -> (TestResult, String)
+deserializeQuickCheckMsg msg =
+    case readM msg of
+      Nothing ->
+          error ("INTERNAL HTF ERROR: " ++
+                 "Cannot deserialize QuickCheck " ++
+                 "error message.\n[BEGIN]\n" ++
+                 show msg ++ "\n[END]\n")
+      Just (r, ms) ->
+          case ms of
+            Nothing -> (r, "")
+            Just s -> (r, s)
+
+unitTestFail :: Maybe Location -> String -> IO a
+unitTestFail loc s =
+    do assertFailureHTF (show (loc, s))
        error "unitTestFail: UNREACHABLE"
+
+deserializeHUnitMsg :: String -> (Maybe Location, String)
+deserializeHUnitMsg msg =
+    case readM msg of
+      Just (Just loc, s) -> (Just loc, s)
+      _ -> (Nothing, msg)
 
 -- |Mark a unit test as pending without removing it from the test suite.
 unitTestPending :: String -> IO a
-unitTestPending s = unitTestFail (makePendingMessage s)
+unitTestPending s = unitTestFail Nothing (makePendingMessage s)
 
 blackBoxTestFail :: String -> Assertion
 blackBoxTestFail = assertFailureHTF

@@ -63,7 +63,7 @@ defaultTestReporters inParallel forMachine =
            }]
       (False, True) ->
           [TestReporter
-           { tr_id = "rep_seq_human"
+           { tr_id = "rep_seq_machine"
            , tr_reportAllTests = reportAllTestsM
            , tr_reportGlobalStart = reportGlobalStartMS
            , tr_reportTestStart = reportTestStartMS
@@ -72,7 +72,7 @@ defaultTestReporters inParallel forMachine =
            }]
       (True, True) ->
           [TestReporter
-           { tr_id = "rep_par_human"
+           { tr_id = "rep_par_machine"
            , tr_reportAllTests = reportAllTestsM
            , tr_reportGlobalStart = reportGlobalStartMP
            , tr_reportTestStart = reportTestStartMP

@@ -133,31 +133,23 @@ runFlatTest :: FlatTest -> TR FlatTestResult
 runFlatTest ft =
     do reportTestStart ft
        (res, time) <- liftIO $ measure $ HU.performTestCase (ft_payload ft)
-       let (testResult, msg) =
+       let (testResult, (mLoc, msg)) =
              case res of
-               Nothing -> (Pass, "")
+               Nothing -> (Pass, (Nothing, ""))
                Just (isFailure, msg') ->
                    if ft_sort ft /= QuickCheckTest
                       then if isFailure
                               then case extractPendingMessage msg' of
-                                     Nothing -> (Fail, msg')
-                                     Just msg'' -> (Pending, msg'')
-                              else (Error, msg')
-                      else case readM msg' :: Maybe (TestResult, Maybe String) of
-                             Nothing ->
-                                 error ("INTERNAL HTF ERROR: " ++
-                                        "Cannot deserialize QuickCheck " ++
-                                        "error message.\n[BEGIN]\n" ++
-                                        show msg' ++ "\n[END]\n")
-                             Just (r, ms) ->
-                                 case ms of
-                                   Nothing -> (r, "")
-                                   Just s -> (r, s)
+                                     Nothing -> (Fail, deserializeHUnitMsg msg')
+                                     Just msg'' -> (Pending, deserializeHUnitMsg msg'')
+                              else (Error, deserializeHUnitMsg msg')
+                      else let (r, s) = deserializeQuickCheckMsg msg'
+                           in (r, (Nothing, s))
            rr = FlatTest
                   { ft_sort = ft_sort ft
                   , ft_path = ft_path ft
                   , ft_location = ft_location ft
-                  , ft_payload = RunResult testResult msg time }
+                  , ft_payload = RunResult testResult mLoc msg time }
        return rr
 
 handleRunResult :: FlatTestResult -> TR ()

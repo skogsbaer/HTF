@@ -57,6 +57,7 @@ type Milliseconds = Int
 data RunResult
     = RunResult
       { rr_result :: TestResult
+      , rr_location :: Maybe Location
       , rr_message :: String
       , rr_wallTimeMs :: Milliseconds
       }

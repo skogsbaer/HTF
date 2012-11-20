@@ -63,7 +63,8 @@ nameDefines info =
      (importedTestListName, importedTestListFullName (mi_moduleName info))]
 
 allAsserts :: [String]
-allAsserts = ["assertBool"
+allAsserts = ["assertFailure"
+             ,"assertBool"
              ,"assertEqual"
              ,"assertEqualPretty"
              ,"assertEqualNoShow"
