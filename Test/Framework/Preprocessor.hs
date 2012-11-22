@@ -20,7 +20,7 @@
 
 module Test.Framework.Preprocessor ( transform, progName ) where
 
-import Data.Char ( toLower )
+import Data.Char ( toLower, isSpace, isDigit )
 import Data.Maybe ( mapMaybe )
 import qualified Data.List as List
 import System.IO ( hPutStrLn, stderr )
@@ -171,15 +171,34 @@ transform hunitBackwardsCompat originalFileName input =
          ParseError loc err ->
              do warn ("Parsing of " ++ originalFileName ++ " failed at line "
                       ++ show (lineNumber loc) ++ ": " ++ err)
-                preprocess (ModuleInfo "" [] [] "UNKNOWN_MODULE")
+                preprocess (ModuleInfo "" [] [] "UNKNOWN_MODULE") input
          ParseOK info ->
-             preprocess info
+             preprocess info input
     where
-      preprocess :: ModuleInfo -> IO String
-      preprocess info =
+      preprocess :: ModuleInfo -> String -> IO String
+      preprocess info input =
           do preProcessedInput <- runCpphs (cpphsOptions info) originalFileName
-                                           input
+                                           fixedInput
              return $ preProcessedInput ++ "\n\n" ++ additionalCode info ++ "\n"
+          where
+              -- fixedInput serves two purposes:
+              -- 1. add a trailing \n
+              -- 2. turn lines of the form '# <number> "<filename>"' into line directives
+              -- (see http://gcc.gnu.org/onlinedocs/cpp/Preprocessor-Output.html#Preprocessor-Output)
+              fixedInput :: String
+              fixedInput = (unlines . map fixLine . lines) input
+                  where
+                    fixLine s =
+                        case s of
+                          '#':' ':c:rest
+                            | isDigit c ->
+                                case List.span isDigit rest of
+                                  (restDigits, ' ' : '"' : rest) ->
+                                      case dropWhile (/= '"') (reverse rest) of
+                                        '"' : fileNameRev -> "#line " ++ (c:restDigits) ++ " \"" ++ reverse fileNameRev ++ "\""
+                                        _ -> s
+                                  _ -> s
+                          _ -> s
       cpphsOptions :: ModuleInfo -> CpphsOptions
       cpphsOptions info =
           defaultCpphsOptions { defines =
