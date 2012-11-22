@@ -138,11 +138,12 @@ runFlatTest ft =
                Nothing -> (Pass, (Nothing, ""))
                Just (isFailure, msg') ->
                    if ft_sort ft /= QuickCheckTest
-                      then if isFailure
-                              then case extractPendingMessage msg' of
-                                     Nothing -> (Fail, deserializeHUnitMsg msg')
-                                     Just msg'' -> (Pending, deserializeHUnitMsg msg'')
-                              else (Error, deserializeHUnitMsg msg')
+                      then let utr = deserializeHUnitMsg msg'
+                               r = case () of
+                                     _| utr_pending utr -> Pending
+                                      | isFailure -> Fail
+                                      | otherwise -> Error
+                           in (r, (utr_location utr, utr_message utr))
                       else let (r, s) = deserializeQuickCheckMsg msg'
                            in (r, (Nothing, s))
            rr = FlatTest

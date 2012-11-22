@@ -18,7 +18,8 @@
 
 module Test.Framework.TestManagerInternal (
 
-  extractPendingMessage,
+  UnitTestResult(..),
+
   quickCheckTestFail, quickCheckTestError, quickCheckTestPending,
   quickCheckTestPass, deserializeQuickCheckMsg,
   unitTestFail, unitTestPending, deserializeHUnitMsg,
@@ -34,20 +35,6 @@ import Data.List ( isPrefixOf )
 import qualified Test.HUnit.Lang as HU
 
 -- import Test.Framework.TestManager
-
--- A pending test case is treated as a failed testcase, but the error message
--- starts with the given prefix.
-pendingPrefix :: String
-pendingPrefix = "__PENDING__"
-
-makePendingMessage :: String -> String
-makePendingMessage = (++) pendingPrefix
-
-extractPendingMessage :: String -> Maybe String
-extractPendingMessage msg =
-    if pendingPrefix `isPrefixOf` msg
-       then Just $ drop (length pendingPrefix) msg
-       else Nothing
 
 assertFailureHTF :: String -> Assertion
 -- Important: force the string argument, otherwise an error embedded
@@ -81,20 +68,31 @@ deserializeQuickCheckMsg msg =
             Nothing -> (r, "")
             Just s -> (r, s)
 
+-- This is a HACK: we encode location and pending information as a datatype
+-- that we show and parse later using read.
+data UnitTestResult
+    = UnitTestResult
+      { utr_location :: Maybe Location
+      , utr_message :: String
+      , utr_pending :: Bool
+      } deriving (Eq, Show, Read)
+
 unitTestFail :: Maybe Location -> String -> IO a
 unitTestFail loc s =
-    do assertFailureHTF (show (loc, s))
+    do assertFailureHTF (show (UnitTestResult loc s False))
        error "unitTestFail: UNREACHABLE"
-
-deserializeHUnitMsg :: String -> (Maybe Location, String)
-deserializeHUnitMsg msg =
-    case readM msg of
-      Just (Just loc, s) -> (Just loc, s)
-      _ -> (Nothing, msg)
 
 -- |Mark a unit test as pending without removing it from the test suite.
 unitTestPending :: String -> IO a
-unitTestPending s = unitTestFail Nothing (makePendingMessage s)
+unitTestPending s =
+    do assertFailureHTF (show (UnitTestResult Nothing s True))
+       error "unitTestFail: UNREACHABLE"
+
+deserializeHUnitMsg :: String -> UnitTestResult
+deserializeHUnitMsg msg =
+    case readM msg of
+      Just r -> r
+      _ -> UnitTestResult Nothing msg False
 
 blackBoxTestFail :: String -> Assertion
 blackBoxTestFail = assertFailureHTF
