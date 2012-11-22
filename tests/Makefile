@@ -9,5 +9,6 @@ run:
 	@echo "* Tests:    43"
 	@echo "* Passed:   13"
 	@echo "* Pending:  2"
-	@echo "* Failures: 27"
+	@echo "* Failures: 28"
 	@echo "* Errors:   1"
+	@cd compile-errors && make check

@@ -63,8 +63,7 @@ nameDefines info =
      (importedTestListName, importedTestListFullName (mi_moduleName info))]
 
 allAsserts :: [String]
-allAsserts = ["assertFailure"
-             ,"assertBool"
+allAsserts = ["assertBool"
              ,"assertEqual"
              ,"assertEqualPretty"
              ,"assertEqualNoShow"
@@ -89,7 +88,7 @@ allAsserts = ["assertFailure"
 
 assertDefines :: Bool -> String -> [(String, String)]
 assertDefines hunitBackwardsCompat prefix =
-    concatMap fun allAsserts
+    concatMap fun allAsserts ++ [("assertFailure", expansion "assertFailure" "_")]
     where
       fun a =
           if hunitBackwardsCompat

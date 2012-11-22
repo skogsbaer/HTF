@@ -37,6 +37,9 @@ stringGap = "hello world!"
 handleExc :: a -> SomeException -> a
 handleExc x _ = x
 
+test_assertFailure =
+    assertFailure "I'm a failure"
+
 test_stringGap = assertEqual stringGap "hello world!"
 
 test_assertEqual = assertEqual 1 2
