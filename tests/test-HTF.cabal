@@ -5,7 +5,7 @@ Build-type:    Simple
 
 Executable test
   Main-is: TestHTF.hs
-  Build-depends: base >= 4, HTF
+  Build-depends: base >= 4, HTF, bytestring == 0.10.*, aeson == 0.6.*, unordered-containers == 0.2.*, temporary == 1.1.*, text == 0.11.*
   Default-language:  Haskell2010
 
 Test-Suite tutorial

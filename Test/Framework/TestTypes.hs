@@ -77,6 +77,7 @@ data TestConfig
       { tc_quiet :: Bool             -- ^ If set, displays messages only for failed tests
       , tc_threads :: Maybe Int      -- ^ Use @Just i@ for parallel execution with @i@ threads, @Nothing@ for sequential execution
       , tc_outputHandle :: Handle    -- ^ The output file
+      , tc_closeOutput :: Bool       -- ^ Flag whether output file should be closed or not
       , tc_filter :: TestFilter
       , tc_reporters :: [TestReporter]
       }

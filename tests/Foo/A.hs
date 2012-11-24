@@ -1,7 +1,11 @@
 {-# OPTIONS_GHC -F -pgmF htfpp #-}
+{-# LANGUAGE CPP #-}
 
 module Foo.A where
 
 import Test.Framework
 
-test_a = assertEqual 1 1
+#include "test.h"
+
+test_a =
+    assertEqual x y

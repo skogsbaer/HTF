@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -F -pgmF htfpp #-}
 --
 -- Copyright (c) 2005,2010   Stefan Wehr - http://www.stefanwehr.de
@@ -20,7 +21,17 @@
 
 import Test.Framework
 import System.Environment
+import System.Exit
+import System.IO
+import System.IO.Temp
 import Control.Exception
+import qualified Data.HashMap.Strict as M
+import qualified Data.Aeson as J
+import Data.Aeson ( (.=) )
+import qualified Data.ByteString.Lazy as BSL
+import qualified Data.ByteString.Lazy.Char8 as BSLC
+import Data.Maybe
+import qualified Data.Text as T
 import {-@ HTF_TESTS @-} qualified TestHTFHunitBackwardsCompatible
 import {-@ HTF_TESTS @-} qualified Foo.A as A
 import {-@ HTF_TESTS @-} Foo.B
@@ -112,9 +123,71 @@ prop_fail' =
 prop_error' :: TestableWithQCArgs
 prop_error' = withQCArgs changeArgs $ (error "Lisa" :: Bool)
 
+checkOutput output =
+    do bsl <- BSL.readFile output
+       let jsons = map (fromJust . J.decode) (splitJson bsl)
+       check jsons (J.object ["type" .= J.String "test-results"])
+                   (J.object ["failures" .= J.toJSON (29::Int)
+                             ,"passed" .= J.toJSON (12::Int)
+                             ,"pending" .= J.toJSON (2::Int)
+                             ,"errors" .= J.toJSON (1::Int)])
+       check jsons (J.object ["type" .= J.String "test-end"
+                             ,"test" .= J.object ["flatName" .= J.String "Main:diff"]])
+                   (J.object ["test" .= J.object ["location" .= J.object ["file" .= J.String "TestHTF.hs"
+                                                                         ,"line" .= J.toJSON (88::Int)]]
+                             ,"location" .= J.object ["file" .= J.String "TestHTF.hs"
+                                                     ,"line" .= J.toJSON (89::Int)]])
+       check jsons (J.object ["type" .= J.String "test-end"
+                             ,"test" .= J.object ["flatName" .= J.String "Foo.A:a"]])
+                   (J.object ["test" .= J.object ["location" .= J.object ["file" .= J.String "./Foo/A.hs"
+                                                                         ,"line" .= J.toJSON (10::Int)]]
+                             ,"location" .= J.object ["file" .= J.String "./Foo/A.hs"
+                                                     ,"line" .= J.toJSON (11::Int)]])
+    where
+      check jsons pred assert =
+          case filter (\j -> matches j pred) jsons of
+            [json] ->
+                if not (matches json assert)
+                   then error ("Predicate " ++ show pred ++ " match JSON " ++ show json ++ ", but assertion " ++
+                               show assert ++ " not satisfied")
+                   else return ()
+            l -> error ("not exactly one JSON matches predicate " ++ show pred ++ " but " ++ show l)
+      matches :: J.Value -> J.Value -> Bool
+      matches json pred =
+          case (json, pred) of
+            (J.Object objJson, J.Object objPred) ->
+                M.foldrWithKey (\k vPred b ->
+                                    b && case M.lookup k objJson of
+                                           Just vJson -> matches vJson vPred
+                                           Nothing -> False)
+                               True objPred
+            _ -> json == pred
+      splitJson bsl =
+          if BSL.null bsl
+             then []
+             else case BSL.span (/= 10) bsl of
+                    (start, rest) ->
+                        if BSLC.pack "\n;;\n" `BSL.isPrefixOf` rest
+                           then start : splitJson (BSL.drop 4 rest)
+                           else case splitJson rest of
+                                  [] -> error "invalid json output from HTF"
+                                  (x:xs) -> (start `BSL.append` x : xs)
+
 main =
     do args <- getArgs
        bbts <- blackBoxTests "bbt" "./run-bbt.sh" ".x"
                  (defaultBBTArgs { bbtArgs_verbose = False })
-       runTestWithArgs args ([addToTestSuite htf_thisModulesTests bbts] ++
-                             htf_importedTests)
+       let tests = [addToTestSuite htf_thisModulesTests bbts] ++ htf_importedTests
+       case args of
+         ["--check"] ->
+             withSystemTempFile "HTF-out" $ \outFile h ->
+               do hClose h
+                  ecode <- runTestWithArgs ["--json", "--output-file=" ++ outFile] tests
+                  case ecode of
+                    ExitFailure _ -> checkOutput outFile
+                    _ -> fail ("unexpected exit code: " ++ show ecode)
+         _ ->
+             do ecode <- runTestWithArgs args tests
+                case ecode of
+                  ExitFailure _ -> return ()
+                  _ -> fail ("unexpected exit code: " ++ show ecode)

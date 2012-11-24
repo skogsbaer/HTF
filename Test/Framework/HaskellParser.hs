@@ -18,7 +18,7 @@
 module Test.Framework.HaskellParser where
 
 import Data.Maybe
-import Data.Char ( isSpace )
+import Data.Char ( isSpace, isDigit )
 import qualified Data.List as List
 import Control.Exception ( evaluate, catch, SomeException )
 #if !MIN_VERSION_base(4,6,0)
@@ -56,6 +56,25 @@ data ImportDecl = ImportDecl { imp_moduleName :: Name
                              , imp_alias :: Maybe Name
                              , imp_loc :: Location }
 
+-- Returns for lines of the form '# <number> "<filename>"'
+-- (see http://gcc.gnu.org/onlinedocs/cpp/Preprocessor-Output.html#Preprocessor-Output)
+-- the value 'Just <number> "<filename>"'
+parseCppLineInfoOut :: String -> Maybe (String, String)
+parseCppLineInfoOut line =
+    case line of
+      '#':' ':c:rest
+        | isDigit c ->
+            case List.span isDigit rest of
+              (restDigits, ' ' : '"' : rest) ->
+                  case dropWhile (/= '"') (reverse rest) of
+                    '"' : fileNameRev ->
+                        let line = (c:restDigits)
+                            file = "\"" ++ reverse fileNameRev ++ "\""
+                        in Just (line, file)
+                    _ -> Nothing
+              _ -> Nothing
+      _ -> Nothing
+
 parse :: FilePath -> String -> IO (ParseResult Module)
 parse originalFileName input =
     do r <- (evaluate $ Exts.parseFileContentsWithComments parseMode fixedInput)
@@ -67,14 +86,17 @@ parse originalFileName input =
     where
       -- fixedInput serves two purposes:
       -- 1. add a trailing \n
-      -- 2. comment out lines starting with #
+      -- 2. turn lines of the form '# <number> "<filename>"' into GHC line pragmas '{-# LINE <number> <filename> #-}'
+      -- 3. comment out lines starting with #
       fixedInput :: String
       fixedInput = (unlines . map fixLine . lines) input
           where
             fixLine s =
-                case dropWhile isSpace s of
-                  '#':_ -> "-- " ++ s
-                  _ -> s
+                case parseCppLineInfoOut s of
+                  Just (line, file) -> "{-# LINE " ++ line ++ " " ++ file ++ " #-}"
+                  Nothing -> case dropWhile isSpace s of
+                               '#':_ -> "-- " ++ s
+                               _ -> s
       {- FIXME: fixities needed for all operators. Heuristic:
          all operators are considered to be any sequence
          of the symbols _:"'>!#$%&*+./<=>?@\^|-~ with at most length 8 -}

@@ -156,7 +156,7 @@ helpString = usageInfo usageHeader optionDescriptions
 
 testConfigFromCmdlineOptions :: CmdlineOptions -> IO TestConfig
 testConfigFromCmdlineOptions opts =
-    do (outputHandle, mOutputFd) <- openOutputFile
+    do (outputHandle, closeOutput, mOutputFd) <- openOutputFile
        colors <- checkColors mOutputFd
        setUseColors colors
        let threads = opts_threads opts
@@ -164,16 +164,17 @@ testConfigFromCmdlineOptions opts =
        return $ TestConfig { tc_quiet = opts_quiet opts
                            , tc_threads = threads
                            , tc_outputHandle = outputHandle
+                           , tc_closeOutput = closeOutput
                            , tc_reporters = reporters
                            , tc_filter = opts_filter opts }
     where
 #ifdef mingw32_HOST_OS
       openOutputFile =
           case opts_outputFile opts of
-            Nothing -> return (stdout, Nothing)
+            Nothing -> return (stdout, False, Nothing)
             Just fname ->
                 do f <- openFile fname WriteMode
-                   return (f, Nothing)
+                   return (f, True, Nothing)
       checkColors mOutputFd =
           case opts_useColors opts of
             Just b -> return b
@@ -181,10 +182,10 @@ testConfigFromCmdlineOptions opts =
 #else
       openOutputFile =
           case opts_outputFile opts of
-            Nothing -> return (stdout, Just stdOutput)
+            Nothing -> return (stdout, False, Just stdOutput)
             Just fname ->
                 do f <- openFile fname WriteMode
-                   return (f, Nothing)
+                   return (f, True, Nothing)
       checkColors mOutputFd =
           case opts_useColors opts of
             Just b -> return b

@@ -47,6 +47,7 @@ import System.Environment (getArgs)
 import Data.List ( isInfixOf, isPrefixOf, partition )
 import qualified Data.List as List
 import Data.Maybe (isJust)
+import Control.Exception (finally)
 
 import System.Directory (getTemporaryDirectory, removeFile)
 import System.IO
@@ -188,11 +189,14 @@ runTestWithOptions opts t =
        then do hPutStrLn stderr helpString
                return $ ExitFailure 1
        else do tc <- testConfigFromCmdlineOptions opts
-               if opts_listTests opts
-                  then let fts = filter (opts_filter opts) (flatten t)
-                       in do runRWST (reportAllTests fts) tc initTestState
-                             return ExitSuccess
-                  else runTestWithConfig tc t
+               (if opts_listTests opts
+                   then let fts = filter (opts_filter opts) (flatten t)
+                        in do runRWST (reportAllTests fts) tc initTestState
+                              return ExitSuccess
+                   else runTestWithConfig tc t) `finally` cleanup tc
+    where
+      cleanup tc =
+          when (tc_closeOutput tc) $ hClose (tc_outputHandle tc)
 
 -- | Runs something testable with the given 'TestConfig'.
 -- The result is 'ExitSuccess' if all tests were executed successfully,

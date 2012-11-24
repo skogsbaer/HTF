@@ -182,21 +182,14 @@ transform hunitBackwardsCompat originalFileName input =
           where
               -- fixedInput serves two purposes:
               -- 1. add a trailing \n
-              -- 2. turn lines of the form '# <number> "<filename>"' into line directives
-              -- (see http://gcc.gnu.org/onlinedocs/cpp/Preprocessor-Output.html#Preprocessor-Output)
+              -- 2. turn lines of the form '# <number> "<filename>"' into line directives '#line <number> <filename>'
+              -- (see http://gcc.gnu.org/onlinedocs/cpp/Preprocessor-Output.html#Preprocessor-Output).
               fixedInput :: String
               fixedInput = (unlines . map fixLine . lines) input
                   where
                     fixLine s =
-                        case s of
-                          '#':' ':c:rest
-                            | isDigit c ->
-                                case List.span isDigit rest of
-                                  (restDigits, ' ' : '"' : rest) ->
-                                      case dropWhile (/= '"') (reverse rest) of
-                                        '"' : fileNameRev -> "#line " ++ (c:restDigits) ++ " \"" ++ reverse fileNameRev ++ "\""
-                                        _ -> s
-                                  _ -> s
+                        case parseCppLineInfoOut s of
+                          Just (line, fileName) -> "#line " ++ line ++ " " ++ fileName
                           _ -> s
       cpphsOptions :: ModuleInfo -> CpphsOptions
       cpphsOptions info =
