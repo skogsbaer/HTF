@@ -1,3 +1,11 @@
+{-|
+
+This module defines functions for notifying all test reporters registered about
+particular events in the lifecycle of a test run.
+
+Further, it defines the standard test reporters for HTF's various output formats.
+
+-}
 module Test.Framework.TestReporter (
 
     reportAllTests, reportGlobalStart, reportTestStart, reportTestResult,
@@ -19,31 +27,37 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Aeson as J
 
+-- | Invokes 'tr_reportAllTests' on all test reporters registered.
 reportAllTests :: ReportAllTests
 reportAllTests tests =
     do reps <- asks tc_reporters
        mapM_ (\r -> tr_reportAllTests r tests) reps
 
+-- | Invokes 'tr_reportGlobalStart' on all test reporters registered.
 reportGlobalStart :: ReportGlobalStart
 reportGlobalStart tests =
     do reps <- asks tc_reporters
        mapM_ (\r -> tr_reportGlobalStart r tests) reps
 
+-- | Invokes 'tr_reportTestStart' on all test reporters registered.
 reportTestStart :: ReportTestStart
 reportTestStart t =
     do reps <- asks tc_reporters
        mapM_ (\r -> tr_reportTestStart r t) reps
 
+-- | Invokes 'tr_reportTestResult' on all test reporters registered.
 reportTestResult :: ReportTestResult
 reportTestResult t =
     do reps <- asks tc_reporters
        mapM_ (\r -> tr_reportTestResult r t) reps
 
+-- | Invokes 'tr_reportGlobalResults' on all test reporters registered.
 reportGlobalResults :: ReportGlobalResults
 reportGlobalResults t l1 l2 l3 l4 =
     do reps <- asks tc_reporters
        mapM_ (\r -> tr_reportGlobalResults r t l1 l2 l3 l4) reps
 
+-- | The default test reporters for HTF.
 defaultTestReporters :: Bool -- ^ 'True' if tests are run in parallel
                      -> Bool -- ^ 'True' if machine output should be produced
                      -> [TestReporter]

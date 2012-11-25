@@ -31,18 +31,25 @@ import System.Exit
 import Control.Concurrent       (forkIO)
 import qualified Control.Exception
 
-popenShell :: String -> Maybe String -> IO (String,String,ExitCode)
+-- | Run a command using the shell.
+popenShell :: String        -- ^ Command
+           -> Maybe String  -- ^ Content of stdin
+           -> IO (String,String,ExitCode)  -- ^ (stdout, stderr, exit code)
 popenShell cmd = popen' $ runInteractiveCommand cmd
 
-popen :: FilePath -> [String] -> Maybe String -> IO (String,String,ExitCode)
-popen file args = 
+-- | Run a command.
+popen :: FilePath         -- ^ Binary
+      -> [String]         -- ^ Arguments
+      -> Maybe String     -- ^ Content of stdin
+      -> IO (String,String,ExitCode)  -- ^ (stdout, stderr, exit code)
+popen file args =
     popen' $ runInteractiveProcess file args Nothing Nothing
 
-popen' :: IO (Handle, Handle, Handle, ProcessHandle) 
+popen' :: IO (Handle, Handle, Handle, ProcessHandle)
        -> Maybe String
        -> IO (String,String,ExitCode)
-popen' run minput = 
-    Control.Exception.handle (\ (e :: Control.Exception.SomeException) -> 
+popen' run minput =
+    Control.Exception.handle (\ (e :: Control.Exception.SomeException) ->
                                 return ([],show e,error (show e))) $ do
 
     (inp,out,err,pid) <- run

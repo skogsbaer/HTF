@@ -1,4 +1,28 @@
-module Test.Framework.TestTypes where
+{-| 
+
+This module defines types (and small auxiliary functions)
+for organizing tests, for configuring the execution of
+tests, and for representing and reporting their results.
+
+-}
+module Test.Framework.TestTypes (
+
+  -- * Organizing tests
+  TestID, Assertion, Test(..), TestSuite(..), TestSort(..),
+  TestPath(..), GenFlatTest(..), FlatTest, TestFilter,
+  testPathToList, flatName,
+
+  -- * Executing tests
+  TR, TestState(..), initTestState, TestConfig(..), TestOutput(..),
+
+  -- * Reporting results
+  ReportAllTests, ReportGlobalStart, ReportTestStart, ReportTestResult, ReportGlobalResults,
+  TestReporter(..),
+
+  -- * Specifying results.
+  TestResult(..), FlatTestResult, Milliseconds, RunResult(..)
+
+) where
 
 import Test.Framework.Location
 
@@ -17,7 +41,7 @@ type TestID = String
 data TestSort = UnitTest | QuickCheckTest | BlackBoxTest
               deriving (Eq,Show,Read)
 
--- | Abstract type for tests and their results
+-- | Abstract type for tests and their results.
 data Test = BaseTest TestSort TestID (Maybe Location) Assertion
           | CompoundTest TestSuite
 
@@ -25,66 +49,80 @@ data Test = BaseTest TestSort TestID (Maybe Location) Assertion
 data TestSuite = TestSuite TestID [Test]
                | AnonTestSuite [Test]
 
+-- | A type denoting the hierarchical name of a test.
 data TestPath = TestPathBase TestID
               | TestPathCompound (Maybe TestID) TestPath
 
+-- | Splits a 'TestPath' into a list of test identifiers.
 testPathToList :: TestPath -> [Maybe TestID]
 testPathToList (TestPathBase i) = [Just i]
 testPathToList (TestPathCompound mi p) =
     mi : testPathToList p
 
+-- | Creates a string representation from a 'TestPath'.
 flatName :: TestPath -> String
 flatName p =
     List.intercalate ":" (map (fromMaybe "") (testPathToList p))
 
--- | Type for flattened tests and their results
+-- | Generic type for flattened tests and their results.
 data GenFlatTest a
     = FlatTest
-      { ft_sort :: TestSort
-      , ft_path :: TestPath
-      , ft_location :: Maybe Location
-      , ft_payload :: a }
-
-type FlatTest = GenFlatTest Assertion
-
-type FlatTestResult = GenFlatTest RunResult
-
-data TestResult = Pass | Pending | Fail | Error
-                deriving (Show, Read, Eq)
-
-type Milliseconds = Int
-
-data RunResult
-    = RunResult
-      { rr_result :: TestResult
-      , rr_location :: Maybe Location
-      , rr_message :: String
-      , rr_wallTimeMs :: Milliseconds
+      { ft_sort :: TestSort           -- ^ The sort of the test.
+      , ft_path :: TestPath           -- ^ Hierarchival path.
+      , ft_location :: Maybe Location -- ^ Place of definition.
+      , ft_payload :: a               -- ^ A generic payload.
       }
 
-data TestState = TestState { ts_results :: [FlatTestResult]
-                           , ts_index :: Int  -- ^ the index in the split file
-                           }
-
-initTestState :: TestState
-initTestState = TestState [] 0
-
-type TR = RWST TestConfig () TestState IO
+-- | Flattened representation of tests.
+type FlatTest = GenFlatTest Assertion
 
 -- | A filter is a predicate on 'FlatTest'. If the predicate is 'True', the flat test is run.
 type TestFilter = FlatTest -> Bool
 
-data TestOutput = TestOutputHandle Handle Bool -- ^ Output goes to 'Handle', boolean flag indicates whether the handle should be closed at the end
+-- | The summary result of a test.
+data TestResult = Pass | Pending | Fail | Error
+                deriving (Show, Read, Eq)
+
+-- | A type synonym for time in milliseconds.
+type Milliseconds = Int
+
+-- | The result of a test run.
+data RunResult
+    = RunResult
+      { rr_result :: TestResult       -- ^ The summary result of the test.
+      , rr_location :: Maybe Location -- ^ The location where the test failed (if applicable).
+      , rr_message :: String          -- ^ A message describing the result.
+      , rr_wallTimeMs :: Milliseconds -- ^ Execution time in milliseconds.
+      }
+
+-- | The result of running a 'FlatTest'
+type FlatTestResult = GenFlatTest RunResult
+
+-- | The state type for the 'TR' monad.
+data TestState = TestState { ts_results :: [FlatTestResult] -- ^ Results collected so far.
+                           , ts_index :: Int                -- ^ Current index for splitted output.
+                           }
+
+-- | The initial test state.
+initTestState :: TestState
+initTestState = TestState [] 0
+
+-- | The 'TR' monad.
+type TR = RWST TestConfig () TestState IO
+
+-- | The destination of progress and result messages from HTF.
+data TestOutput = TestOutputHandle Handle Bool -- ^ Output goes to 'Handle', boolean flag indicates whether the handle should be closed at the end.
                 | TestOutputSplitted FilePath  -- ^ Output goes to files whose names are derived from 'FilePath' by appending a number to it. Numbering starts at zero.
                   deriving (Show, Eq)
 
+-- | Configuration of test execution.
 data TestConfig
     = TestConfig
-      { tc_quiet :: Bool             -- ^ If set, displays messages only for failed tests
-      , tc_threads :: Maybe Int      -- ^ Use @Just i@ for parallel execution with @i@ threads, @Nothing@ for sequential execution
-      , tc_output :: TestOutput
-      , tc_filter :: TestFilter
-      , tc_reporters :: [TestReporter]
+      { tc_quiet :: Bool                -- ^ If set, displays messages only for failed tests.
+      , tc_threads :: Maybe Int         -- ^ Use @Just i@ for parallel execution with @i@ threads, @Nothing@ for sequential execution (currently unused).
+      , tc_output :: TestOutput         -- ^ Output destination of progress and result messages.
+      , tc_filter :: TestFilter         -- ^ Filter for the tests to run.
+      , tc_reporters :: [TestReporter]  -- ^ Test reporters to use.
       }
 
 instance Show TestConfig where
@@ -98,25 +136,15 @@ instance Show TestConfig where
         showString ", tc_reporters=" . showsPrec 1 (tc_reporters tc) .
         showString " }"
 
-type ReportAllTests = [FlatTest] -> TR ()
-type ReportGlobalStart = [FlatTest] -> TR ()
-type ReportTestStart = FlatTest -> TR ()
-type ReportTestResult = FlatTestResult -> TR ()
-type ReportGlobalResults = Milliseconds     -- ^ wall time in ms
-                        -> [FlatTestResult] -- ^ passed tests
-                        -> [FlatTestResult] -- ^ pending tests
-                        -> [FlatTestResult] -- ^ failed tests
-                        -> [FlatTestResult] -- ^ erroneous tests
-                        -> TR ()
-
+-- | A 'TestReporter' provides hooks to customize the output of HTF.
 data TestReporter
     = TestReporter
       { tr_id :: String
-      , tr_reportAllTests :: ReportAllTests
-      , tr_reportGlobalStart :: ReportGlobalStart
-      , tr_reportTestStart :: ReportTestStart
-      , tr_reportTestResult :: ReportTestResult
-      , tr_reportGlobalResults :: ReportGlobalResults
+      , tr_reportAllTests :: ReportAllTests        -- ^ Called to report the IDs of all tests available.
+      , tr_reportGlobalStart :: ReportGlobalStart  -- ^ Called to report the start of test execution.
+      , tr_reportTestStart :: ReportTestStart      -- ^ Called to report the start of a single test.
+      , tr_reportTestResult :: ReportTestResult    -- ^ Called to report the result of a single test.
+      , tr_reportGlobalResults :: ReportGlobalResults  -- ^ Called to report the overall results of all tests.
       }
 
 instance Show TestReporter where
@@ -124,3 +152,23 @@ instance Show TestReporter where
 
 instance Eq TestReporter where
     x == y = (tr_id x) == (tr_id y)
+
+-- | Reports the IDs of all tests available.
+type ReportAllTests = [FlatTest] -> TR ()
+
+-- | Signals that test execution is about to start.
+type ReportGlobalStart = [FlatTest] -> TR ()
+
+-- | Reports the start of a single test.
+type ReportTestStart = FlatTest -> TR ()
+
+-- | Reports the result of a single test.
+type ReportTestResult = FlatTestResult -> TR ()
+
+-- | Reports the overall results of all tests.
+type ReportGlobalResults = Milliseconds     -- ^ wall time in ms
+                        -> [FlatTestResult] -- ^ passed tests
+                        -> [FlatTestResult] -- ^ pending tests
+                        -> [FlatTestResult] -- ^ failed tests
+                        -> [FlatTestResult] -- ^ erroneous tests
+                        -> TR ()

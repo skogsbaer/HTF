@@ -16,6 +16,12 @@
 -- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
 --
 
+{- |
+
+Top-level module that re-exports functionality from sub-modules.
+Usually, you only need to import this module.
+
+-}
 module Test.Framework (
 
   module Test.Framework.HUnitWrapper,

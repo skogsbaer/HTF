@@ -1,5 +1,3 @@
-module Test.Framework.Tutorial (
-
 {- |
 This module provides a short tutorial on how to use the HTF. It
 assumes that you are using GHC for compiling your Haskell code. (It is
@@ -13,6 +11,8 @@ backwards-compatibility for projects already using `HUnit`. Finally,
 we give a brief cookbook-like summary on how to setup your tests with HTF.
 
 -}
+
+module Test.Framework.Tutorial (
 
 -- * A simple example
 {- |

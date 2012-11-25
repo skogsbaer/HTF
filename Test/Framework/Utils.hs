@@ -132,7 +132,7 @@ ensureNewline s =
 strip :: String -> String
 strip = reverse . dropWhile isSpace . reverse . dropWhile isSpace
 
--- ^ Measures execution time of the given IO action in milliseconds
+-- Measures execution time of the given IO action in milliseconds
 measure :: IO a -> IO (a, Int)
 measure ma =
     do t0 <- getClockTime

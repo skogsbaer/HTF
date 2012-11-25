@@ -1,13 +1,19 @@
 * Release 0.10
-** Parallel test execution
-*** Options --threads=[N] or -j [N]
-*** Some test cannot be run in parallel
 ** Refactorings
 *** Check imports with warn-unused-imports
 *** Check unused functions
 ** API documentation
+*** Proofread
+*** Update tutorial to explain --json, --output-file, and --split
+*** Update tutorial to use the new output style (e.g. timings)
+** Write changelog
+* Relase 0.11
+** Parallel test execution
+*** Options --threads=[N] or -j [N]
+*** Some test cannot be run in parallel
+
 * External interface for integrating other test frameworks (such as Smallcheck)
 ** Support for Smallcheck and/or Lazy Smallcheck
-* Other ideads
+* Other ideas
 ** option --xml-result to output a junit-style XML document summarizing the test results
 ** Support for timeouts (--timeout=SECS)

@@ -1,3 +1,5 @@
+* 0.10.0.0
+
 * 0.9.0.0 (2012-09-26)
   NOTE: this version is NOT backwards compatible with 0.8.*. The documentation on
   hackage describes what you need to do in order to upgrade.

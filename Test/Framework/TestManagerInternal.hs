@@ -34,8 +34,6 @@ import Test.Framework.Location
 import Data.List ( isPrefixOf )
 import qualified Test.HUnit.Lang as HU
 
--- import Test.Framework.TestManager
-
 assertFailureHTF :: String -> Assertion
 -- Important: force the string argument, otherwise an error embedded
 -- lazily inside the string might escape.
@@ -82,7 +80,7 @@ unitTestFail loc s =
     do assertFailureHTF (show (UnitTestResult loc s False))
        error "unitTestFail: UNREACHABLE"
 
--- |Mark a unit test as pending without removing it from the test suite.
+-- Mark a unit test as pending without removing it from the test suite.
 unitTestPending :: String -> IO a
 unitTestPending s =
     do assertFailureHTF (show (UnitTestResult Nothing s True))

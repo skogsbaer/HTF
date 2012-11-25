@@ -17,6 +17,11 @@
 -- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
 --
 
+{- |
+
+This module defines the commandline options of the test runner provided by HTF.
+
+-}
 module Test.Framework.CmdlineOptions (
 
     CmdlineOptions(..), defaultCmdlineOptions, parseTestArgs, helpString,
@@ -53,23 +58,24 @@ import GHC.Conc ( numCapabilities )
 -- CmdlineOptions
 --
 
--- | Options for running tests.
+-- | Commandline options for running tests.
 data CmdlineOptions = CmdlineOptions {
       opts_quiet :: Bool                -- ^ Be quiet or not.
     , opts_filter :: TestFilter         -- ^ Run only tests matching this filter.
     , opts_help :: Bool                 -- ^ If 'True', display a help message and exit.
     , opts_negated :: [String]          -- ^ Regular expressions matching test names which should /not/ run.
-    , opts_threads :: Maybe Int         -- ^ Use @Just i@ for parallel execution with @i@ threads, @Nothing@ for sequential execution
-    , opts_machineOutput :: Bool        -- ^ Format output for machines or humans
-    , opts_useColors :: Maybe Bool      -- ^ Use @Just b@ to enable/disable use of colors, @Nothing@ inferes the use of colors
+    , opts_threads :: Maybe Int         -- ^ Use @Just i@ for parallel execution with @i@ threads, @Nothing@ for sequential execution (currently unused).
+    , opts_machineOutput :: Bool        -- ^ Format output for machines (JSON format) or humans.
+    , opts_useColors :: Maybe Bool      -- ^ Use @Just b@ to enable/disable use of colors, @Nothing@ infers the use of colors.
     , opts_outputFile :: Maybe FilePath -- ^ The output file, defaults to stdout
-    , opts_listTests :: Bool
-    , opts_split :: Bool                -- ^ shall we split the output file?
+    , opts_listTests :: Bool            -- ^ If 'True', lists all tests available and exits.
+    , opts_split :: Bool                -- ^ If 'True', each message is sent to a new ouput file (derived by appending an index to 'opts_outputFile').
     }
 
-defaultCmdlineOptions :: CmdlineOptions
-{- | The default 'CmdlineOptions'.
+{- |
+The default 'CmdlineOptions'.
 -}
+defaultCmdlineOptions :: CmdlineOptions
 defaultCmdlineOptions = CmdlineOptions {
       opts_quiet = False
     , opts_filter = const True
@@ -122,7 +128,19 @@ optionDescriptions =
 Parse commandline arguments into 'CmdlineOptions'. Here's a synopsis
 of the format of the commandline arguments:
 
-FIXME
+> USAGE: COMMAND [OPTION ...] PATTERN ...
+>
+>   where PATTERN is a posix regular expression matching
+>   the names of the tests to run.
+>
+>   -q          --quiet             only display errors
+>   -n PATTERN  --not=PATTERN       tests to exclude
+>   -l          --list              list all matching tests
+>   -o FILE     --output-file=FILE  name of output file
+>               --json              output results in machine-readable JSON format
+>               --split             splits results in separate files to avoid file locking (requires -o/--output-file)
+>               --colors=BOOL       use colors or not
+>   -h          --help              display this message
 -}
 
 parseTestArgs :: [String] -> Either String CmdlineOptions
@@ -154,6 +172,7 @@ usageHeader = ("USAGE: COMMAND [OPTION ...] PATTERN ...\n\n" ++
                "  where PATTERN is a posix regular expression matching\n" ++
                "  the names of the tests to run.\n")
 
+-- | The string displayed for the @--help@ option.
 helpString :: String
 helpString = usageInfo usageHeader optionDescriptions
 
@@ -161,6 +180,7 @@ helpString = usageInfo usageHeader optionDescriptions
 -- TestConfig
 --
 
+-- | Turn the 'CmdlineOptions' into a 'TestConfig'.
 testConfigFromCmdlineOptions :: CmdlineOptions -> IO TestConfig
 testConfigFromCmdlineOptions opts =
     do (output, colors) <-
@@ -211,4 +231,3 @@ testConfigFromCmdlineOptions opts =
                                       Just fd -> queryTerminal fd
                                       _ -> return False
 #endif
-

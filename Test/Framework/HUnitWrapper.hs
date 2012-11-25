@@ -70,7 +70,10 @@ module Test.Framework.HUnitWrapper (
   assertNothingNoShow_, assertNothingNoShowVerbose_,
 
   -- * General failure
-  assertFailure_, unitTestPending, unitTestPending'
+  assertFailure_,
+
+  -- * Pending unit tests
+  unitTestPending, unitTestPending'
 
 ) where
 

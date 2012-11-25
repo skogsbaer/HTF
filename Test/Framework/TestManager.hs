@@ -29,7 +29,7 @@ module Test.Framework.TestManager (
   module Test.Framework.TestTypes,
 
   -- * Running tests
-  htfMain, runTest, runTestWithArgs, runTestWithOptions,
+  htfMain, runTest, runTestWithArgs, runTestWithOptions, runTestWithConfig,
 
   -- * Organzing tests
   TestableHTF,
