@@ -64,6 +64,7 @@ data CmdlineOptions = CmdlineOptions {
     , opts_useColors :: Maybe Bool      -- ^ Use @Just b@ to enable/disable use of colors, @Nothing@ inferes the use of colors
     , opts_outputFile :: Maybe FilePath -- ^ The output file, defaults to stdout
     , opts_listTests :: Bool
+    , opts_split :: Bool                -- ^ shall we split the output file?
     }
 
 defaultCmdlineOptions :: CmdlineOptions
@@ -79,6 +80,7 @@ defaultCmdlineOptions = CmdlineOptions {
     , opts_useColors = Nothing
     , opts_outputFile = Nothing
     , opts_listTests = False
+    , opts_split = False
     }
 
 processorCount :: Int
@@ -98,8 +100,10 @@ optionDescriptions =
 --                                      ("run N tests in parallel, default N=" ++ show processorCount)
     , Option ['o']     ["output-file"] (ReqArg (\s o -> o { opts_outputFile = Just s })
                                                "FILE") "name of output file"
-    , Option [   ]     ["json"] (NoArg (\o -> o { opts_machineOutput = True }))
+    , Option []        ["json"] (NoArg (\o -> o { opts_machineOutput = True }))
                                "output results in machine-readable JSON format"
+    , Option []        ["split"] (NoArg (\o -> o { opts_split = True }))
+                               "splits results in separate files to avoid file locking (requires -o/--output-file)"
     , Option []        ["colors"]  (ReqArg (\s o -> o { opts_useColors = Just (parseBool s) })
                                            "BOOL") "use colors or not"
     , Option ['h']     ["help"]    (NoArg (\o -> o { opts_help = True })) "display this message"
@@ -135,7 +139,10 @@ parseTestArgs args =
                         then False
                         else null pos || any (\s -> s `matches` flat) pos
               opts = (foldr ($) defaultCmdlineOptions optTrans) { opts_filter = pred }
-          in Right opts
+          in case (opts_outputFile opts, opts_split opts) of
+               (Nothing, True) -> Left ("Option --split requires -o or --output-file\n\n" ++ 
+                                        usageInfo usageHeader optionDescriptions)
+               _ -> Right opts
       (_,_,errs) ->
           Left (concat errs ++ usageInfo usageHeader optionDescriptions)
     where
@@ -156,15 +163,18 @@ helpString = usageInfo usageHeader optionDescriptions
 
 testConfigFromCmdlineOptions :: CmdlineOptions -> IO TestConfig
 testConfigFromCmdlineOptions opts =
-    do (outputHandle, closeOutput, mOutputFd) <- openOutputFile
-       colors <- checkColors mOutputFd
+    do (output, colors) <-
+           case (opts_outputFile opts, opts_split opts) of
+             (Just fname, True) -> return (TestOutputSplitted fname, False)
+             _ -> do (outputHandle, closeOutput, mOutputFd) <- openOutputFile
+                     colors <- checkColors mOutputFd
+                     return (TestOutputHandle outputHandle closeOutput, colors)
        setUseColors colors
        let threads = opts_threads opts
            reporters = defaultTestReporters (isJust threads) (opts_machineOutput opts)
        return $ TestConfig { tc_quiet = opts_quiet opts
                            , tc_threads = threads
-                           , tc_outputHandle = outputHandle
-                           , tc_closeOutput = closeOutput
+                           , tc_output = output
                            , tc_reporters = reporters
                            , tc_filter = opts_filter opts }
     where
@@ -201,3 +211,4 @@ testConfigFromCmdlineOptions opts =
                                       Just fd -> queryTerminal fd
                                       _ -> return False
 #endif
+

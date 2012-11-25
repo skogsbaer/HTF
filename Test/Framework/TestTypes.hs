@@ -62,22 +62,27 @@ data RunResult
       , rr_wallTimeMs :: Milliseconds
       }
 
-data TestState = TestState { ts_results :: [FlatTestResult] }
+data TestState = TestState { ts_results :: [FlatTestResult]
+                           , ts_index :: Int  -- ^ the index in the split file
+                           }
 
 initTestState :: TestState
-initTestState = TestState []
+initTestState = TestState [] 0
 
 type TR = RWST TestConfig () TestState IO
 
 -- | A filter is a predicate on 'FlatTest'. If the predicate is 'True', the flat test is run.
 type TestFilter = FlatTest -> Bool
 
+data TestOutput = TestOutputHandle Handle Bool -- ^ Output goes to 'Handle', boolean flag indicates whether the handle should be closed at the end
+                | TestOutputSplitted FilePath  -- ^ Output goes to files whose names are derived from 'FilePath' by appending a number to it. Numbering starts at zero.
+                  deriving (Show, Eq)
+
 data TestConfig
     = TestConfig
       { tc_quiet :: Bool             -- ^ If set, displays messages only for failed tests
       , tc_threads :: Maybe Int      -- ^ Use @Just i@ for parallel execution with @i@ threads, @Nothing@ for sequential execution
-      , tc_outputHandle :: Handle    -- ^ The output file
-      , tc_closeOutput :: Bool       -- ^ Flag whether output file should be closed or not
+      , tc_output :: TestOutput
       , tc_filter :: TestFilter
       , tc_reporters :: [TestReporter]
       }
@@ -88,9 +93,9 @@ instance Show TestConfig where
         showString "TestConfig { " .
         showString "tc_quiet=" . showsPrec 1 (tc_quiet tc) .
         showString ", tc_threads=" . showsPrec 1 (tc_threads tc) .
-        showString ", tc_outputHandle=" . showsPrec 1 (tc_outputHandle tc) .
+        showString ", tc_output=" . showsPrec 1 (tc_output tc) .
         showString ", tc_filter=<filter>" .
-        showString ", tc_reporters" . showsPrec 1 (tc_reporters tc) .
+        showString ", tc_reporters=" . showsPrec 1 (tc_reporters tc) .
         showString " }"
 
 type ReportAllTests = [FlatTest] -> TR ()

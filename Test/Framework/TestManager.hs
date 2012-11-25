@@ -196,7 +196,9 @@ runTestWithOptions opts t =
                    else runTestWithConfig tc t) `finally` cleanup tc
     where
       cleanup tc =
-          when (tc_closeOutput tc) $ hClose (tc_outputHandle tc)
+          case tc_output tc of
+            TestOutputHandle h True -> hClose h
+            _ -> return ()
 
 -- | Runs something testable with the given 'TestConfig'.
 -- The result is 'ExitSuccess' if all tests were executed successfully,
@@ -215,7 +217,7 @@ runTestWithConfig tc t =
             pending = filter (\ft -> (rr_result . ft_payload) ft == Pending) results
             failed = filter (\ft -> (rr_result . ft_payload) ft == Fail) results
             error = filter (\ft -> (rr_result . ft_payload) ft == Error) results
-        runRWST (reportGlobalResults time passed pending failed error) tc (TestState [])
+        runRWST (reportGlobalResults time passed pending failed error) tc (TestState [] (ts_index s)) -- keep index from run
         return $ case () of
                    _| length failed == 0 && length error == 0 -> ExitSuccess
                     | length error == 0 -> ExitFailure 1

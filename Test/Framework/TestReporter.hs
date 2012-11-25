@@ -1,4 +1,9 @@
-module Test.Framework.TestReporter where
+module Test.Framework.TestReporter (
+
+    reportAllTests, reportGlobalStart, reportTestStart, reportTestResult,
+    reportGlobalResults, defaultTestReporters
+
+) where
 
 import Test.Framework.TestTypes
 import Test.Framework.Location
@@ -12,6 +17,7 @@ import Text.PrettyPrint
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
+import qualified Data.Aeson as J
 
 reportAllTests :: ReportAllTests
 reportAllTests tests =
@@ -236,36 +242,32 @@ reportDoc level doc = reportTR level (render doc)
 reportTR :: ReportLevel -> String -> TR ()
 reportTR level msg =
     do tc <- ask
-       liftIO $ report tc level msg
+       reportGen tc level (\h -> hPutStrLn h msg)
 
 reportBytesTR :: ReportLevel -> BS.ByteString -> TR ()
 reportBytesTR level msg =
     do tc <- ask
-       liftIO $ reportBytes tc level msg
+       reportGen tc level (\h -> BS.hPut h msg)
 
 reportLazyBytesTR :: ReportLevel -> BSL.ByteString -> TR ()
 reportLazyBytesTR level msg =
     do tc <- ask
-       liftIO $ reportLazyBytes tc level msg
+       reportGen tc level (\h -> BSL.hPut h msg)
 
 reportJsonTR :: HTFJsonObj a => a -> TR ()
-reportJsonTR x =
-    reportLazyBytesTR Info (decodeObj x)
+reportJsonTR x = reportLazyBytesTR Info (decodeObj x)
 
 data ReportLevel = Debug | Info
                  deriving (Eq,Ord)
 
-report :: TestConfig -> ReportLevel -> String -> IO ()
-report tc level msg = reportGen tc level (\h -> hPutStrLn h msg)
-
-reportBytes :: TestConfig -> ReportLevel -> BS.ByteString -> IO ()
-reportBytes tc level msg = reportGen tc level (\h -> BS.hPut h msg)
-
-reportLazyBytes :: TestConfig -> ReportLevel -> BSL.ByteString -> IO ()
-reportLazyBytes tc level msg = reportGen tc level (\h -> BSL.hPut h msg)
-
-reportGen :: TestConfig -> ReportLevel -> (Handle -> IO ()) -> IO ()
+reportGen :: TestConfig -> ReportLevel -> (Handle -> IO ()) -> TR ()
 reportGen tc level fun =
-    unless (tc_quiet tc && level < Info) $ do let h = tc_outputHandle tc
-                                              fun h
-                                              hFlush h
+    unless (tc_quiet tc && level < Info) $
+    case tc_output tc of
+      TestOutputHandle h _ -> liftIO (fun h)
+      TestOutputSplitted fp ->
+          do -- split mode: one file for each result to avoid locking on windows
+             ix <- gets ts_index
+             let realFp = fp ++ (show ix) -- just append the index at the end of the file given as output parameter
+             modify (\x -> x { ts_index = ts_index x + 1 })
+             liftIO $ withFile realFp WriteMode fun
