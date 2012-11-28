@@ -24,17 +24,18 @@ Usually, you only need to import this module.
 -}
 module Test.Framework (
 
-  module Test.Framework.HUnitWrapper,
-  module Test.Framework.QuickCheckWrapper,
-  module Test.Framework.BlackBoxTest,
-  module Test.Framework.TestManager,
+  -- * Unit tests
+  module Test.Framework.HUnitWrapper, TM.makeUnitTest,
 
-  Loc.makeLoc
+  -- * Quickcheck
+  module Test.Framework.QuickCheckWrapper, TM.makeQuickCheckTest,
+
+  -- * Organizing tests
+  TM.makeTestSuite, TM.TestSuite, Loc.makeLoc
 
 ) where
 
 import Test.Framework.HUnitWrapper
 import Test.Framework.QuickCheckWrapper
-import Test.Framework.BlackBoxTest
-import Test.Framework.TestManager
+import qualified Test.Framework.TestManager as TM
 import qualified Test.Framework.Location as Loc
