@@ -87,6 +87,7 @@ parse originalFileName input =
       -- fixedInput serves two purposes:
       -- 1. add a trailing \n
       -- 2. turn lines of the form '# <number> "<filename>"' into GHC line pragmas '{-# LINE <number> <filename> #-}'
+      -- 2. turn lines of the form '#line <number> "<filename>"' into GHC line pragmas '{-# LINE <number> <filename> #-}'
       -- 3. comment out lines starting with #
       fixedInput :: String
       fixedInput = (unlines . map fixLine . lines) input
@@ -94,9 +95,11 @@ parse originalFileName input =
             fixLine s =
                 case parseCppLineInfoOut s of
                   Just (line, file) -> "{-# LINE " ++ line ++ " " ++ file ++ " #-}"
-                  Nothing -> case dropWhile isSpace s of
-                               '#':_ -> "-- " ++ s
-                               _ -> s
+                  Nothing ->
+                      case dropWhile isSpace s of
+                        '#':'l':'i':'n':'e':rest -> "{-# LINE " ++ rest ++ " #-}"
+                        '#':_ -> "-- " ++ s
+                        _ -> s
       {- FIXME: fixities needed for all operators. Heuristic:
          all operators are considered to be any sequence
          of the symbols _:"'>!#$%&*+./<=>?@\^|-~ with at most length 8 -}
