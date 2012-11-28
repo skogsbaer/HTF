@@ -26,8 +26,10 @@ import System.Environment
 import System.Exit
 import Control.Monad
 import Control.Exception
+import Data.Version
 
 import Test.Framework.Preprocessor
+import qualified Paths_HTF
 
 usage :: IO ()
 usage =
@@ -47,6 +49,9 @@ usage =
        "that is backwards-compatible with the corresponding functions of the\n" ++
        "HUnit library.")
 
+outputVersion :: IO ()
+outputVersion =
+    hPutStrLn stderr (showVersion Paths_HTF.version)
 saveOpenFile :: FilePath -> IOMode -> IO Handle
 saveOpenFile path mode =
     openFile path mode `catch` exHandler
@@ -64,6 +69,9 @@ main =
              "--help" `elem` args) $
            do usage
               exitWith (ExitFailure 1)
+       when ("--version" `elem` args) $
+            do outputVersion
+               exitWith ExitSuccess
        let (restArgs, hunitBackwardsCompat) =
                case reverse args of
                  "--hunit":rrest -> (reverse rrest, True)
