@@ -77,18 +77,15 @@ module Test.Framework.HUnitWrapper (
 
 ) where
 
-import System.IO ( stderr )
-import Data.List ( (\\) )
 import Control.Exception
-import Control.Monad
 import qualified Test.HUnit as HU hiding ( assertFailure )
-import qualified Language.Haskell.Exts.Parser as HE
 import qualified Language.Haskell.Exts.Pretty as HE
+import qualified Language.Haskell.Exts.Parser as HE
 
-import Test.Framework.TestManager
+import Data.List ( (\\) )
+
 import Test.Framework.TestManagerInternal
 import Test.Framework.Location
-import Test.Framework.Utils
 import Test.Framework.Diff
 import Test.Framework.Colors
 import Test.Framework.Pretty

@@ -107,7 +107,7 @@ data TestState = TestState { ts_results :: [FlatTestResult] -- ^ Results collect
 initTestState :: TestState
 initTestState = TestState [] 0
 
--- | The 'TR' monad.
+-- | The 'TR' (test runner) monad.
 type TR = RWST TestConfig () TestState IO
 
 -- | The destination of progress and result messages from HTF.
@@ -119,7 +119,8 @@ data TestOutput = TestOutputHandle Handle Bool -- ^ Output goes to 'Handle', boo
 data TestConfig
     = TestConfig
       { tc_quiet :: Bool                -- ^ If set, displays messages only for failed tests.
-      , tc_threads :: Maybe Int         -- ^ Use @Just i@ for parallel execution with @i@ threads, @Nothing@ for sequential execution (currently unused).
+
+--      , tc_threads :: Maybe Int       Use @Just i@ for parallel execution with @i@ threads, @Nothing@ for sequential execution (currently unused).
       , tc_output :: TestOutput         -- ^ Output destination of progress and result messages.
       , tc_filter :: TestFilter         -- ^ Filter for the tests to run.
       , tc_reporters :: [TestReporter]  -- ^ Test reporters to use.
@@ -130,7 +131,7 @@ instance Show TestConfig where
         showParen (prec > 0) $
         showString "TestConfig { " .
         showString "tc_quiet=" . showsPrec 1 (tc_quiet tc) .
-        showString ", tc_threads=" . showsPrec 1 (tc_threads tc) .
+--        showString ", tc_threads=" . showsPrec 1 (tc_threads tc) .
         showString ", tc_output=" . showsPrec 1 (tc_output tc) .
         showString ", tc_filter=<filter>" .
         showString ", tc_reporters=" . showsPrec 1 (tc_reporters tc) .

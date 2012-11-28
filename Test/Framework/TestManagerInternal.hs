@@ -31,7 +31,6 @@ import Test.Framework.TestTypes
 import Test.Framework.Utils
 import Test.Framework.Location
 
-import Data.List ( isPrefixOf )
 import qualified Test.HUnit.Lang as HU
 
 assertFailureHTF :: String -> Assertion

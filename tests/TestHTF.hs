@@ -20,6 +20,9 @@
 --
 
 import Test.Framework
+import Test.Framework.TestManager
+import Test.Framework.BlackBoxTest
+
 import System.Environment
 import System.Exit
 import System.IO
@@ -134,9 +137,9 @@ checkOutput output =
        check jsons (J.object ["type" .= J.String "test-end"
                              ,"test" .= J.object ["flatName" .= J.String "Main:diff"]])
                    (J.object ["test" .= J.object ["location" .= J.object ["file" .= J.String "TestHTF.hs"
-                                                                         ,"line" .= J.toJSON (88::Int)]]
+                                                                         ,"line" .= J.toJSON (91::Int)]]
                              ,"location" .= J.object ["file" .= J.String "TestHTF.hs"
-                                                     ,"line" .= J.toJSON (89::Int)]])
+                                                     ,"line" .= J.toJSON (92::Int)]])
        check jsons (J.object ["type" .= J.String "test-end"
                              ,"test" .= J.object ["flatName" .= J.String "Foo.A:a"]])
                    (J.object ["test" .= J.object ["location" .= J.object ["file" .= J.String "./Foo/A.hs"

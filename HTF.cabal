@@ -119,10 +119,11 @@ Library
     Test.Framework.Location
     Test.Framework.Tutorial
     Test.Framework.Pretty
+    Test.Framework.JsonOutput
   Other-Modules:
     Test.Framework.TestManagerInternal
     Test.Framework.Utils
     Test.Framework.Colors
     Test.Framework.Diff
     Test.Framework.Process
-    Test.Framework.JsonOutput
+  -- Ghc-Options: -fwarn-unused-imports -fwarn-unused-binds

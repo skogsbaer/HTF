@@ -4,6 +4,7 @@ module Main where
 -- The main test program.
 
 import Test.Framework
+import Test.Framework.BlackBoxTest
 import {-@ HTF_TESTS @-} MyPkg.A
 import {-@ HTF_TESTS @-} MyPkg.B
 

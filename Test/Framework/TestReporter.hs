@@ -25,7 +25,6 @@ import Text.PrettyPrint
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
-import qualified Data.Aeson as J
 
 -- | Invokes 'tr_reportAllTests' on all test reporters registered.
 reportAllTests :: ReportAllTests

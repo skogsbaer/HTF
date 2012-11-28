@@ -1,3 +1,53 @@
+{- |
+
+HTF's machine-readable output is a sequence of JSON messages. Each message is terminated
+by a newline followed by two semicolons followed again by a newline.
+
+There are four types of JSON messages. Each JSON object has a "type" attribute denoting
+this type. The types are: @test-start@, @test-end@, and @test-list@, @test-results@.
+Their haskell representations are 'TestStartEventObj', 'TestEndEventObj', 'TestListObj', and
+'TestResultObj'. The corresponding JSON rendering is defined in this module.
+
+  *  The @test-start@ message denotes the start of a single test case. Example (whitespace inserted for better readability):
+
+> {"test": {"flatName": "Main:nonEmpty",
+>           "location": {"file": "Tutorial.hs", "line": 17},
+>           "path": ["Main","nonEmpty"],
+>           "sort": "unit-test"},
+>  "type":"test-start"}
+
+  *  The @test-end@ message denotes the end of a single test case. It contains information about the outcome of the test. Example:
+
+> {"result": "pass",
+>  "message":"",
+>  "test":{"flatName": "Main:nonEmpty",
+>          "location": {"file": "Tutorial.hs", "line": 17},
+>          "path": ["Main","nonEmpty"],
+>          "sort": "unit-test"},
+>  "wallTime": 0,  // in milliseconds
+>  "type": "test-end",
+>  "location":null}
+
+  *  The @test-results@ message occurs after all tests have been run and summarizes their results. Example:
+
+> {"failures": 0,
+>  "passed": 4,
+>  "pending": 0,
+>  "wallTime": 39, // in milliseconds
+>  "errors": 0,
+>  "type":"test-results"}
+
+  *  The @test-list@ message contains all tests defined. It is used for the --list commandline options. Example:
+
+> {"tests": [{"flatName":"Main:nonEmpty","location":{"file":"Tutorial.hs","line":17},"path":["Main","nonEmpty"],"sort":"unit-test"},
+>            {"flatName":"Main:empty","location":{"file":"Tutorial.hs","line":19},"path":["Main","empty"],"sort":"unit-test"},
+>            {"flatName":"Main:reverse","location":{"file":"Tutorial.hs","line":22},"path":["Main","reverse"],"sort":"quickcheck-property"},
+>            {"flatName":"Main:reverseReplay","location":{"file":"Tutorial.hs","line":24},"path":["Main","reverseReplay"],"sort":"quickcheck-property"}],
+>  "type":"test-list"}
+
+For an exact specification, please have a look at the code of this module.
+-}
+
 {-# LANGUAGE OverloadedStrings #-}
 module Test.Framework.JsonOutput (
 
@@ -15,27 +65,8 @@ import Test.Framework.Location
 import qualified Data.Aeson as J
 import Data.Aeson ((.=))
 
-import qualified Data.Text as T
-
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.Lazy.Char8 as BSLC
-
-{-
-
-HTF's machine-readable output is a sequence of JSON messages. Each message is terminated
-by a newline followed by two semicolons followed again by a newline.
-
-There are four types of JSON messages. Each JSON object has a "type" attribute denoting
-this type. The types are: "test-start", "test-end", and "test-list", "test-results".
-Their haskell representations are TestStartEventObj, TestEndEventObj, TestListObj, and
-TestResultObj. The corresponding JSON rendering is defined below.
-
-- The "test-start" message denotes the start of a single test case.
-- The "test-end" message denotes the end of a single test case.
-- The "test-results" message occurs after all tests have been run and summarizes their results.
-- The "test-list" message contains all tests defined. It is used for the --list commandline options.
-
--}
 
 class J.ToJSON a => HTFJsonObj a
 

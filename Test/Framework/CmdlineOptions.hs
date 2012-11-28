@@ -19,7 +19,7 @@
 
 {- |
 
-This module defines the commandline options of the test runner provided by HTF.
+This module defines the commandline options of the test driver provided by HTF.
 
 -}
 module Test.Framework.CmdlineOptions (
@@ -37,7 +37,6 @@ import Test.Framework.Utils
 import Data.Char (toLower)
 import Data.Maybe
 
-import Control.Monad (unless)
 import System.IO
 
 import System.Console.GetOpt
@@ -46,7 +45,6 @@ import qualified Text.Regex as R
 #ifndef mingw32_HOST_OS
 import System.Posix.Terminal
 import System.Posix.IO (stdOutput)
-import System.Posix.Types (Fd)
 import System.Posix.Env (getEnv)
 #endif
 
@@ -64,8 +62,8 @@ data CmdlineOptions = CmdlineOptions {
     , opts_filter :: TestFilter         -- ^ Run only tests matching this filter.
     , opts_help :: Bool                 -- ^ If 'True', display a help message and exit.
     , opts_negated :: [String]          -- ^ Regular expressions matching test names which should /not/ run.
-    , opts_threads :: Maybe Int         -- ^ Use @Just i@ for parallel execution with @i@ threads, @Nothing@ for sequential execution (currently unused).
-    , opts_machineOutput :: Bool        -- ^ Format output for machines (JSON format) or humans.
+--    , opts_threads :: Maybe Int         -- ^ Use @Just i@ for parallel execution with @i@ threads, @Nothing@ for sequential execution (currently unused).
+    , opts_machineOutput :: Bool        -- ^ Format output for machines (JSON format) or humans. See 'Test.Framework.JsonOutput' for a definition of the JSON format.
     , opts_useColors :: Maybe Bool      -- ^ Use @Just b@ to enable/disable use of colors, @Nothing@ infers the use of colors.
     , opts_outputFile :: Maybe FilePath -- ^ The output file, defaults to stdout
     , opts_listTests :: Bool            -- ^ If 'True', lists all tests available and exits.
@@ -81,7 +79,7 @@ defaultCmdlineOptions = CmdlineOptions {
     , opts_filter = const True
     , opts_help = False
     , opts_negated = []
-    , opts_threads = Nothing
+--    , opts_threads = Nothing
     , opts_machineOutput = False
     , opts_useColors = Nothing
     , opts_outputFile = Nothing
@@ -190,10 +188,10 @@ testConfigFromCmdlineOptions opts =
                      colors <- checkColors mOutputFd
                      return (TestOutputHandle outputHandle closeOutput, colors)
        setUseColors colors
-       let threads = opts_threads opts
-           reporters = defaultTestReporters (isJust threads) (opts_machineOutput opts)
+--       let threads = opts_threads opts
+       let reporters = defaultTestReporters False {-(isJust threads)-} (opts_machineOutput opts)
        return $ TestConfig { tc_quiet = opts_quiet opts
-                           , tc_threads = threads
+--                           , tc_threads = threads
                            , tc_output = output
                            , tc_reporters = reporters
                            , tc_filter = opts_filter opts }

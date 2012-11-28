@@ -43,22 +43,18 @@ module Test.Framework.QuickCheckWrapper (
 
 ) where
 
-import qualified Data.Map as Map
-import Control.Concurrent.MVar
 #if !MIN_VERSION_base(4,6,0)
 import Prelude hiding ( catch )
 #endif
 import Control.Exception ( SomeException, Exception, Handler(..),
                            throw, catch, catches, evaluate )
-import System.IO
-import System.IO.Unsafe
-import System.Random
-import Data.List( group, sort, intersperse, isPrefixOf )
-import Data.Char
 import Data.Typeable (Typeable)
+import Data.Char
+import qualified Data.List as List
+import System.IO.Unsafe (unsafePerformIO)
+import Control.Concurrent.MVar
 
 import Test.QuickCheck
-import Test.QuickCheck.Property hiding (reason)
 
 import Test.Framework.TestManager
 import Test.Framework.TestManagerInternal
@@ -119,7 +115,7 @@ testableAsAssertion t =
                       Right (Success { output=msg }) ->
                           quickCheckTestPass (adjustOutput msg)
                       Right (Failure { usedSize=size, usedSeed=gen, output=msg, reason=reason }) ->
-                          if pendingPrefix `isPrefixOf` reason
+                          if pendingPrefix `List.isPrefixOf` reason
                              then let pendingMsg = let s = drop (length pendingPrefix) reason
                                                    in take (length s - length pendingSuffix) s
                                   in quickCheckTestPending pendingMsg

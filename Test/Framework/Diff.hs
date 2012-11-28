@@ -31,16 +31,12 @@ import Prelude hiding (catch)
 
 import Control.Exception (catch, finally, IOException)
 import qualified Data.List as List
+import Data.Char
 import Data.Algorithm.Diff
-import Data.Char (isDigit)
-import Test.QuickCheck
-import Text.PrettyPrint
-
 import Test.Framework.Colors
 
 -- for testing
 import System.IO
-import System.Environment
 import System.Directory
 import System.Exit
 import System.Process

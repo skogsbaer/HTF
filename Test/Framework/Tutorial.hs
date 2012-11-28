@@ -92,39 +92,49 @@ Build-type:    Simple
 Executable tutorial
   Type:              exitcode-stdio-1.0
   Main-is:           Tutorial.hs
-  Build-depends:     base == 4.*, HTF == 0.9.*
+  Build-depends:     base == 4.*, HTF == 0.10.*
   Default-language:  Haskell2010
 @
 
 Compiling the program just shown (you must include the code for
 @myReverse@ as well), and then running the resulting program with no
-further commandline arguments yields the following output:
+further commandline arguments yields the following output (colors had to
+be omitted, so the diff output does not look very useful):
 
 > [TEST] Main:nonEmpty (Tutorial.hs:17)
 > assertEqual failed at Tutorial.hs:18
 > * expected: [3, 2, 1]
 > * but got:  [3]
 > * diff:     [3, 2, 1]
-> *** Failed!
+> *** Failed! (0ms)
 >
 > [TEST] Main:empty (Tutorial.hs:19)
-> +++ OK
+> +++ OK (0ms)
 >
 > [TEST] Main:reverse (Tutorial.hs:22)
-> Falsifiable (after 7 tests and 4 shrinks):
+> Falsifiable (after 6 tests and 5 shrinks):
 > [0,0]
-> Replay argument: "Just (1982441876 2147483392,6)"
-> *** Failed!
+> Replay argument: "Just (200055706 2147483393,5)"
+> *** Failed! (0ms)
 >
-> * Tests:    3
+> [TEST] Main:reverseReplay (Tutorial.hs:24)
+> Falsifiable (after 1 test and 2 shrinks):
+> [0,0]
+> Replay argument: "Just (1060394807 2147483396,2)"
+> *** Failed! (0ms)
+>
+> * Tests:    4
 > * Passed:   1
 > * Pending:  0
-> * Failures: 2
+> * Failures: 3
 > * Errors:   0
 >
 > * Failures:
->   * Main:nonEmpty (Tutorial.hs:17)
+>   * Main:reverseReplay (Tutorial.hs:24)
 >   * Main:reverse (Tutorial.hs:22)
+>   * Main:nonEmpty (Tutorial.hs:17)
+>
+> Total execution time: 4ms
 
 (To check only specific tests, you can pass commandline
 arguments to the program: the HTF then runs only those tests whose name
@@ -164,24 +174,26 @@ Running our tests again on the fixed definition then yields the
 desired result:
 
 > [TEST] Main:nonEmpty (Tutorial.hs:17)
-> +++ OK
+> +++ OK (0ms)
 >
 > [TEST] Main:empty (Tutorial.hs:19)
-> +++ OK
+> +++ OK (0ms)
 >
 > [TEST] Main:reverse (Tutorial.hs:22)
 > Passed 100 tests.
-> +++ OK
+> +++ OK (20ms)
 >
 > [TEST] Main:reverseReplay (Tutorial.hs:24)
 > Passed 100 tests.
-> +++ OK
+> +++ OK (4ms)
 >
 > * Tests:    4
 > * Passed:   4
 > * Pending:  0
 > * Failures: 0
 > * Errors:   0
+>
+> Total execution time: 28ms
 
 The HTF also allows the definition of black box tests. Essentially, black box
 tests allow you to verify that the output of your program matches your expectations.
@@ -253,11 +265,49 @@ File @TestMain.hs@
 module Main where
 
 import Test.Framework
+import Test.Framework.BlackBoxTest
 import &#x7b;-&#x40; HTF_TESTS &#x40;-&#x7d; MyPkg.A
 import &#x7b;-&#x40; HTF_TESTS &#x40;-&#x7d; MyPkg.B
 
 main = htfMain htf_importedTests
 @
+
+-}
+
+-- * Machine-readable output
+
+{- |
+
+For better integration with your testing environment, HTF provides the ability to produce
+machine-readable output in JSON format. Here is a short example how the JSON output looks like,
+for details see "Test.Framework.JsonOutput":
+
+
+> {"test":{"flatName":"Main:nonEmpty","location":{"file":"Tutorial.hs","line":17},"path":["Main","nonEmpty"],"sort":"unit-test"},"type":"test-start"}
+> ;;
+> {"result":"pass","message":"","test":{"flatName":"Main:nonEmpty","location":{"file":"Tutorial.hs","line":17},"path":["Main","nonEmpty"],"sort":"unit-test"},"wallTime":0,"type":"test-end","location":null}
+> ;;
+> {"test":{"flatName":"Main:empty","location":{"file":"Tutorial.hs","line":19},"path":["Main","empty"],"sort":"unit-test"},"type":"test-start"}
+> ;;
+> {"result":"pass","message":"","test":{"flatName":"Main:empty","location":{"file":"Tutorial.hs","line":19},"path":["Main","empty"],"sort":"unit-test"},"wallTime":0,"type":"test-end","location":null}
+> ;;
+> {"test":{"flatName":"Main:reverse","location":{"file":"Tutorial.hs","line":22},"path":["Main","reverse"],"sort":"quickcheck-property"},"type":"test-start"}
+> ;;
+> {"result":"pass","message":"Passed 100 tests.","test":{"flatName":"Main:reverse","location":{"file":"Tutorial.hs","line":22},"path":["Main","reverse"],"sort":"quickcheck-property"},"wallTime":19,"type":"test-end","location":null}
+> ;;
+> {"test":{"flatName":"Main:reverseReplay","location":{"file":"Tutorial.hs","line":24},"path":["Main","reverseReplay"],"sort":"quickcheck-property"},"type":"test-start"}
+> ;;
+> {"result":"pass","message":"Passed 100 tests.","test":{"flatName":"Main:reverseReplay","location":{"file":"Tutorial.hs","line":24},"path":["Main","reverseReplay"],"sort":"quickcheck-property"},"wallTime":4,"type":"test-end","location":null}
+> ;;
+> {"failures":0,"passed":4,"pending":0,"wallTime":39,"errors":0,"type":"test-results"}
+> ;;
+
+Machine-readable ouput is requested by the @--json@ flag. You can specify a dedicated output file
+using the @--output-file=@ option. On some platforms (e.g. Windows) it might not be possible to read
+from the output file while the tests are running (due to file-locking). In this case, you might want
+to use the @--split@ option. With this option, HTF writes each JSON message to a separate ouput file.
+The name of the output file is derived from the name given with the @--output-file=@ flag by
+appending an index (starting at 0) that is incremented for every message.
 
 -}
 

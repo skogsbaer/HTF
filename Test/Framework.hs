@@ -19,7 +19,10 @@
 {- |
 
 Top-level module that re-exports functionality from sub-modules.
-Usually, you only need to import this module.
+Modules that only define unit tests and quickcheck properties typically
+only need to import this module.
+Your test driver should additionally import 'Test.Framework.TestManager' and,
+if needed, 'Test.Framework.BlackBoxTest'.
 
 -}
 module Test.Framework (
@@ -31,7 +34,7 @@ module Test.Framework (
   module Test.Framework.QuickCheckWrapper, TM.makeQuickCheckTest,
 
   -- * Organizing tests
-  TM.makeTestSuite, TM.TestSuite, Loc.makeLoc
+  TM.makeTestSuite, TM.TestSuite, TM.htfMain, Loc.makeLoc
 
 ) where
 
