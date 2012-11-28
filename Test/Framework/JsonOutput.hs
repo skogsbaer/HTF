@@ -16,7 +16,6 @@ import qualified Data.Aeson as J
 import Data.Aeson ((.=))
 
 import qualified Data.Text as T
-import qualified Data.Vector as V
 
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.Lazy.Char8 as BSLC
@@ -90,7 +89,7 @@ data TestListObj
 instance J.ToJSON TestListObj where
     toJSON tl =
         J.object ["type" .= J.String "test-list"
-                 ,"tests" .= J.Array (V.fromList (map J.toJSON (tlm_tests tl)))]
+                 ,"tests" .= J.toJSON (tlm_tests tl)]
 
 instance HTFJsonObj TestListObj
 
@@ -131,7 +130,7 @@ instance J.ToJSON TestObj where
                             Nothing -> []))
 
 instance J.ToJSON TestPath where
-    toJSON p = J.Array (V.fromList (map J.toJSON (testPathToList p)))
+    toJSON p = J.toJSON (testPathToList p)
 
 instance J.ToJSON TestSort where
     toJSON s =
