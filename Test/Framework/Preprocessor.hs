@@ -222,12 +222,14 @@ transform hunitBackwardsCompat originalFileName input =
       importedTestListCode :: ModuleInfo -> String
       importedTestListCode info =
           let l = mi_htfImports info
-          in importedTestListFullName (mi_moduleName info)
-               ++ " :: [" ++ mi_htfPrefix info ++ "TestSuite]\n" ++
-             importedTestListFullName (mi_moduleName info)
-               ++ " = [\n    " ++
-             List.intercalate ",\n     " (map htfTestsInModule l) ++
-             "\n  ]\n"
+          in case l of
+               [] -> ""
+               _ -> (importedTestListFullName (mi_moduleName info)
+                     ++ " :: [" ++ mi_htfPrefix info ++ "TestSuite]\n" ++
+                     importedTestListFullName (mi_moduleName info)
+                     ++ " = [\n    " ++
+                     List.intercalate ",\n     " (map htfTestsInModule l) ++
+                     "\n  ]\n")
       htfTestsInModule :: ImportDecl -> String
       htfTestsInModule imp = qualify imp (thisModulesTestsFullName (imp_moduleName imp))
       qualify :: ImportDecl -> String -> String
