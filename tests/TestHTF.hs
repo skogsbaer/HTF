@@ -82,6 +82,11 @@ test_someError = error "Bart Simpson!!"
 
 test_pendingTest = unitTestPending "This test is pending"
 
+test_subAssert = subAssert anotherSub
+    where
+      anotherSub = subAssertVerbose "I'm another sub" (assertNegative 42)
+      assertNegative n = assertBool (n < 0)
+
 data Expr = PlusExpr Expr Expr
           | MultExpr Expr Expr
           | Literal Int
@@ -130,22 +135,30 @@ checkOutput output =
     do bsl <- BSL.readFile output
        let jsons = map (fromJust . J.decode) (splitJson bsl)
        check jsons (J.object ["type" .= J.String "test-results"])
-                   (J.object ["failures" .= J.toJSON (29::Int)
+                   (J.object ["failures" .= J.toJSON (30::Int)
                              ,"passed" .= J.toJSON (12::Int)
                              ,"pending" .= J.toJSON (2::Int)
                              ,"errors" .= J.toJSON (1::Int)])
        check jsons (J.object ["type" .= J.String "test-end"
                              ,"test" .= J.object ["flatName" .= J.String "Main:diff"]])
                    (J.object ["test" .= J.object ["location" .= J.object ["file" .= J.String "TestHTF.hs"
-                                                                         ,"line" .= J.toJSON (91::Int)]]
+                                                                         ,"line" .= J.toJSON (96::Int)]]
                              ,"location" .= J.object ["file" .= J.String "TestHTF.hs"
-                                                     ,"line" .= J.toJSON (92::Int)]])
+                                                     ,"line" .= J.toJSON (97::Int)]])
        check jsons (J.object ["type" .= J.String "test-end"
                              ,"test" .= J.object ["flatName" .= J.String "Foo.A:a"]])
                    (J.object ["test" .= J.object ["location" .= J.object ["file" .= J.String "./Foo/A.hs"
                                                                          ,"line" .= J.toJSON (10::Int)]]
                              ,"location" .= J.object ["file" .= J.String "./Foo/A.hs"
                                                      ,"line" .= J.toJSON (11::Int)]])
+       check jsons (J.object ["type" .= J.String "test-end"
+                             ,"test" .= J.object ["flatName" .= J.String "Main:subAssert"]])
+                   (J.object ["callers" .= J.toJSON [J.object ["message" .= J.Null
+                                                              ,"location" .= J.object ["file" .= J.String "TestHTF.hs"
+                                                                                      ,"line" .= J.toJSON (85::Int)]]
+                                                    ,J.object ["message" .= J.String "I'm another sub"
+                                                              ,"location" .= J.object ["file" .= J.String "TestHTF.hs"
+                                                                                      ,"line" .= J.toJSON (87::Int)]]]])
     where
       check jsons pred assert =
           case filter (\j -> matches j pred) jsons of

@@ -84,6 +84,7 @@ allAsserts = ["assertBool"
              ,"assertJust"
              ,"assertNothing"
              ,"assertNothingNoShow"
+             ,"subAssert"
              ]
 
 assertDefines :: Bool -> String -> [(String, String)]

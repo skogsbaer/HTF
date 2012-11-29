@@ -125,7 +125,7 @@ reportTestStartHS ft = reportHumanTestStartMessage Debug ft
 reportTestResultHS :: ReportTestResult
 reportTestResultHS ftr =
     let res = rr_result (ft_payload ftr)
-        msg = rr_message (ft_payload ftr)
+        msg = attachCallStack (rr_message (ft_payload ftr)) (rr_callers (ft_payload ftr))
     in case res of
          Pass ->
              do suf <- okSuffix
@@ -143,6 +143,15 @@ reportTestResultHS ftr =
                 suf <- errorSuffix
                 reportMessage Info msg suf
    where
+     attachCallStack msg callStack =
+         case reverse callStack of
+           [] -> msg
+           l -> ensureNewline msg ++
+                unlines (map formatCallStackElem l)
+     formatCallStackElem (mMsg, loc) =
+         "  called from " ++ showLoc loc ++ (case mMsg of
+                                               Nothing -> ""
+                                               Just s -> " (" ++ s ++ ")")
      reportHumanTestStartMessageIfNeeded =
          do tc <- ask
             when (tc_quiet tc) (reportHumanTestStartMessage Info ftr)

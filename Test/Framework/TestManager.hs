@@ -30,7 +30,8 @@ module Test.Framework.TestManager (
   module Test.Framework.TestTypes,
 
   -- * Running tests
-  htfMain, runTest, runTestWithArgs, runTestWithOptions, runTestWithConfig,
+  htfMain, runTest, runTest', runTestWithArgs, runTestWithArgs',
+  runTestWithOptions, runTestWithOptions', runTestWithConfig, runTestWithConfig',
 
   -- * Organzing tests
   TestableHTF,
@@ -124,9 +125,9 @@ runFlatTest :: FlatTest -> TR FlatTestResult
 runFlatTest ft =
     do reportTestStart ft
        (res, time) <- liftIO $ measure $ HU.performTestCase (ft_payload ft)
-       let (testResult, (mLoc, msg)) =
+       let (testResult, (mLoc, callers, msg)) =
              case res of
-               Nothing -> (Pass, (Nothing, ""))
+               Nothing -> (Pass, (Nothing, [], ""))
                Just (isFailure, msg') ->
                    if ft_sort ft /= QuickCheckTest
                       then let utr = deserializeHUnitMsg msg'
@@ -134,14 +135,14 @@ runFlatTest ft =
                                      _| utr_pending utr -> Pending
                                       | isFailure -> Fail
                                       | otherwise -> Error
-                           in (r, (utr_location utr, utr_message utr))
+                           in (r, (utr_location utr, utr_callingLocations utr, utr_message utr))
                       else let (r, s) = deserializeQuickCheckMsg msg'
-                           in (r, (Nothing, s))
+                           in (r, (Nothing, [], s))
            rr = FlatTest
                   { ft_sort = ft_sort ft
                   , ft_path = ft_path ft
                   , ft_location = ft_location ft
-                  , ft_payload = RunResult testResult mLoc msg time }
+                  , ft_payload = RunResult testResult mLoc callers msg time }
        return rr
 
 handleRunResult :: FlatTestResult -> TR ()
@@ -159,31 +160,57 @@ runTest :: TestableHTF t => t              -- ^ Testable thing
                          -> IO ExitCode    -- ^ See 'runTestWithOptions' for a specification of the 'ExitCode' result
 runTest = runTestWithOptions defaultCmdlineOptions
 
+-- | Run something testable using the 'Test.Framework.TestConfig.defaultCmdlineOptions'.
+runTest' :: TestableHTF t => t              -- ^ Testable thing
+                         -> IO (IO (), ExitCode)    -- ^ 'IO' action for printing the overall test results, and exit code for the test run. See 'runTestWithOptions' for a specification of the 'ExitCode' result
+runTest' = runTestWithOptions' defaultCmdlineOptions
+
 -- | Run something testable, parse the 'CmdlineOptions' from the given commandline arguments.
+-- Does not print the overall test results but returns an 'IO' action for doing so.
 runTestWithArgs :: TestableHTF t => [String]        -- ^ Commandline arguments
                                  -> t               -- ^ Testable thing
-                                 -> IO ExitCode     -- ^ See 'runTestWithConfig' for a specification of the 'ExitCode' result
+                                 -> IO ExitCode     -- ^ See 'runTestWithConfig' for a specification of the 'ExitCode' result.
 runTestWithArgs args t =
+    do (printSummary, ecode) <- runTestWithArgs' args t
+       printSummary
+       return ecode
+
+
+-- | Run something testable, parse the 'CmdlineOptions' from the given commandline arguments.
+runTestWithArgs' :: TestableHTF t => [String]        -- ^ Commandline arguments
+                                 -> t               -- ^ Testable thing
+                                 -> IO (IO (), ExitCode)  -- ^ 'IO' action for printing the overall test results, and exit code for the test run. See 'runTestWithConfig' for a specification of the 'ExitCode' result.
+runTestWithArgs' args t =
     case parseTestArgs args of
       Left err ->
           do hPutStrLn stderr err
-             return $ ExitFailure 1
+             return $ (return (), ExitFailure 1)
       Right opts ->
-          runTestWithOptions opts t
+          runTestWithOptions' opts t
 
 -- | Runs something testable with the given 'CmdlineOptions'.
 -- See 'runTestWithConfig' for a specification of the 'ExitCode' result.
 runTestWithOptions :: TestableHTF t => CmdlineOptions -> t -> IO ExitCode
 runTestWithOptions opts t =
+    do (printSummary, ecode) <- runTestWithOptions' opts t
+       printSummary
+       return ecode
+
+-- | Runs something testable with the given 'CmdlineOptions'. Does not
+-- print the overall test results but returns an 'IO' action for doing so.
+-- See 'runTestWithConfig' for a specification of the 'ExitCode' result.
+runTestWithOptions' :: TestableHTF t => CmdlineOptions -> t -> IO (IO (), ExitCode)
+runTestWithOptions' opts t =
     if opts_help opts
        then do hPutStrLn stderr helpString
-               return $ ExitFailure 1
+               return $ (return (), ExitFailure 1)
        else do tc <- testConfigFromCmdlineOptions opts
-               (if opts_listTests opts
-                   then let fts = filter (opts_filter opts) (flatten t)
-                        in do runRWST (reportAllTests fts) tc initTestState
-                              return ExitSuccess
-                   else runTestWithConfig tc t) `finally` cleanup tc
+               (printSummary, ecode) <-
+                   (if opts_listTests opts
+                      then let fts = filter (opts_filter opts) (flatten t)
+                           in return (runRWST (reportAllTests fts) tc initTestState >> return (), ExitSuccess)
+                      else runTestWithConfig' tc t)
+               return (printSummary `finally` cleanup tc, ecode)
     where
       cleanup tc =
           case tc_output tc of
@@ -199,6 +226,15 @@ runTestWithOptions opts t =
 -- A test is said to /fail/ if an assertion fails but no other error occur.
 runTestWithConfig :: TestableHTF t => TestConfig -> t -> IO ExitCode
 runTestWithConfig tc t =
+    do (printSummary, ecode) <- runTestWithConfig' tc t
+       printSummary
+       return ecode
+
+-- | Runs something testable with the given 'TestConfig'. Does not
+-- print the overall test results but returns an 'IO' action for doing so.
+-- See 'runTestWithConfig' for a specification of the 'ExitCode' result.
+runTestWithConfig' :: TestableHTF t => TestConfig -> t -> IO (IO (), ExitCode)
+runTestWithConfig' tc t =
      do ((_, s, _), time) <-
             measure $
             runRWST (runAllFlatTests (filter (tc_filter tc) (flatten t))) tc initTestState
@@ -207,11 +243,13 @@ runTestWithConfig tc t =
             pending = filter (\ft -> (rr_result . ft_payload) ft == Pending) results
             failed = filter (\ft -> (rr_result . ft_payload) ft == Fail) results
             error = filter (\ft -> (rr_result . ft_payload) ft == Error) results
-        runRWST (reportGlobalResults time passed pending failed error) tc (TestState [] (ts_index s)) -- keep index from run
-        return $ case () of
+        let printSummary =
+                runRWST (reportGlobalResults time passed pending failed error) tc (TestState [] (ts_index s)) -- keep index from run
+        return (printSummary >> return (),
+                case () of
                    _| length failed == 0 && length error == 0 -> ExitSuccess
                     | length error == 0 -> ExitFailure 1
-                    | otherwise -> ExitFailure 2
+                    | otherwise -> ExitFailure 2)
 
 -- | Runs something testable by parsing the commandline arguments as test options
 -- (using 'parseTestArgs'). Exits with the exit code returned by 'runTestWithArgs'.

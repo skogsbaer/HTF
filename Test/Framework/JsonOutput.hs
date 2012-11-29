@@ -88,6 +88,7 @@ data TestEndEventObj
       { te_test :: TestObj
       , te_result :: TestResult
       , te_location :: Maybe Location
+      , te_callers :: [(Maybe String, Location)]
       , te_message :: String
       , te_wallTimeMs :: Int
       }
@@ -97,6 +98,9 @@ instance J.ToJSON TestEndEventObj where
         J.object ["type" .= J.String "test-end"
                  ,"test" .= J.toJSON (te_test te)
                  ,"location" .= J.toJSON (te_location te)
+                 ,"callers" .= J.toJSON (map (\(msg, loc) -> J.object ["message" .= J.toJSON msg
+                                                                      ,"location" .= J.toJSON loc])
+                                             (te_callers te))
                  ,"result" .= J.toJSON (te_result te)
                  ,"message" .= J.toJSON (te_message te)
                  ,"wallTime" .= J.toJSON (te_wallTimeMs te)]
@@ -187,7 +191,7 @@ mkTestStartEventObj ft flatName =
 mkTestEndEventObj :: FlatTestResult -> String -> TestEndEventObj
 mkTestEndEventObj ftr flatName =
     let r = ft_payload ftr
-    in TestEndEventObj (mkTestObj ftr flatName) (rr_result r) (rr_location r)
+    in TestEndEventObj (mkTestObj ftr flatName) (rr_result r) (rr_location r) (rr_callers r)
                        (rr_message r) (rr_wallTimeMs r)
 
 mkTestListObj :: [(FlatTest, String)] -> TestListObj

@@ -1,5 +1,7 @@
 {-# OPTIONS_GHC -cpp -pgmPcpphs -optP --layout -optP --hashes -optP --cpp #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleContexts #-}
+
 --
 -- Copyright (c) 2005, 2009, 2012  Stefan Wehr - http://www.stefanwehr.de
 --
@@ -73,11 +75,15 @@ module Test.Framework.HUnitWrapper (
   assertFailure_,
 
   -- * Pending unit tests
-  unitTestPending, unitTestPending'
+  unitTestPending, unitTestPending',
 
+  -- * Sub assertions
+  subAssert_, subAssertVerbose_
 ) where
 
 import Control.Exception
+import Control.Monad.Trans
+import Control.Monad.Trans.Control
 import qualified Test.HUnit as HU hiding ( assertFailure )
 import qualified Language.Haskell.Exts.Pretty as HE
 import qualified Language.Haskell.Exts.Parser as HE
@@ -431,3 +437,27 @@ _assertNothingNoShow_ name loc s _ =
                                  ": expected Nothing, given a Just value"))
 DocAssertion(assertNothingNoShow, Fail is the given @Maybe a@ value is a 'Just'.)
 CreateAssertions(assertNothingNoShow, Maybe a)
+
+--
+-- Sub assertions
+--
+
+-- | Sub assertions are poor man's way of abstracting over assertions while still propagating location
+-- information. Say you want to abstract over the assertion that an 'Int' is positive. You would write
+--
+-- > assertIsPositive :: Int -> Assertion
+-- > assertIsPositive n = assertBool (n > 0)
+--
+-- You can now use @assertIsPositive@ from your unit tests, but if you call it directly you lose location information:
+-- if @assertIsPositive@ fails you only get the location where @assertIsPositive@ was defined but not from
+-- where it has been called. To recover the location information you simply use @subAssert assertIsPositive@.
+-- If assertIsPositive then fails you still get the location of the caller.
+--
+-- /Note:/ Don't use subAssert_ directly but use the preprocessor macro @subAssert@.
+subAssert_ :: MonadBaseControl IO m => Location -> m () -> m()
+subAssert_ loc ass = unitTestSubAssert loc Nothing ass
+
+
+-- | Same as 'subAssert_' but with an additional error message.
+subAssertVerbose_ :: MonadBaseControl IO m => Location -> String -> m () -> m ()
+subAssertVerbose_ loc msg ass = unitTestSubAssert loc (Just msg) ass

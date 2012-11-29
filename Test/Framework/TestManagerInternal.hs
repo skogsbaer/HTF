@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 --
 -- Copyright (c) 2009-2012   Stefan Wehr - http://www.stefanwehr.de
 --
@@ -22,7 +23,7 @@ module Test.Framework.TestManagerInternal (
 
   quickCheckTestFail, quickCheckTestError, quickCheckTestPending,
   quickCheckTestPass, deserializeQuickCheckMsg,
-  unitTestFail, unitTestPending, deserializeHUnitMsg,
+  unitTestFail, unitTestPending, deserializeHUnitMsg, unitTestSubAssert,
   blackBoxTestFail,
 
 ) where
@@ -32,6 +33,9 @@ import Test.Framework.Utils
 import Test.Framework.Location
 
 import qualified Test.HUnit.Lang as HU
+import Control.Monad.Trans
+import Control.Monad.Trans.Control
+import qualified Control.Exception.Lifted as Exc
 
 assertFailureHTF :: String -> Assertion
 -- Important: force the string argument, otherwise an error embedded
@@ -70,26 +74,33 @@ deserializeQuickCheckMsg msg =
 data UnitTestResult
     = UnitTestResult
       { utr_location :: Maybe Location
+      , utr_callingLocations :: [(Maybe String, Location)]
       , utr_message :: String
       , utr_pending :: Bool
       } deriving (Eq, Show, Read)
 
 unitTestFail :: Maybe Location -> String -> IO a
 unitTestFail loc s =
-    do assertFailureHTF (show (UnitTestResult loc s False))
+    do assertFailureHTF (show (UnitTestResult loc [] s False))
        error "unitTestFail: UNREACHABLE"
+
+unitTestSubAssert :: MonadBaseControl IO m => Location -> Maybe String -> m a -> m a
+unitTestSubAssert loc mMsg action =
+    action `Exc.catch` (\(HU.HUnitFailure s) -> let res = deserializeHUnitMsg s
+                                                    newRes = res { utr_callingLocations = (mMsg, loc) : utr_callingLocations res }
+                                                in Exc.throwIO (HU.HUnitFailure $ show newRes))
 
 -- Mark a unit test as pending without removing it from the test suite.
 unitTestPending :: String -> IO a
 unitTestPending s =
-    do assertFailureHTF (show (UnitTestResult Nothing s True))
+    do assertFailureHTF (show (UnitTestResult Nothing [] s True))
        error "unitTestFail: UNREACHABLE"
 
 deserializeHUnitMsg :: String -> UnitTestResult
 deserializeHUnitMsg msg =
     case readM msg of
       Just r -> r
-      _ -> UnitTestResult Nothing msg False
+      _ -> UnitTestResult Nothing [] msg False
 
 blackBoxTestFail :: String -> Assertion
 blackBoxTestFail = assertFailureHTF

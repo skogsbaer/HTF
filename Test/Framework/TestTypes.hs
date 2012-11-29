@@ -91,6 +91,7 @@ data RunResult
     = RunResult
       { rr_result :: TestResult       -- ^ The summary result of the test.
       , rr_location :: Maybe Location -- ^ The location where the test failed (if applicable).
+      , rr_callers :: [(Maybe String, Location)] -- ^ Information about the callers of the location where the test failed
       , rr_message :: String          -- ^ A message describing the result.
       , rr_wallTimeMs :: Milliseconds -- ^ Execution time in milliseconds.
       }
