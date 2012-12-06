@@ -90,6 +90,44 @@ Extra-Source-Files:
   README.md
   TODO.org
   ChangeLog
+  tests/bbt/should_fail/BBTArgs
+  -- tests/bbt/should_fail/*.in
+  tests/bbt/should_fail/*.err
+  tests/bbt/should_fail/*.out
+  tests/bbt/should_fail/*.x
+  tests/bbt/should_pass/*.in
+  tests/bbt/should_pass/*.err
+  tests/bbt/should_pass/*.out
+  tests/bbt/should_pass/*.x
+  tests/bbt/Skip/BBTArgs
+  tests/bbt/Skip/some_unknown_but_skipped_file.x
+  tests/bbt/Verbose/BBTArgs
+  tests/bbt/Verbose/not_ok_because_stdout1.out
+  tests/bbt/Verbose/not_ok_because_stdout1.x
+  tests/Foo/test.h
+  tests/Tutorial.hs
+  tests/run-bbt.sh
+  tests/test-HTF.cabal
+  tests/run-tests.sh
+  tests/compile-errors/Foo.h
+  tests/compile-errors/run-tests.sh
+  tests/compile-errors/Test1.hs
+  tests/compile-errors/Test2.hs
+  sample/LICENSE
+  sample/Main.hs
+  sample/MyPkg/A.hs
+  sample/MyPkg/B.hs
+  sample/README
+  sample/sample-HTF.cabal
+  sample/Setup.hs
+  sample/TestMain.hs
+  sample/bbt-dir/should-fail/BBTArgs
+  sample/bbt-dir/should-fail/z.err
+  sample/bbt-dir/should-fail/z.num
+  sample/bbt-dir/should-pass/x.num
+  sample/bbt-dir/should-pass/x.out
+  run-all-tests-for-all-compilers.sh
+  run-all-tests.sh
 
 Source-Repository head
   Type:           git
@@ -166,3 +204,5 @@ Test-Suite TestHTF
                      regex-compat >= 0.92,
                      HTF
   Default-language:  Haskell2010
+  Other-Modules:
+    Foo.A, Foo.B, TestHTFHunitBackwardsCompatible
