@@ -1,5 +1,5 @@
 Name:             HTF
-Version:          0.10.0.0
+Version:          0.10.0.1
 License:          LGPL
 License-File:     LICENSE
 Copyright:        (c) 2005-2012 Stefan Wehr
@@ -139,7 +139,7 @@ Executable htfpp
                     haskell-src-exts >= 1.11,
                     old-time >= 1.0,
                     directory >= 1.0,
-                    base >= 4
+                    base == 4.*
   Other-Modules:
     Test.Framework.Preprocessor
     Test.Framework.HaskellParser
@@ -148,7 +148,7 @@ Executable htfpp
 Library
   Build-Depends:    HUnit >= 1.2.5,
                     QuickCheck >= 2.3,
-                    base >= 4,
+                    base == 4.*,
                     random >= 1.0,
                     containers >= 0.3,
                     process >= 1.0,
@@ -192,7 +192,7 @@ Test-Suite TestHTF
   Main-is:           TestHTF.hs
   Hs-Source-Dirs:    tests
   Type:              exitcode-stdio-1.0
-  Build-depends:     base >= 4,
+  Build-depends:     base == 4.*,
                      bytestring >= 0.9,
                      aeson >= 0.6,
                      unordered-containers >= 0.2,
