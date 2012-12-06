@@ -7,6 +7,8 @@
   - possibility to list all tests
   - several bugfixes, especially related to location information in presence
     of an extra cpp invocation
+  - HTF itself now has a test suite
+  - removed upper bounds from .cabal files
   - backwards incompatibilities:
     + Test.Framework now longer exports all of Test.Framework.TestManager and
       Test.Framework.BlackBoxTest. For modules that only define tests, no changes

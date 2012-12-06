@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# OPTIONS_GHC -F -pgmF htfpp #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# OPTIONS_GHC -F -pgmF ./dist/build/htfpp/htfpp #-}
 --
 -- Copyright (c) 2005,2010   Stefan Wehr - http://www.stefanwehr.de
 --
@@ -24,6 +25,9 @@ import Test.Framework.TestManager
 import Test.Framework.BlackBoxTest
 
 import System.Environment
+import System.Directory
+import System.FilePath
+import System.Process
 import System.Exit
 import System.IO
 import System.IO.Temp
@@ -35,6 +39,7 @@ import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.Lazy.Char8 as BSLC
 import Data.Maybe
 import qualified Data.Text as T
+import qualified Text.Regex as R
 import {-@ HTF_TESTS @-} qualified TestHTFHunitBackwardsCompatible
 import {-@ HTF_TESTS @-} qualified Foo.A as A
 import {-@ HTF_TESTS @-} Foo.B
@@ -141,24 +146,24 @@ checkOutput output =
                              ,"errors" .= J.toJSON (1::Int)])
        check jsons (J.object ["type" .= J.String "test-end"
                              ,"test" .= J.object ["flatName" .= J.String "Main:diff"]])
-                   (J.object ["test" .= J.object ["location" .= J.object ["file" .= J.String "TestHTF.hs"
-                                                                         ,"line" .= J.toJSON (96::Int)]]
-                             ,"location" .= J.object ["file" .= J.String "TestHTF.hs"
-                                                     ,"line" .= J.toJSON (97::Int)]])
+                   (J.object ["test" .= J.object ["location" .= J.object ["file" .= J.String "TestHTF.hs$"
+                                                                         ,"line" .= J.toJSON (101::Int)]]
+                             ,"location" .= J.object ["file" .= J.String "TestHTF.hs$"
+                                                     ,"line" .= J.toJSON (102::Int)]])
        check jsons (J.object ["type" .= J.String "test-end"
                              ,"test" .= J.object ["flatName" .= J.String "Foo.A:a"]])
-                   (J.object ["test" .= J.object ["location" .= J.object ["file" .= J.String "./Foo/A.hs"
+                   (J.object ["test" .= J.object ["location" .= J.object ["file" .= J.String "Foo/A.hs$"
                                                                          ,"line" .= J.toJSON (10::Int)]]
                              ,"location" .= J.object ["file" .= J.String "./Foo/A.hs"
                                                      ,"line" .= J.toJSON (11::Int)]])
        check jsons (J.object ["type" .= J.String "test-end"
                              ,"test" .= J.object ["flatName" .= J.String "Main:subAssert"]])
                    (J.object ["callers" .= J.toJSON [J.object ["message" .= J.Null
-                                                              ,"location" .= J.object ["file" .= J.String "TestHTF.hs"
-                                                                                      ,"line" .= J.toJSON (85::Int)]]
+                                                              ,"location" .= J.object ["file" .= J.String "TestHTF.hs$"
+                                                                                      ,"line" .= J.toJSON (90::Int)]]
                                                     ,J.object ["message" .= J.String "I'm another sub"
-                                                              ,"location" .= J.object ["file" .= J.String "TestHTF.hs"
-                                                                                      ,"line" .= J.toJSON (87::Int)]]]])
+                                                              ,"location" .= J.object ["file" .= J.String "TestHTF.hs$"
+                                                                                      ,"line" .= J.toJSON (92::Int)]]]])
     where
       check jsons pred assert =
           case filter (\j -> matches j pred) jsons of
@@ -177,7 +182,16 @@ checkOutput output =
                                            Just vJson -> matches vJson vPred
                                            Nothing -> False)
                                True objPred
+            (J.String strJson, J.String strPred) ->
+                regexMatches (mkRegex strPred) strJson
+            (arrJson@(J.Array _), arrPred@(J.Array _)) ->
+                let J.Success (listJson :: [J.Value]) = J.fromJSON arrJson
+                    J.Success (listPred :: [J.Value]) = J.fromJSON arrPred
+                in length listJson == length listPred &&
+                   all (\(x, y) -> matches x y) (zip listJson listPred)
             _ -> json == pred
+      regexMatches r s = isJust $ R.matchRegex r (T.unpack s)
+      mkRegex s = R.mkRegexWithOpts (T.unpack s) True False
       splitJson bsl =
           if BSL.null bsl
              then []
@@ -191,19 +205,25 @@ checkOutput output =
 
 main =
     do args <- getArgs
-       bbts <- blackBoxTests "bbt" "./run-bbt.sh" ".x"
+       b <- doesDirectoryExist "tests/bbt"
+       let dirPrefix = if b then "tests" else ""
+       bbts <- blackBoxTests (dirPrefix </> "bbt") (dirPrefix </> "./run-bbt.sh") ".x"
                  (defaultBBTArgs { bbtArgs_verbose = False })
        let tests = [addToTestSuite htf_thisModulesTests bbts] ++ htf_importedTests
        case args of
-         ["--check"] ->
-             withSystemTempFile "HTF-out" $ \outFile h ->
-               do hClose h
-                  ecode <- runTestWithArgs ["--json", "--output-file=" ++ outFile] tests
-                  case ecode of
-                    ExitFailure _ -> checkOutput outFile
-                    _ -> fail ("unexpected exit code: " ++ show ecode)
-         _ ->
-             do ecode <- runTestWithArgs args tests
+         "--interactive":rest ->
+             do ecode <- runTestWithArgs rest tests
                 case ecode of
                   ExitFailure _ -> return ()
                   _ -> fail ("unexpected exit code: " ++ show ecode)
+         _ ->
+             do withSystemTempFile "HTF-out" $ \outFile h ->
+                  do hClose h
+                     ecode <- runTestWithArgs ["--json", "--output-file=" ++ outFile] tests
+                     case ecode of
+                       ExitFailure _ -> checkOutput outFile
+                       _ -> fail ("unexpected exit code: " ++ show ecode)
+                     `onException` (do s <- readFile outFile
+                                       hPutStrLn stderr s)
+                ecode <- system (dirPrefix </> "compile-errors/run-tests.sh")
+                exitWith ecode

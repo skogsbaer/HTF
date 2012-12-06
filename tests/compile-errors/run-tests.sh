@@ -1,5 +1,7 @@
 #!/bin/bash
 
+cd "$(dirname $0)"
+
 FLAGS="-hide-all-packages -package HTF -package base --make"
 lineno=7
 
