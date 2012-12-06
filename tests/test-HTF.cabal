@@ -7,12 +7,12 @@ Executable test
   Main-is: TestHTF.hs
   Build-depends:     base >= 4,
                      HTF,
-                     bytestring >= 0.10,
+                     bytestring >= 0.9,
                      aeson >= 0.6,
                      unordered-containers >= 0.2,
                      temporary >= 1.1,
                      text >= 0.11,
-                     directory >= 1.1,
+                     directory >= 1.0,
                      filepath >= 1.1,
                      process >= 1.0,
                      regex-compat >= 0.92

@@ -34,6 +34,23 @@ Description:
     /HEADS UP, backwards incomatibility with prior versions:/
 
     .
+
+    In version 0.10.0.0, the following changes could break code compiled against version 0.9.*:
+
+    .
+
+    * "Test.Framework" now longer exports all of "Test.Framework.TestManager" and
+      "Test.Framework.BlackBoxTest". For modules that only define tests, no changes
+      should be necessary. However, you likely need to adjust your test runner
+      module by importing "Test.Framework.TestManager" and possibly "Test.Framework.BlackBoxTest".
+
+    .
+
+    * Some reorganization in "Test.Framework.TestManager" and related modules, introduction
+      of "Test.Framework.TestTypes". Usually, your code should not be affected
+      by these changes.
+
+    .
     Starting with version 0.9.0.0, HTF uses a new strategy
     for collecting the testcases defined in your project
     (see "Test.Framework.Tutorial" for a description of this strategy).
@@ -65,7 +82,6 @@ Description:
 Tested-With:
                   GHC==7.0.4,
                   GHC==7.2.1,
-                  GHC==7.4.1,
                   GHC==7.4.2,
                   GHC==7.6.1
 Build-Type:       Simple
@@ -83,8 +99,8 @@ Executable htfpp
   Main-Is:          HTFPP.hs
   Build-Depends:    cpphs >= 1.12,
                     haskell-src-exts >= 1.11,
-                    old-time >= 1.1,
-                    directory >= 1.2,
+                    old-time >= 1.0,
+                    directory >= 1.0,
                     base >= 4
   Other-Modules:
     Test.Framework.Preprocessor
@@ -109,7 +125,7 @@ Library
                     haskell-src-exts >= 1.11,
                     aeson >= 0.6,
                     text >= 0.11,
-                    old-time >= 1.1
+                    old-time >= 1.0
   if !os(windows)
     Build-Depends:   unix >= 2.4
   Exposed-Modules:
@@ -139,14 +155,14 @@ Test-Suite TestHTF
   Hs-Source-Dirs:    tests
   Type:              exitcode-stdio-1.0
   Build-depends:     base >= 4,
-                     bytestring >= 0.10,
+                     bytestring >= 0.9,
                      aeson >= 0.6,
                      unordered-containers >= 0.2,
                      temporary >= 1.1,
                      text >= 0.11,
                      process >= 1.0,
                      filepath >= 1.1,
-                     directory >= 1.1,
+                     directory >= 1.0,
                      regex-compat >= 0.92,
                      HTF
   Default-language:  Haskell2010
