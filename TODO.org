@@ -1,5 +1,3 @@
-* Release 0.10
-** Write changelog
 * Relase 0.11
 ** Parallel test execution
 *** Options --threads=[N] or -j [N]
