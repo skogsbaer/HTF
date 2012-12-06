@@ -1,6 +1,5 @@
 * Release 0.10
 ** Write changelog
-** Regexp-based fallback parser
 * Relase 0.11
 ** Parallel test execution
 *** Options --threads=[N] or -j [N]

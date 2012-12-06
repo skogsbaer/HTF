@@ -442,16 +442,18 @@ CreateAssertions(assertNothingNoShow, Maybe a)
 -- Sub assertions
 --
 
--- | Sub assertions are poor man's way of abstracting over assertions while still propagating location
+-- | Sub assertions are a poor man's way of abstracting over assertions while still propagating location
 -- information. Say you want to abstract over the assertion that an 'Int' is positive. You would write
 --
 -- > assertIsPositive :: Int -> Assertion
 -- > assertIsPositive n = assertBool (n > 0)
 --
--- You can now use @assertIsPositive@ from your unit tests, but if you call it directly you lose location information:
--- if @assertIsPositive@ fails you only get the location where @assertIsPositive@ was defined but not from
--- where it has been called. To recover the location information you simply use @subAssert assertIsPositive@.
--- If assertIsPositive then fails you still get the location of the caller.
+-- You can now use @assertIsPositive i@ for some integer @i@ from your unit tests, but if you call it directly
+-- you will lose location information: if @assertIsPositive i@ fails you will only get the location where
+-- @assertIsPositive@ is defined but not from where it has been called.
+--
+-- To recover the location information you simply use @subAssert (assertIsPositive i)@.
+-- In this case, if @i@ is not positive, you will get the location of the caller.
 --
 -- /Note:/ Don't use subAssert_ directly but use the preprocessor macro @subAssert@.
 subAssert_ :: MonadBaseControl IO m => Location -> m () -> m()

@@ -6,7 +6,7 @@ by a newline followed by two semicolons followed again by a newline.
 There are four types of JSON messages. Each JSON object has a "type" attribute denoting
 this type. The types are: @test-start@, @test-end@, and @test-list@, @test-results@.
 Their haskell representations are 'TestStartEventObj', 'TestEndEventObj', 'TestListObj', and
-'TestResultObj'. The corresponding JSON rendering is defined in this module.
+'TestResultsObj'. The corresponding JSON rendering is defined in this module.
 
   *  The @test-start@ message denotes the start of a single test case. Example (whitespace inserted for better readability):
 
@@ -51,7 +51,7 @@ For an exact specification, please have a look at the code of this module.
 {-# LANGUAGE OverloadedStrings #-}
 module Test.Framework.JsonOutput (
 
-    TestStartEventObj, TestEndEventObj, TestListObj, TestObj,
+    TestStartEventObj, TestEndEventObj, TestListObj, TestObj, TestResultsObj,
 
     mkTestStartEventObj, mkTestEndEventObj, mkTestListObj, mkTestResultsObj,
 

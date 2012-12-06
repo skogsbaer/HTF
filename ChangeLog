@@ -1,4 +1,20 @@
-* 0.10.0.0
+* 0.10.0.0 (2012-12-06)
+  - machine-readable output: the --json option provides a way for getting
+    machine-readable output in a simple JSON-based format
+  - support for subAssert (allows abstraction over assertions but keeps error locations)
+  - don't depend on unix under Windows
+  - added timing information to the output
+  - possibility to list all tests
+  - several bugfixes, especially related to location information in presence
+    of an extra cpp invocation
+  - backwards incompatibilities:
+    + Test.Framework now longer exports all of Test.Framework.TestManager and
+      Test.Framework.BlackBoxTest. For modules that only define tests, no changes
+      should be necessary. However, you likely need to adjust your test runner
+      module by importing Test.Framework.TestManager and possibly Test.Framework.BlackBoxTest.
+    + Some reorganization in Test.Framework.TestManager and related modules, introduction
+      of Test.Framework.TestTypes. Usually, your code should not be affected
+      by these changes.
 
 * 0.9.0.0 (2012-09-26)
   NOTE: this version is NOT backwards compatible with 0.8.*. The documentation on
