@@ -1,14 +1,15 @@
 Name:             HTF
-Version:          0.10.0.1
+Version:          0.10.0.2
 License:          LGPL
 License-File:     LICENSE
 Copyright:        (c) 2005-2012 Stefan Wehr
 Author:           Stefan Wehr <mail@stefanwehr.de>
 Maintainer:       Stefan Wehr <mail@stefanwehr.de>
-Bug-Reports:      mailto:mail@stefanwehr.de
 Stability:        Beta
 Category:         Testing
 Synopsis:         The Haskell Test Framework
+Homepage:         https://github.com/skogsbaer/HTF/
+Bug-Reports:      https://github.com/skogsbaer/HTF/issues
 Description:
 
     The Haskell Test Framework (/HTF/ for short) lets you define unit
@@ -128,10 +129,9 @@ Extra-Source-Files:
   sample/bbt-dir/should-pass/x.out
   run-all-tests-for-all-compilers.sh
   run-all-tests.sh
-
 Source-Repository head
   Type:           git
-  Location:       git://github.com/skogsbaer/HTF.git
+  Location:       http://github.com/skogsbaer/HTF.git
 
 Executable htfpp
   Main-Is:          HTFPP.hs
