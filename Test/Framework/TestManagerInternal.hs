@@ -60,10 +60,7 @@ deserializeQuickCheckMsg :: String -> (TestResult, String)
 deserializeQuickCheckMsg msg =
     case readM msg of
       Nothing ->
-          error ("INTERNAL HTF ERROR: " ++
-                 "Cannot deserialize QuickCheck " ++
-                 "error message.\n[BEGIN]\n" ++
-                 show msg ++ "\n[END]\n")
+          (Error, msg)
       Just (r, ms) ->
           case ms of
             Nothing -> (r, "")
