@@ -7,19 +7,18 @@ lineno=7
 
 function check()
 {
-    grep_ecode="$1"
-    test="$2"
+    test="$1"
+    ghc $FLAGS "$test" 2>&1 | grep "$test":$lineno
+    grep_ecode=${PIPESTATUS[1]}
     if [ "$grep_ecode" != "0" ]
     then
-        echo "Compile error for test $test did not occur in line $lineno, exit code of grep: ${grep_ecode}"
+        echo "Compile error for $test did not occur in line $lineno, exit code of grep: ${grep_ecode}"
+        ghc $FLAGS "$test"
         exit 1
     fi
 }
 
-ghc $FLAGS Test1.hs 2>&1 | grep Test1.hs:$lineno
-grep_ecode=${PIPESTATUS[1]}
-check $grep_ecode 1
-
-ghc $FLAGS Test2.hs 2>&1 | grep Test2.hs:$lineno
-grep_ecode=${PIPESTATUS[1]}
-check $grep_ecode 2
+check Test1.hs
+check Test2.hs
+check Test3.hs
+check Test4.hs

@@ -206,17 +206,20 @@ transform hunitBackwardsCompat originalFileName input =
           thisModulesTestsFullName (mi_moduleName info) ++ " = " ++
             mi_htfPrefix info ++ "makeTestSuite" ++
           " " ++ show (mi_moduleName info) ++
-          " [\n    " ++ List.intercalate ",\n    "
+          " [\n" ++ List.intercalate ",\n"
                           (map (codeForDef (mi_htfPrefix info)) (mi_defs info))
           ++ "\n  ]\n" ++ importedTestListCode info
       codeForDef :: String -> Definition -> String
       codeForDef pref (TestDef s loc name) =
-          pref ++ "makeUnitTest " ++ (show s) ++ " " ++ codeForLoc pref loc ++
+          locPragma loc ++ pref ++ "makeUnitTest " ++ (show s) ++ " " ++ codeForLoc pref loc ++
           " " ++ name
       codeForDef pref (PropDef s loc name) =
-          pref ++ "makeQuickCheckTest " ++ (show s) ++ " " ++
+          locPragma loc ++ pref ++ "makeQuickCheckTest " ++ (show s) ++ " " ++
           codeForLoc pref loc ++ " (" ++ pref ++ "testableAsAssertion (" ++
           pref ++ "asTestableWithQCArgs " ++ name ++ "))"
+      locPragma :: Location -> String
+      locPragma loc =
+          "{-# LINE " ++ show (lineNumber loc) ++ " " ++ show (fileName loc) ++ " #-}\n    "
       codeForLoc :: String -> Location -> String
       codeForLoc pref loc = "(" ++ pref ++ "makeLoc " ++ show (fileName loc) ++
                             " " ++ show (lineNumber loc) ++ ")"
