@@ -1,10 +1,10 @@
 Name:             HTF
-Version:          0.10.0.2
+Version:          0.10.0.3
 License:          LGPL
 License-File:     LICENSE
 Copyright:        (c) 2005-2012 Stefan Wehr
-Author:           Stefan Wehr <mail@stefanwehr.de>
-Maintainer:       Stefan Wehr <mail@stefanwehr.de>
+Author:           Stefan Wehr <wehr@factisresearch.com>
+Maintainer:       Stefan Wehr <wehr@factisresearch.com>
 Stability:        Beta
 Category:         Testing
 Synopsis:         The Haskell Test Framework
