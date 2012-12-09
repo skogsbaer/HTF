@@ -1,5 +1,5 @@
 Name:             HTF
-Version:          0.10.0.3
+Version:          0.10.0.4
 License:          LGPL
 License-File:     LICENSE
 Copyright:        (c) 2005-2012 Stefan Wehr
@@ -114,6 +114,8 @@ Extra-Source-Files:
   tests/compile-errors/run-tests.sh
   tests/compile-errors/Test1.hs
   tests/compile-errors/Test2.hs
+  tests/compile-errors/Test3.hs
+  tests/compile-errors/Test4.hs
   sample/LICENSE
   sample/Main.hs
   sample/MyPkg/A.hs

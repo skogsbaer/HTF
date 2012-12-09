@@ -1,12 +1,11 @@
 * Relase 0.11
+** Fallback parser
+*** Use the lexer of haskell-src-exts
 ** Parallel test execution
 *** Options --threads=[N] or -j [N]
 *** Some test cannot be run in parallel
 
 ** Support for timeouts (--timeout=SECS)
-** Proper test suite
-* External interface for integrating other test frameworks
-** Support for Smallcheck and/or Lazy Smallcheck
-** Configuration file for htfpp
-* Other ideas
-** option --xml-result to output a junit-style XML document summarizing the test results
+** External interface for integrating other test frameworks
+*** Support for Smallcheck and/or Lazy Smallcheck
+*** Configuration file for htfpp
