@@ -1,3 +1,6 @@
+* 0.10.0.6 (2012-12-06)
+  - support for Diff 0.2.
+
 * 0.10.0.0 (2012-12-06)
   - machine-readable output: the --json option provides a way for getting
     machine-readable output in a simple JSON-based format

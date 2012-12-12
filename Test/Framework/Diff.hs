@@ -131,9 +131,15 @@ singleLineDiff dc s1 s2
                       string)
                  "" (addPositions groups)
     where
+#if MIN_VERSION_Diff(0,2,0)
       showDiffGroup _ (D.First s) = dc_fromFirstPrefix dc ++ s ++ dc_fromFirstSuffix dc
       showDiffGroup _ (D.Second s) = dc_fromSecondPrefix dc ++ s ++ dc_fromSecondSuffix dc
       showDiffGroup pos (D.Both inBoth _) =
+#else
+      showDiffGroup _ (D.F, s) = dc_fromFirstPrefix dc ++ s ++ dc_fromFirstSuffix dc
+      showDiffGroup _ (D.S, s) = dc_fromSecondPrefix dc ++ s ++ dc_fromSecondSuffix dc
+      showDiffGroup pos (D.B, inBoth) =
+#endif
           let showStart = not $ isFirst pos
               showEnd = not $ isLast pos
               (contextStart, ignored, contextEnd) =
