@@ -32,7 +32,8 @@ import Prelude hiding (catch)
 import Control.Exception (catch, finally, IOException)
 import qualified Data.List as List
 import Data.Char
-import Data.Algorithm.Diff
+import Data.Algorithm.Diff hiding (First)
+import qualified Data.Algorithm.Diff as D
 import Test.Framework.Colors
 
 -- for testing
@@ -130,9 +131,9 @@ singleLineDiff dc s1 s2
                       string)
                  "" (addPositions groups)
     where
-      showDiffGroup _ (F, s) = dc_fromFirstPrefix dc ++ s ++ dc_fromFirstSuffix dc
-      showDiffGroup _ (S, s) = dc_fromSecondPrefix dc ++ s ++ dc_fromSecondSuffix dc
-      showDiffGroup pos (B, inBoth) =
+      showDiffGroup _ (D.First s) = dc_fromFirstPrefix dc ++ s ++ dc_fromFirstSuffix dc
+      showDiffGroup _ (D.Second s) = dc_fromSecondPrefix dc ++ s ++ dc_fromSecondSuffix dc
+      showDiffGroup pos (D.Both inBoth _) =
           let showStart = not $ isFirst pos
               showEnd = not $ isLast pos
               (contextStart, ignored, contextEnd) =
