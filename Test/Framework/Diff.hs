@@ -32,7 +32,6 @@ import Prelude hiding (catch)
 import Control.Exception (catch, finally, IOException)
 import qualified Data.List as List
 import Data.Char
-import Data.Algorithm.Diff hiding (First)
 import qualified Data.Algorithm.Diff as D
 import Test.Framework.Colors
 
@@ -124,7 +123,7 @@ singleLineDiff :: DiffConfig -> String -> String -> String
 singleLineDiff dc s1 s2
     | s1 == s2 = ""
     | otherwise =
-        let groups = getGroupedDiff s1 s2
+        let groups = D.getGroupedDiff s1 s2
         in foldr (\(group, pos) string ->
                       (showDiffGroup pos group) ++
                       (if not (isLast pos) then dc_sep dc else "") ++
