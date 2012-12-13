@@ -11,7 +11,16 @@ do
         echo "Could not switch to GHC version $x as requested, version is now $ghc_version"
         exit 1
     fi
-    echo "Running tests for GHC version $ghc_version"
+    echo
+    echo
+    echo "============================================================"
+    echo "============================================================"
+    echo "==> Running tests for GHC version $ghc_version <=="
+    echo "==> Running tests for GHC version $ghc_version <=="
+    echo "==> Running tests for GHC version $ghc_version <=="
+    echo "============================================================"
+    echo "============================================================"
+    echo
     ./run-all-tests.sh
     ecode=$?
     if [ $ecode -eq 0 ]
