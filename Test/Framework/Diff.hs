@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, ScopedTypeVariables #-}
 --
 -- Copyright (c) 2011, 2012   Stefan Wehr - http://www.stefanwehr.de
 --
@@ -34,12 +34,18 @@ import qualified Data.List as List
 import Data.Char
 import qualified Data.Algorithm.Diff as D
 import Test.Framework.Colors
+import Test.Framework.Pretty
 
 -- for testing
 import System.IO
 import System.Directory
 import System.Exit
 import System.Process
+import Test.QuickCheck 
+import System.IO.Unsafe (unsafePerformIO)
+import Debug.Trace (trace)
+import System.Environment (getArgs)
+
 
 data Pos = First | Middle | Last | FirstLast
          deriving (Eq)
@@ -170,14 +176,16 @@ multiLineDiff cfg left right =
            doDiff fpLeft fpRight
     where
       doDiff leftFile rightFile =
-          do (ecode, out, err) <- readProcessWithExitCode "diff" [leftFile, rightFile] ""
-             case ecode of
-               ExitSuccess -> return (format out)
-               ExitFailure 1 -> return (format out)
-               ExitFailure i ->
+          (do (ecode, out, err) <- readProcessWithExitCode "diff" [leftFile, rightFile] ""
+              case ecode of
+                ExitSuccess -> return (format out)
+                ExitFailure 1 -> return (format out)
+                ExitFailure i ->
                    return ("'diff " ++ leftFile ++ " " ++ rightFile ++
                            "' failed with exit code " ++ show i ++
-                           ": " ++ show err)
+                           ": " ++ show err)) 
+             -- if we can't launch diff, use the Haskell code. We don't write the exception anywhere to not pollute test results.              
+            `catch` (\(_::IOException) -> return $ multiLineDiffHaskell cfg left right)            
       saveRemove fp =
           removeFile fp `catch` (\e -> hPutStrLn stderr (show (e::IOException)))
       withTempFiles action =
@@ -219,11 +227,10 @@ diffWithSensibleConfig s1 s2 =
        diff dc s1 s2
 
 {-
-NOTE: This is *nearly* working. Originally, I wanted to implemented a pure Haskell
-diff solution. At some point, however, I decided that it would be better to implement
-a solution based on the diff tool. For now, I leave the code as it is.
+Haskell diff, in case the diff tool is not present
+-}
 
-type PrimDiff = [(DI, Char)]
+type PrimDiff = [(D.DI, Char)]
 type LineNo = Int
 
 data Line = Line { line_number :: LineNo
@@ -247,9 +254,9 @@ instance Functor Diff where
                  OnlyInRight x n -> OnlyInRight (f x) n
                  InBoth x y -> InBoth (f x) (f y)
 
-multiLineDiff :: DiffConfig -> String -> String -> String
-multiLineDiff cfg left right =
-    let diff = getDiff left right :: PrimDiff
+multiLineDiffHaskell :: DiffConfig -> String -> String -> String
+multiLineDiffHaskell cfg left right =
+    let diff = D.getDiff left right :: PrimDiff
         diffByLine = List.unfoldr nextLine diff
         diffLines = let (_, _, l) = foldl diffLine (1, 1, []) diffByLine
                     in reverse l
@@ -264,7 +271,7 @@ multiLineDiff cfg left right =
       nextLine [] = Nothing
       nextLine diff =
           -- FIXME: add support for \r\n
-          case List.span (\d -> d /= (B, '\n')) diff of
+          case List.span (\d -> d /= (D.B, '\n')) diff of
             ([], _ : rest) -> nextLine rest
             (l, _ : rest) -> Just (l, rest)
             (l, []) -> Just (l, [])
@@ -272,9 +279,9 @@ multiLineDiff cfg left right =
       diffLine (leftLineNo, rightLineNo, l) diff =
           case (\(x, y) -> (reverse x, reverse y)) $
                foldl (\(l, r) d -> case d of
-                                     (F, c) -> (c : l, r)
-                                     (S, c) -> (l, c : r)
-                                     (B, c) -> (c : l, c : r))
+                                     (D.F, c) -> (c : l, r)
+                                     (D.S, c) -> (l, c : r)
+                                     (D.B, c) -> (c : l, c : r))
                      ([], []) diff
           of ([], rightLine) -> (leftLineNo, rightLineNo + 1,
                                  OnlyInRight (Line rightLineNo rightLine) leftLineNo : l)
@@ -331,7 +338,7 @@ prettyDiffs (d : rest) = prettyDiff d $$ prettyDiffs rest
 
 prop_diffOk :: DiffInput -> Bool
 prop_diffOk inp =
-    multiLineDiff cfg (di_left inp) (di_right inp) ==
+    multiLineDiffHaskell cfg (di_left inp) (di_right inp) ==
     unsafePerformIO (runDiff (di_left inp) (di_right inp))
     where
       cfg = noColorsDiffConfig 'l' 'r'
@@ -392,7 +399,7 @@ main =
              _ -> fail ("USAGE: diff FILE1 FILE2")
        left <- readFile leftFp
        right <- readFile rightFp
-       diff <- return $ multiLineDiff defaultTerminalDiffConfig left right
+       diff <- return $ multiLineDiffHaskell defaultTerminalDiffConfig left right
        putStr diff
 
 -- Testcases:
@@ -401,4 +408,4 @@ main =
 -- vs.
 -- > 1
 -- > 2
--}
+
