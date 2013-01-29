@@ -31,6 +31,7 @@ import Prelude hiding (catch)
 
 import Control.Exception (catch, finally, IOException)
 import qualified Data.List as List
+import qualified Data.Map as Map
 import Data.Char
 import qualified Data.Algorithm.Diff as D
 import Test.Framework.Colors
@@ -45,7 +46,9 @@ import Test.QuickCheck
 import System.IO.Unsafe (unsafePerformIO)
 import Debug.Trace (trace)
 import System.Environment (getArgs)
+import Data.Maybe (mapMaybe, catMaybes)
 
+import Test.HUnit
 
 data Pos = First | Middle | Last | FirstLast
          deriving (Eq)
@@ -248,6 +251,18 @@ data Diff a = OnlyInLeft a LineNo
             | InBoth a a
             deriving (Show)
 
+--diffSameType :: Diff a-> Diff a -> Bool
+--diffSameType (OnlyInLeft {}) (OnlyInLeft {})=True
+--diffSameType (OnlyInRight {}) (OnlyInRight {})=True
+--diffSameType (InBoth {}) (InBoth {})=True
+--diffSameType _ _=False
+--
+--diffNextLine :: Diff a-> Diff a -> Bool
+--diffNextLine (OnlyInLeft _ l1) (OnlyInLeft _ l2)=l2==l1+1
+--diffNextLine (OnlyInRight _ l1) (OnlyInRight _ l2)=l2==l1+1
+--diffNextLine _ _=False
+
+
 instance Functor Diff where
     fmap f d = case d of
                  OnlyInLeft x n -> OnlyInLeft (f x) n
@@ -256,61 +271,212 @@ instance Functor Diff where
 
 multiLineDiffHaskell :: DiffConfig -> String -> String -> String
 multiLineDiffHaskell cfg left right =
-    let diff = D.getDiff left right :: PrimDiff
-        diffByLine = List.unfoldr nextLine diff
-        diffLines = let (_, _, l) = foldl diffLine (1, 1, []) diffByLine
-                    in reverse l
-        diffLineRanges = maximize diffLines
-    in debug ("diff: " ++ show diff ++
-              "\ndiffByLine: " ++ show diffByLine ++
-              "\ndiffLines: " ++ show diffLines ++
-              "\ndiffLineRanges: " ++ show diffLineRanges) $
-       render $ prettyDiffs diffLineRanges
-    where
-      nextLine :: PrimDiff -> Maybe (PrimDiff, PrimDiff)
-      nextLine [] = Nothing
-      nextLine diff =
-          -- FIXME: add support for \r\n
-          case List.span (\d -> d /= (D.B, '\n')) diff of
-            ([], _ : rest) -> nextLine rest
-            (l, _ : rest) -> Just (l, rest)
-            (l, []) -> Just (l, [])
-      diffLine :: (Int, Int, [Diff Line]) -> PrimDiff -> (Int, Int, [Diff Line])
-      diffLine (leftLineNo, rightLineNo, l) diff =
-          case (\(x, y) -> (reverse x, reverse y)) $
-               foldl (\(l, r) d -> case d of
-                                     (D.F, c) -> (c : l, r)
-                                     (D.S, c) -> (l, c : r)
-                                     (D.B, c) -> (c : l, c : r))
-                     ([], []) diff
-          of ([], rightLine) -> (leftLineNo, rightLineNo + 1,
-                                 OnlyInRight (Line rightLineNo rightLine) leftLineNo : l)
-             (leftLine, []) -> (leftLineNo + 1, rightLineNo,
-                                OnlyInLeft (Line leftLineNo leftLine) rightLineNo : l)
-             (leftLine, rightLine)
-                 | leftLine /= rightLine ->
-                     (leftLineNo + 1, rightLineNo + 1,
-                      InBoth (Line leftLineNo leftLine) (Line rightLineNo rightLine) : l)
-                 | otherwise ->
-                     (leftLineNo + 1, rightLineNo + 1, l)
-      maximize :: [Diff Line] -> [Diff LineRange]
-      maximize [] = []
-      maximize (x : l) = maximize' (fmap (\a -> [a]) x) l
-          where
-            maximize' (OnlyInLeft xs rightLineNo) (OnlyInLeft y _ : rest) =
-                maximize' (OnlyInLeft (y : xs) rightLineNo) rest
-            maximize' (OnlyInRight xs leftLineNo) (OnlyInRight y _ : rest) =
-                maximize' (OnlyInRight (y : xs) leftLineNo) rest
-            maximize' (InBoth xs ys) (InBoth x y : rest) =
-                maximize' (InBoth (x:xs) (y:ys)) rest
-            maximize' acc rest = fmap mkLineRange acc : maximize rest
-            mkLineRange :: [Line] -> LineRange
-            mkLineRange [] = error ("multilineDiff: cannot convert an empty list of lines " ++
-                                    "into a LineRange")
-            mkLineRange r@(Line lastLineNo _ : _) =
-                case reverse r of
-                  l@(Line firstLineNo _ : _) -> LineRange (firstLineNo, lastLineNo)
-                                                          (map line_content l)
+   let  gdiff=D.getGroupedDiff (lines left) (lines right)
+        -- (_,_,_,rdiffLineRanges)=List.foldl' toLineRange (1,1,True,[]) (zip gdiff (tail $ gdiff ++ [(D.B,[])]))
+        diffLineRanges = toLineRange 1 1 gdiff
+        --diffLineRanges= reverse rdiffLineRanges
+   in   debug ("\ngrouped : " ++ show gdiff++
+              "\ndiffLineRanges: " ++ show diffLineRanges)
+        (render $ prettyDiffs diffLineRanges) ++ "\n"
+   where
+          --toLineRange :: (Int,Int,Bool,[Diff LineRange]) -> ((D.DI,[String]),(D.DI,[String])) -> (Int,Int,Bool,[Diff LineRange])
+          toLineRange :: Int -> Int -> [(D.DI,[String])] -> [Diff LineRange]
+          toLineRange _ _ []=[]
+          toLineRange leftLine rightLine ((D.B,ls):rs)=
+                let lines=length ls
+                in toLineRange (leftLine+lines) (rightLine+lines) rs
+          toLineRange leftLine rightLine ((D.S,lsS):(D.F,lsF1):(D.B,[""]):(D.F,lsF2):rs) | ((last lsF2) == "") =
+                let 
+                    linesB=1
+                    linesS=length lsS
+                    linesF=length lsF1 + length lsF2
+                    diff=InBoth (LineRange (leftLine,leftLine+linesF-1) (lsF1 ++ [""] ++ (init lsF2))) (LineRange (rightLine,rightLine+linesS-1) lsS)
+                in diff : toLineRange (leftLine+linesF+linesB) (rightLine+linesS+linesB) rs      
+          toLineRange leftLine rightLine ((D.S,lsS):(D.F,lsF):rs)=
+                let linesS=length lsS
+                    linesF=length lsF
+                    diff=InBoth (LineRange (leftLine,leftLine+linesF-1) lsF) (LineRange (rightLine,rightLine+linesS-1) lsS)
+                in diff : toLineRange (leftLine+linesF) (rightLine+linesS) rs
+          toLineRange leftLine rightLine ((D.S,lsS):rs)=
+                let linesS=length lsS
+                    diff=OnlyInRight (LineRange (rightLine,rightLine+linesS-1) lsS) (leftLine-1)
+                in diff : toLineRange leftLine (rightLine+linesS) rs      
+          toLineRange leftLine rightLine  ((D.F,lsF):rs)=
+                let linesF=length lsF
+                    diff=OnlyInLeft (LineRange (leftLine,leftLine+linesF-1) lsF) (rightLine-1)
+                in diff: toLineRange(leftLine+linesF) rightLine rs 
+          toLineRange leftLine rightLine (_:rs)=toLineRange leftLine rightLine rs     
+
+--multiLineDiffHaskell :: DiffConfig -> String -> String -> String
+--multiLineDiffHaskell cfg left right =
+--    let diff = D.getDiff left right :: PrimDiff
+--        --diffByLine = List.unfoldr nextLine diff
+--        --diffLines = let (_, _, l) = foldl diffLine (1, 1, []) diffByLine
+--        --            in reverse l
+--        -- (_,_,_,_,lineMap)=List.foldl' splitByLineMap (1,1,"","",Map.empty) diff
+--        (leftLineNo, rightLineNo, leftLine, rightLine,splitted1)=List.foldl' splitByLines (1,1,Nothing,Nothing,[]) diff   
+--        -- (cmp leftLineNo rightLineNo leftLine rightLine)++
+--        splitted2=reverse (splitted1)
+--        diffLineRanges = maximize  splitted2
+--    in debug ("diff: " ++ show diff ++
+--              "\ngrouped : " ++ (show $ D.getGroupedDiff (lines left) (lines right)) ++
+--              "\nsplitted2: " ++ show splitted2++
+--             -- "\nlineMap: " ++ show lineMap++
+--              --"\ndiffByLine: " ++ show diffByLine ++
+--              --"\ndiffLines: " ++ show diffLines ++
+--              "\ndiffLineRanges: " ++ show diffLineRanges )
+--       (render $ prettyDiffs diffLineRanges) ++ "\n"
+--    where
+----      splitByLineMap :: (Int,Int,String,String,Map.Map Int (String,String)) -> (D.DI, Char) -> (Int,Int,String,String,Map.Map Int (String,String))
+----      splitByLineMap (leftLineNo, rightLineNo, leftLine, rightLine,m) (di,c)
+----                | di==D.B =if c== '\n' 
+----                        then (leftLineNo +1, rightLineNo+1, "", "",addLineMap leftLineNo rightLineNo leftLine rightLine m)
+----                        else (leftLineNo,rightLineNo, leftLine++[c],rightLine++[c],m)
+----                | di== D.F =if c== '\n' 
+----                        then (leftLineNo +1, rightLineNo, "", "",addLineMap leftLineNo rightLineNo leftLine rightLine m)
+----                        else (leftLineNo,rightLineNo, leftLine++[c],rightLine,m)      
+----                | di== D.S =if c== '\n' 
+----                        then (leftLineNo , rightLineNo+1, "", "",addLineMap leftLineNo rightLineNo leftLine rightLine m)
+----                        else (leftLineNo,rightLineNo, leftLine,rightLine++[c],m) 
+----      addLineMap :: Int -> Int -> String -> String -> Map.Map Int (String,String) -> Map.Map Int (String,String)
+----      addLineMap leftLineNo rightLineNo leftLine rightLine m=
+----                let
+----                        m2=Map.insertWith (\(l1,r1) (l2,r2)->(l2++l1,r2++r1)) leftLineNo (leftLine,"") m
+----                in      Map.insertWith (\(l1,r1) (l2,r2)->(l2++l1,r2++r1)) rightLineNo ("",rightLine) m2
+--      splitByLines :: (Int,Int,Maybe String,Maybe String,[Diff Line]) -> (D.DI, Char) -> (Int,Int,Maybe String,Maybe String,[Diff Line])
+--      splitByLines  (leftLineNo, rightLineNo, leftLine, rightLine,l) (di,c)
+--                | di==D.B =if c== '\n' 
+--                        then (leftLineNo +1, rightLineNo+1, Nothing, Nothing,cmp leftLineNo rightLineNo leftLine rightLine  ++ l)
+--                        else (leftLineNo,rightLineNo,Just $ maybe [c] (++[c]) leftLine,Just $ maybe [c] (++[c]) rightLine,l)
+--                | di== D.F =if c== '\n' 
+--                        then (leftLineNo +1, rightLineNo, Just "", Nothing,cmp leftLineNo rightLineNo (maybe (Just "") Just leftLine) rightLine  ++ l)
+--                        else (leftLineNo,rightLineNo, Just $ maybe [c] (++[c]) leftLine,rightLine,l)      
+--                | di== D.S =if c== '\n' 
+--                        then (leftLineNo , rightLineNo+1, Nothing, Just "",cmp leftLineNo rightLineNo leftLine rightLine  ++ l)
+--                        else (leftLineNo,rightLineNo, leftLine,Just $ maybe [c] (++[c]) rightLine,l) 
+--      cmp :: Int -> Int -> Maybe String -> Maybe String -> [Diff Line]
+--      cmp leftLineNo rightLineNo  Nothing Nothing =[]
+--      cmp leftLineNo rightLineNo  Nothing (Just rightLine) =[OnlyInRight (Line rightLineNo rightLine) (leftLineNo-1)]
+--      cmp leftLineNo rightLineNo  (Just leftLine) Nothing = [OnlyInLeft (Line leftLineNo leftLine) rightLineNo]
+--      cmp leftLineNo rightLineNo  (Just leftLine) (Just rightLine)
+--                 | leftLine /= rightLine= if leftLineNo == rightLineNo 
+--                        then
+--                               [InBoth (Line leftLineNo leftLine) (Line rightLineNo rightLine)]
+--                        else
+--                               [ OnlyInRight (Line rightLineNo rightLine) leftLineNo , OnlyInLeft (Line leftLineNo leftLine) rightLineNo]
+--                 | otherwise =[]   
+----      nextLine :: PrimDiff -> Maybe (PrimDiff, PrimDiff)
+----      nextLine [] = Nothing
+----      nextLine diff =
+----          -- FIXME: add support for \r\n
+----          --case List.span (\d -> d /= (D.B, '\n')) diff of
+----          case List.span (\d -> (snd d) /= '\n') diff of
+----            ([], _ : rest) -> nextLine rest
+----            (l, _ : rest) -> Just (l, rest)
+----            (l, []) -> Just (l, [])
+----      diffLine :: (Int, Int, [Diff Line]) -> PrimDiff -> (Int, Int, [Diff Line])
+----      diffLine (leftLineNo, rightLineNo, l) diff =
+----          case (\(x, y) -> (reverse x, reverse y)) $
+----               foldl (\(l, r) d -> case d of
+----                                     (D.F, c) -> (c : l, r)
+----                                     (D.S, c) -> (l, c : r)
+----                                     (D.B, c) -> (c : l, c : r))
+----                     ([], []) diff
+----          of ([], rightLine) -> (leftLineNo, rightLineNo + 1,
+----                                 OnlyInRight (Line rightLineNo rightLine) leftLineNo : l)
+----             (leftLine, []) -> (leftLineNo + 1, rightLineNo,
+----                                OnlyInLeft (Line leftLineNo leftLine) rightLineNo : l)
+----             (leftLine, rightLine)
+----                 | leftLine /= rightLine -> -- if leftLineNo == rightLineNo 
+----                       -- then
+----                                (leftLineNo + 1, rightLineNo + 1,
+----                                        InBoth (Line leftLineNo leftLine) (Line rightLineNo rightLine) : l)
+----                     --   else
+----                      --          (leftLineNo +1, rightLineNo + 1,
+----                     --                   OnlyInRight (Line rightLineNo rightLine) leftLineNo : OnlyInLeft (Line leftLineNo leftLine) rightLineNo : l)
+----                 | otherwise ->
+----                     (leftLineNo + 1, rightLineNo + 1, l)
+----      maximize :: [Diff Line] -> [Diff LineRange]
+----      maximize [] = []
+----      maximize (x : l) = maximize' (fmap (\a -> [a]) x) l
+----          where
+----            maximize' (OnlyInLeft xs rightLineNo) (OnlyInLeft y _ : rest) =
+----                maximize' (OnlyInLeft (y : xs) rightLineNo) rest
+----            maximize' (OnlyInRight xs leftLineNo) (OnlyInRight y _ : rest) =
+----                maximize' (OnlyInRight (y : xs) leftLineNo) rest
+----            maximize' (InBoth xs ys) (InBoth x y : rest) =
+----                maximize' (InBoth (x:xs) (y:ys)) rest
+----            maximize' acc rest = fmap mkLineRange acc : maximize rest
+----            mkLineRange :: [Line] -> LineRange
+----            mkLineRange [] = error ("multilineDiff: cannot convert an empty list of lines " ++
+----                                    "into a LineRange")
+----            mkLineRange r@(Line lastLineNo _ : _) =
+----                case reverse r of
+----                  l@(Line firstLineNo _ : _) -> LineRange (firstLineNo, lastLineNo)
+----                                                          (map line_content l)
+--      maximize :: [Diff Line] -> [Diff LineRange]
+--      maximize [] = []
+--      maximize l = -- maximize' (fmap (\a -> [a]) x) l
+--          let 
+--                (o1,s1,t1)=List.foldl' doLeft ([],OnlyInLeft [] 0,[]) l
+--                rAfterLeft=[s1]++(map (fmap (\x->[x])) o1)++t1
+--                (o2,s2,t2)=List.foldr doRight ([],OnlyInRight [] 0,[]) rAfterLeft
+--                r=reverse $ map (fmap mkLineRange) (o2++(fmap reverse s2):t2)
+--                mRights=foldr getRights Map.empty r
+--                mLefts=foldr getLefts mRights r
+--                mReconciled=mapMaybe (reconcileInBoth mLefts) r
+--          in mReconciled      
+--          where
+--            doLeft :: ([Diff Line],Diff [Line],[Diff [Line]]) -> Diff Line ->  ([Diff Line],Diff [Line],[Diff [Line]])
+--            doLeft (others,same,total) il@(OnlyInLeft l n)=case same of
+--                        OnlyInLeft [] _->(others,OnlyInLeft [l] n,total)
+--                        OnlyInLeft (x:xs) l2->if (line_number x)==(line_number l)-1
+--                                then (others,OnlyInLeft (l:x:xs) n,total)
+--                                else ([],OnlyInLeft [l] n,[same]++(map (fmap (\x->[x])) others)++total)
+--            doLeft (others,s@(OnlyInLeft [] _),total) l=(others,s,((fmap (\x->[x]) l):total))
+--            doLeft (others,same,total) l=(l:others,same,total)
+--            doRight :: Diff [Line] ->([Diff [Line]],Diff [Line],[Diff [Line]]) ->  ([Diff [Line]],Diff [Line],[Diff [Line]])
+--            doRight (OnlyInRight l n) (others,same,total) =case same of
+--                        OnlyInRight [] _->(others,OnlyInRight l n,total)
+--                        OnlyInRight pr l2->if (line_number $ last pr)==(line_number $ head l)-1
+--                                then (others,OnlyInRight (pr++l) l2,total)
+--                                else ([],OnlyInRight l n,others++(fmap reverse same):total)
+--            doRight l (others,s@(OnlyInRight [] _),total)=(others,s,l:total)
+--            doRight l (others,same,total)=(l:others,same,total)
+--            getRights :: Diff LineRange -> Map.Map Int (Diff LineRange) -> Map.Map Int (Diff LineRange)
+--            getRights d@(OnlyInRight _ leftLine) m=Map.insert (leftLine+1) d m
+--            getRights _ m=m
+--            getLefts :: Diff LineRange -> Map.Map Int (Diff LineRange) -> Map.Map Int (Diff LineRange)
+--            getLefts d@(OnlyInLeft lrL leftLine) m=case Map.lookup (fst $ lr_numbers lrL) m of
+--                Just (OnlyInRight lrR _)->Map.insert (fst $ lr_numbers lrL) (InBoth lrL lrR) m
+--                _ -> m
+--            getLefts _ m=m
+--            reconcileInBoth :: Map.Map Int (Diff LineRange) -> Diff LineRange -> Maybe (Diff LineRange)
+--            reconcileInBoth m dR@(OnlyInRight _ leftLine)=case Map.lookup (leftLine+1) m of
+--                 Just dB@(InBoth _ _)->Just dB
+--                 _->Just dR
+--            reconcileInBoth m dL@(OnlyInLeft lrL _)=case Map.lookup (fst $ lr_numbers lrL) m of
+--                 Just (InBoth _ _)->Nothing
+--                 _->Just dL
+--            reconcileInBoth _ d=Just d          
+----            maximize' (OnlyInLeft xs rightLineNo) (OnlyInLeft y _ : rest) =
+----                maximize' (OnlyInLeft (y : xs) rightLineNo) rest
+----            maximize' (OnlyInRight xs leftLineNo) (OnlyInRight y _ : rest) =
+----                maximize' (OnlyInRight (y : xs) leftLineNo) rest
+----            maximize' (InBoth xs ys) (InBoth x y : rest) =
+----                maximize' (InBoth (x:xs) (y:ys)) rest
+----            maximize' acc rest = fmap mkLineRange acc : maximize rest
+--            mkLineRange :: [Line] -> LineRange
+--            mkLineRange [] = error ("multilineDiff: cannot convert an empty list of lines " ++
+--                                    "into a LineRange")
+--            mkLineRange r@(Line lastLineNo _ : _) =
+--                case reverse r of
+--                  l@(Line firstLineNo _ : _)  -> LineRange (firstLineNo, lastLineNo)
+--                                                          (map line_content l)
+----                        | firstLineNo<=lastLineNo-> LineRange (firstLineNo, lastLineNo)
+----                                                          (reverse $ map line_content l)
+----                        | otherwise-> LineRange (lastLineNo, firstLineNo)
+----                                                          (map line_content l)
 
 prettyDiffs :: [Diff LineRange] -> Doc
 prettyDiffs [] = empty
@@ -362,6 +528,20 @@ prop_diffOk inp =
              hPutStr h s
              hClose h
              return fp
+
+test_diffOk = do
+        runTest "tests/jp/wikiOriginal.txt" "tests/jp/wikiNew.txt"
+        runTest "tests/jp/HTF-diff6782.txt" "tests/jp/HTF-diff6783.txt"
+        runTest "tests/jp/HTF-diff3068.txt" "tests/jp/HTF-diff3069.txt"
+        runTest "tests/jp/HTF-diff6472.txt" "tests/jp/HTF-diff6473.txt"
+        where
+                cfg = noColorsDiffConfig 'l' 'r'
+                runTest f1 f2=do
+                    s1<-readFile f1
+                    s2<-readFile f2
+                    (_, out, _) <-readProcessWithExitCode "diff" [f1, f2] ""
+                    let haskellDiff=multiLineDiffHaskell cfg s1 s2
+                    assertEqual "" out haskellDiff
 
 data DiffInput = DiffInput { di_left :: String, di_right :: String }
                deriving (Show)
