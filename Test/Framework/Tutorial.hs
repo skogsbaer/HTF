@@ -87,7 +87,7 @@ Version:       0.1
 Cabal-Version: >= 1.10
 Build-type:    Simple
 
-Executable tutorial
+Test-Suite tutorial
   Type:              exitcode-stdio-1.0
   Main-is:           Tutorial.hs
   Build-depends:     base == 4.*, HTF == 0.10.*
