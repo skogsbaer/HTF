@@ -31,8 +31,10 @@ import Prelude hiding (catch)
 
 import Control.Exception (catch, finally, IOException)
 import qualified Data.List as List
+import qualified Data.Map as Map
 import Data.Char
 import qualified Data.Algorithm.Diff as D
+import Data.Algorithm.DiffOutput
 import Test.Framework.Colors
 import Test.Framework.Pretty
 
@@ -45,7 +47,9 @@ import Test.QuickCheck
 import System.IO.Unsafe (unsafePerformIO)
 import Debug.Trace (trace)
 import System.Environment (getArgs)
+import Data.Maybe (mapMaybe, catMaybes)
 
+import Test.HUnit
 
 data Pos = First | Middle | Last | FirstLast
          deriving (Eq)
@@ -185,7 +189,7 @@ multiLineDiff cfg left right =
                            "' failed with exit code " ++ show i ++
                            ": " ++ show err)) 
              -- if we can't launch diff, use the Haskell code. We don't write the exception anywhere to not pollute test results.              
-            `catch` (\(_::IOException) -> return $ multiLineDiffHaskell cfg left right)            
+            `catch` (\(_::IOException) -> return $ multiLineDiffHaskell left right)            
       saveRemove fp =
           removeFile fp `catch` (\e -> hPutStrLn stderr (show (e::IOException)))
       withTempFiles action =
@@ -229,163 +233,9 @@ diffWithSensibleConfig s1 s2 =
 {-
 Haskell diff, in case the diff tool is not present
 -}
-
-type PrimDiff = [(D.DI, Char)]
-type LineNo = Int
-
-data Line = Line { line_number :: LineNo
-                 , line_content :: String {- without trailing \n -}
-                 }
-            deriving (Show)
-
-data LineRange = LineRange { lr_numbers :: (LineNo, LineNo)
-                           , lr_contents :: [String] {- without trailing \n -}
-                           }
-            deriving (Show)
-
-data Diff a = OnlyInLeft a LineNo
-            | OnlyInRight a LineNo
-            | InBoth a a
-            deriving (Show)
-
-instance Functor Diff where
-    fmap f d = case d of
-                 OnlyInLeft x n -> OnlyInLeft (f x) n
-                 OnlyInRight x n -> OnlyInRight (f x) n
-                 InBoth x y -> InBoth (f x) (f y)
-
-multiLineDiffHaskell :: DiffConfig -> String -> String -> String
-multiLineDiffHaskell cfg left right =
-    let diff = D.getDiff left right :: PrimDiff
-        diffByLine = List.unfoldr nextLine diff
-        diffLines = let (_, _, l) = foldl diffLine (1, 1, []) diffByLine
-                    in reverse l
-        diffLineRanges = maximize diffLines
-    in debug ("diff: " ++ show diff ++
-              "\ndiffByLine: " ++ show diffByLine ++
-              "\ndiffLines: " ++ show diffLines ++
-              "\ndiffLineRanges: " ++ show diffLineRanges) $
-       render $ prettyDiffs diffLineRanges
-    where
-      nextLine :: PrimDiff -> Maybe (PrimDiff, PrimDiff)
-      nextLine [] = Nothing
-      nextLine diff =
-          -- FIXME: add support for \r\n
-          case List.span (\d -> d /= (D.B, '\n')) diff of
-            ([], _ : rest) -> nextLine rest
-            (l, _ : rest) -> Just (l, rest)
-            (l, []) -> Just (l, [])
-      diffLine :: (Int, Int, [Diff Line]) -> PrimDiff -> (Int, Int, [Diff Line])
-      diffLine (leftLineNo, rightLineNo, l) diff =
-          case (\(x, y) -> (reverse x, reverse y)) $
-               foldl (\(l, r) d -> case d of
-                                     (D.F, c) -> (c : l, r)
-                                     (D.S, c) -> (l, c : r)
-                                     (D.B, c) -> (c : l, c : r))
-                     ([], []) diff
-          of ([], rightLine) -> (leftLineNo, rightLineNo + 1,
-                                 OnlyInRight (Line rightLineNo rightLine) leftLineNo : l)
-             (leftLine, []) -> (leftLineNo + 1, rightLineNo,
-                                OnlyInLeft (Line leftLineNo leftLine) rightLineNo : l)
-             (leftLine, rightLine)
-                 | leftLine /= rightLine ->
-                     (leftLineNo + 1, rightLineNo + 1,
-                      InBoth (Line leftLineNo leftLine) (Line rightLineNo rightLine) : l)
-                 | otherwise ->
-                     (leftLineNo + 1, rightLineNo + 1, l)
-      maximize :: [Diff Line] -> [Diff LineRange]
-      maximize [] = []
-      maximize (x : l) = maximize' (fmap (\a -> [a]) x) l
-          where
-            maximize' (OnlyInLeft xs rightLineNo) (OnlyInLeft y _ : rest) =
-                maximize' (OnlyInLeft (y : xs) rightLineNo) rest
-            maximize' (OnlyInRight xs leftLineNo) (OnlyInRight y _ : rest) =
-                maximize' (OnlyInRight (y : xs) leftLineNo) rest
-            maximize' (InBoth xs ys) (InBoth x y : rest) =
-                maximize' (InBoth (x:xs) (y:ys)) rest
-            maximize' acc rest = fmap mkLineRange acc : maximize rest
-            mkLineRange :: [Line] -> LineRange
-            mkLineRange [] = error ("multilineDiff: cannot convert an empty list of lines " ++
-                                    "into a LineRange")
-            mkLineRange r@(Line lastLineNo _ : _) =
-                case reverse r of
-                  l@(Line firstLineNo _ : _) -> LineRange (firstLineNo, lastLineNo)
-                                                          (map line_content l)
-
-prettyDiffs :: [Diff LineRange] -> Doc
-prettyDiffs [] = empty
-prettyDiffs (d : rest) = prettyDiff d $$ prettyDiffs rest
-    where
-      prettyDiff (OnlyInLeft inLeft lineNoRight) =
-          prettyRange (lr_numbers inLeft) <> char 'd' <> int lineNoRight $$
-          prettyLines '<' (lr_contents inLeft)
-      prettyDiff (OnlyInRight inRight lineNoLeft) =
-          int lineNoLeft <> char 'a' <> prettyRange (lr_numbers inRight) $$
-          prettyLines '>' (lr_contents inRight)
-      prettyDiff (InBoth inLeft inRight) =
-          prettyRange (lr_numbers inLeft) <> char 'c' <> prettyRange (lr_numbers inRight) $$
-          prettyLines '<' (lr_contents inLeft) $$
-          text "---" $$
-          prettyLines '>' (lr_contents inRight)
-      prettyRange (start, end) =
-          if start == end then int start else int start <> comma <> int end
-      prettyLines start lines =
-          vcat (map (\l -> char start <+> text l) lines)
-
---
--- Tests for diff
---
-
-prop_diffOk :: DiffInput -> Bool
-prop_diffOk inp =
-    multiLineDiffHaskell cfg (di_left inp) (di_right inp) ==
-    unsafePerformIO (runDiff (di_left inp) (di_right inp))
-    where
-      cfg = noColorsDiffConfig 'l' 'r'
-      runDiff left right =
-          do leftFile <- writeTemp left
-             rightFile <- writeTemp right
-             (ecode, out, err) <-
-                 readProcessWithExitCode "diff" [leftFile, rightFile] ""
-             -- putStrLn ("OUT:\n" ++ out)
-             -- putStrLn ("ERR:\n" ++ err)
-             -- putStrLn ("ECODE:\n" ++ show ecode)
-             case ecode of
-               ExitSuccess -> return out
-               ExitFailure 1 -> return out
-               ExitFailure i -> error ("'diff " ++ leftFile ++ " " ++ rightFile ++
-                                       "' failed with exit code " ++ show i ++
-                                       ": " ++ show err)
-      writeTemp s =
-          do dir <- getTemporaryDirectory
-             (fp, h) <- openTempFile dir "HTF-diff.txt"
-             hPutStr h s
-             hClose h
-             return fp
-
-data DiffInput = DiffInput { di_left :: String, di_right :: String }
-               deriving (Show)
-
-leftDiffInput = unlines ["1", "2", "3", "4", "", "5", "6", "7"]
-
-instance Arbitrary DiffInput where
-    arbitrary =
-        do let leftLines = lines leftDiffInput
-           rightLinesLines <- mapM modifyLine (leftLines ++ [""])
-           return $ DiffInput (unlines leftLines)
-                              (unlines (concat rightLinesLines))
-      where
-        randomString =
-            do c <- (elements (['a'..'z']))
-               return [c]
-        modifyLine :: String -> Gen [String]
-        modifyLine str =
-            do prefixLen <- frequency [(20-i, return i) | i <- [0..5]]
-               prefix <- mapM (\_ -> randomString) [1..prefixLen]
-               frequency [ (5, return (prefix ++ [str]))
-                         , (3, return (prefix ++ ["XXX" ++ str]))
-                         , (2, return prefix)
-                         , (2, return [str])]
+multiLineDiffHaskell :: String -> String -> String
+multiLineDiffHaskell left right =ppDiff $ D.getGroupedDiff (lines left) (lines right) -- this code is now part of the Diff library (hence the >0.3 in Cabal)
+ 
 
 debug = trace
 -- debug _ x = x
@@ -399,7 +249,7 @@ main =
              _ -> fail ("USAGE: diff FILE1 FILE2")
        left <- readFile leftFp
        right <- readFile rightFp
-       diff <- return $ multiLineDiffHaskell defaultTerminalDiffConfig left right
+       diff <- return $ multiLineDiffHaskell left right
        putStr diff
 
 -- Testcases:
