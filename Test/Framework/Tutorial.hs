@@ -36,11 +36,9 @@ file with a @OPTIONS_GHC@ pragma in the first line.
 This pragma instructs GHC to run the source file through @htfpp@, the
 custom preprocessor of the HTF.
 
-The following @import@ statements are also needed:
+The following @import@ statement is also needed:
 
 @
-import System.Environment ( getArgs )
-import System.Exit ( exitWith )
 import Test.Framework
 @
 
@@ -89,7 +87,7 @@ Version:       0.1
 Cabal-Version: >= 1.10
 Build-type:    Simple
 
-Executable tutorial
+Test-Suite tutorial
   Type:              exitcode-stdio-1.0
   Main-is:           Tutorial.hs
   Build-depends:     base == 4.*, HTF == 0.10.*
