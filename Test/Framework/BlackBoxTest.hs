@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 --
--- Copyright (c) 2005,2009,2012   Stefan Wehr - http://www.stefanwehr.de
+-- Copyright (c) 2005,2009,2012,2013   Stefan Wehr - http://www.stefanwehr.de
 --
 -- This library is free software; you can redistribute it and/or
 -- modify it under the terms of the GNU Lesser General Public
@@ -74,8 +74,8 @@ data BlackBoxTestCfg = BlackBoxTestCfg
                        { bbtCfg_shouldFail  :: Bool
                        , bbtCfg_cmd         :: String
                        , bbtCfg_stdinFile   :: Maybe FilePath
-                       , bbtCfg_stdoutFile  :: Maybe FilePath
-                       , bbtCfg_stderrFile  :: Maybe FilePath
+                       , bbtCfg_stdoutFile  :: Maybe FilePath -- ^ path to file holding expected output on stdout
+                       , bbtCfg_stderrFile  :: Maybe FilePath -- ^ path to file holding expected output on stderr
                        , bbtCfg_verbose     :: Bool
                        -- functions for comparing output on stdout and stderr.
                        , bbtCfg_stdoutCmp   :: Diff
@@ -145,7 +145,7 @@ Sensible default values for 'BBTArgs':
 defaultBBTArgs = BBTArgs { bbtArgs_stdinSuffix    = \".in\"
                          , bbtArgs_stdoutSuffix   = \".out\"
                          , bbtArgs_stderrSuffix   = \".err\"
-                         , bbtArgs_dynArgsName    = "BBTArgs"
+                         , bbtArgs_dynArgsName    = \"BBTArgs\"
                          , bbtArgs_stdoutDiff     = defaultDiff
                          , bbtArgs_stderrDiff     = defaultDiff
                          , bbtArgs_verbose        = False }
@@ -198,17 +198,21 @@ see <https://github.com/skogsbaer/HTF/tree/master/sample>.)
 
 Suppose that one of the @.num@ files
 is @bbt-dir\/should-pass\/x.num@. Running the corresponding 'Test' invokes
-@dist\/build\/sample\/sample@ (the program under test) with @bbt-dir\/should-pass\/x.num@
-as input file. If @bbt-dir\/should-pass\/x.num@ existed, its content
+@dist\/build\/sample\/sample@ (the program under test)
+with @bbt-dir\/should-pass\/x.num@ as the last commandline argument.
+The other commandline arguments are taken from the flags specification given in the
+file whose name is stored in the 'bbtArgs_dynArgsName' field of the 'BBTArgs' record
+(see below).
+
+If @bbt-dir\/should-pass\/x.in@ existed, its content
 would be used as stdin. The tests succeeds
 if the exit code of the program is zero and
 the output on stdout and stderr matches the contents of
 @bbt-dir\/should-pass\/x.out@ and @bbt-dir\/should-pass\/x.err@, respectively.
 
-The directory @bbt-dir\/should-fail@ contains the file @BBTArgs@. If this file
-exists, then its content specifies various
-arguments for the test run. The file defines the arguments separated by newlines.
-Supported arguments:
+The 'bbtArgs_dynArgsName' field of the 'BBTArgs' record specifies a filename
+that contains some more configuration flags for the tests. The following
+flags (separated by newlines) are supported:
 
  [@Skip@] Skips all tests in the same directory as the argument file.
 
