@@ -31,6 +31,7 @@ module Test.Framework.TestManagerInternal (
 import Test.Framework.TestTypes
 import Test.Framework.Utils
 import Test.Framework.Location
+import Test.Framework.Colors
 
 import qualified Test.HUnit.Lang as HU
 import Control.Monad.Trans
@@ -72,11 +73,11 @@ data UnitTestResult
     = UnitTestResult
       { utr_location :: Maybe Location
       , utr_callingLocations :: [(Maybe String, Location)]
-      , utr_message :: String
+      , utr_message :: ColorString
       , utr_pending :: Bool
       } deriving (Eq, Show, Read)
 
-unitTestFail :: Maybe Location -> String -> IO a
+unitTestFail :: Maybe Location -> ColorString -> IO a
 unitTestFail loc s =
     do assertFailureHTF (show (UnitTestResult loc [] s False))
        error "unitTestFail: UNREACHABLE"
@@ -90,14 +91,14 @@ unitTestSubAssert loc mMsg action =
 -- Mark a unit test as pending without removing it from the test suite.
 unitTestPending :: String -> IO a
 unitTestPending s =
-    do assertFailureHTF (show (UnitTestResult Nothing [] s True))
+    do assertFailureHTF (show (UnitTestResult Nothing [] (noColor s) True))
        error "unitTestFail: UNREACHABLE"
 
 deserializeHUnitMsg :: String -> UnitTestResult
 deserializeHUnitMsg msg =
     case readM msg of
       Just r -> r
-      _ -> UnitTestResult Nothing [] msg False
+      _ -> UnitTestResult Nothing [] (noColor msg) False
 
 blackBoxTestFail :: String -> Assertion
 blackBoxTestFail = assertFailureHTF

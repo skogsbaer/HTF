@@ -19,9 +19,7 @@
 
 module Test.Framework.Diff (
 
-    DiffConfig(..), noColorsDiffConfig, coloredDiffConfig
-  , defaultTerminalDiffConfig, defaultNoColorsDiffConfig
-  , diffWithSensibleConfig, diff
+    DiffConfig(..), diffWithSensibleConfig, diff
 
 ) where
 
@@ -43,11 +41,12 @@ import System.IO
 import System.Directory
 import System.Exit
 import System.Process
-import Test.QuickCheck 
+import Test.QuickCheck
 import System.IO.Unsafe (unsafePerformIO)
 import Debug.Trace (trace)
 import System.Environment (getArgs)
 import Data.Maybe (mapMaybe, catMaybes)
+import qualified Data.Text as T
 
 import Test.HUnit
 
@@ -70,83 +69,51 @@ isMiddle _ = False
 
 data DiffConfig = DiffConfig {
     -- for single line diffs
-      dc_fromFirstPrefix :: String
-    , dc_fromFirstSuffix :: String
-    , dc_fromSecondPrefix :: String
-    , dc_fromSecondSuffix :: String
-    , dc_fromBothPrefix :: String
-    , dc_fromBothSuffix :: String
-    , dc_sep :: String
-    , dc_skipPrefix :: String
-    , dc_skipSuffix :: String
+      dc_fromFirst :: String -> ColorString
+    , dc_fromSecond :: String -> ColorString
+    , dc_fromBoth :: String -> ColorString
+    , dc_sep :: ColorString
+    , dc_skip :: String -> ColorString
     -- for multi-line diffs
-    , dc_lineFromFirstPrefix :: String
-    , dc_lineFromSecondPrefix :: String
-    , dc_lineFromFirstSuffix :: String
-    , dc_lineFromSecondSuffix :: String
+    , dc_lineFromFirst :: String -> ColorString
+    , dc_lineFromSecond :: String -> ColorString
     }
 
-noColorsDiffConfig :: Char -> Char -> DiffConfig
-noColorsDiffConfig f s = DiffConfig {
-      dc_fromFirstPrefix = f : " "
-    , dc_fromFirstSuffix = ""
-    , dc_fromSecondPrefix = s : " "
-    , dc_fromSecondSuffix = ""
-    , dc_fromBothPrefix = "C "
-    , dc_fromBothSuffix = ""
-    , dc_skipPrefix = "<..."
-    , dc_skipSuffix = "...>"
-    , dc_sep = "\n"
-    , dc_lineFromFirstPrefix = ""
-    , dc_lineFromSecondPrefix = ""
-    , dc_lineFromFirstSuffix = ""
-    , dc_lineFromSecondSuffix = ""
+mkDefaultDiffConfig :: Color -> Color -> Color -> Char -> Char -> DiffConfig
+mkDefaultDiffConfig c1 c2 c3 f s = DiffConfig {
+      dc_fromFirst = \x -> colorize' c1 x (f : " " ++ x)
+    , dc_fromSecond = \x -> colorize' c2 x (s : " " ++ x)
+    , dc_fromBoth = \x -> noColor' x ("C " ++ x)
+    , dc_skip = \x -> colorize' c3 ("..." ++ x ++ "...") ("<..." ++ x ++ "...>")
+    , dc_sep = noColor' "" "\n"
+    , dc_lineFromFirst = colorize c1
+    , dc_lineFromSecond = colorize c2
     }
 
-coloredDiffConfig :: Color -> Color -> Color -> DiffConfig
-coloredDiffConfig c1 c2 c3 = DiffConfig {
-      dc_fromFirstPrefix = startColor c1
-    , dc_fromFirstSuffix = reset
-    , dc_fromSecondPrefix = startColor c2
-    , dc_fromSecondSuffix = reset
-    , dc_fromBothPrefix = ""
-    , dc_fromBothSuffix = ""
-    , dc_skipPrefix = startColor c3 ++ "..."
-    , dc_skipSuffix = "..." ++ reset
-    , dc_sep = ""
-    , dc_lineFromFirstPrefix = startColor c1
-    , dc_lineFromSecondPrefix = startColor c2
-    , dc_lineFromFirstSuffix = reset
-    , dc_lineFromSecondSuffix = reset
-    }
-
-defaultTerminalDiffConfig :: DiffConfig
-defaultTerminalDiffConfig = coloredDiffConfig firstDiffColor secondDiffColor skipDiffColor
-
-defaultNoColorsDiffConfig :: DiffConfig
-defaultNoColorsDiffConfig = noColorsDiffConfig 'F' 'S'
+defaultDiffConfig :: DiffConfig
+defaultDiffConfig = mkDefaultDiffConfig firstDiffColor secondDiffColor skipDiffColor 'F' 'S'
 
 contextSize :: Int
 contextSize = 10
 
-singleLineDiff :: DiffConfig -> String -> String -> String
+singleLineDiff :: DiffConfig -> String -> String -> ColorString
 singleLineDiff dc s1 s2
-    | s1 == s2 = ""
+    | s1 == s2 = emptyColorString
     | otherwise =
         let groups = D.getGroupedDiff s1 s2
         in foldr (\(group, pos) string ->
-                      (showDiffGroup pos group) ++
-                      (if not (isLast pos) then dc_sep dc else "") ++
+                      (showDiffGroup pos group) +++
+                      (if not (isLast pos) then dc_sep dc else emptyColorString) +++
                       string)
-                 "" (addPositions groups)
+                 emptyColorString (addPositions groups)
     where
 #if MIN_VERSION_Diff(0,2,0)
-      showDiffGroup _ (D.First s) = dc_fromFirstPrefix dc ++ s ++ dc_fromFirstSuffix dc
-      showDiffGroup _ (D.Second s) = dc_fromSecondPrefix dc ++ s ++ dc_fromSecondSuffix dc
+      showDiffGroup _ (D.First s) = dc_fromFirst dc s
+      showDiffGroup _ (D.Second s) = dc_fromSecond dc s
       showDiffGroup pos (D.Both inBoth _) =
 #else
-      showDiffGroup _ (D.F, s) = dc_fromFirstPrefix dc ++ s ++ dc_fromFirstSuffix dc
-      showDiffGroup _ (D.S, s) = dc_fromSecondPrefix dc ++ s ++ dc_fromSecondSuffix dc
+      showDiffGroup _ (D.F, s) = dc_fromFirst dc s
+      showDiffGroup _ (D.S, s) = dc_fromSecond dc s
       showDiffGroup pos (D.B, inBoth) =
 #endif
           let showStart = not $ isFirst pos
@@ -160,11 +127,11 @@ singleLineDiff dc s1 s2
                             (if showEnd then "" else e)
                   in (start, ign, end)
               middle = let n = length ignored
-                           replText = dc_skipPrefix dc ++ "skipped " ++ show n ++ " chars" ++
-                                      dc_skipSuffix dc
-                       in if n <= length replText then ignored else replText
-          in dc_fromBothPrefix dc ++ contextStart ++ middle ++ contextEnd ++
-             dc_fromBothSuffix dc
+                           replText = "skipped " ++ show n ++ " chars"
+                       in if n <= length replText
+                          then dc_skip dc ignored
+                          else dc_skip dc replText
+          in dc_fromBoth dc contextStart +++ middle +++ dc_fromBoth dc contextEnd
       addPositions [] = []
       addPositions (x:[]) = (x, FirstLast) : []
       addPositions (x:xs) = (x, First) : addPositions' xs
@@ -172,7 +139,7 @@ singleLineDiff dc s1 s2
       addPositions' (x:[]) = (x, Last) : []
       addPositions' (x:xs) = (x, Middle) : addPositions' xs
 
-multiLineDiff :: DiffConfig -> String -> String -> IO String
+multiLineDiff :: DiffConfig -> String -> String -> IO ColorString
 multiLineDiff cfg left right =
     withTempFiles $ \(fpLeft, hLeft) (fpRight, hRight) ->
         do write hLeft left
@@ -184,12 +151,9 @@ multiLineDiff cfg left right =
               case ecode of
                 ExitSuccess -> return (format out)
                 ExitFailure 1 -> return (format out)
-                ExitFailure i ->
-                   return ("'diff " ++ leftFile ++ " " ++ rightFile ++
-                           "' failed with exit code " ++ show i ++
-                           ": " ++ show err)) 
-             -- if we can't launch diff, use the Haskell code. We don't write the exception anywhere to not pollute test results.              
-            `catch` (\(_::IOException) -> return $ multiLineDiffHaskell left right)            
+                ExitFailure i -> return $ multiLineDiffHaskell left right)
+             -- if we can't launch diff, use the Haskell code. We don't write the exception anywhere to not pollute test results.
+            `catch` (\(_::IOException) -> return $ multiLineDiffHaskell left right)
       saveRemove fp =
           removeFile fp `catch` (\e -> hPutStrLn stderr (show (e::IOException)))
       withTempFiles action =
@@ -201,41 +165,41 @@ multiLineDiff cfg left right =
       write h s =
           do hPutStr h s
              hClose h
-      format out = unlines $ map formatLine (lines out)
+      format out = unlinesColorString $ map formatLine (lines out)
       formatLine l =
           case l of
             ('<' : _) -> fromFirst l
             ('>' : _) -> fromSecond l
             (c : _)
                  | isDigit c -> case List.span (\c -> c /= 'a' && c /= 'c' && c /= 'd') l of
-                                  (left, c:right) -> fromFirst left ++ [c] ++ fromSecond right
-                                  (left, []) -> left
-                 | otherwise -> l
+                                  (left, c:right) -> fromFirst left +++
+                                                     noColor [c] +++
+                                                     fromSecond right
+                                  (left, []) -> noColor left
+                 | otherwise -> noColor l
           where
-            fromFirst s = dc_fromFirstPrefix cfg ++ s ++ dc_fromFirstSuffix cfg
-            fromSecond s = dc_fromSecondPrefix cfg ++ s ++ dc_fromSecondSuffix cfg
+            fromFirst s = dc_fromFirst cfg s
+            fromSecond s = dc_fromSecond cfg s
 
-diff :: DiffConfig -> String -> String -> IO String
+diff :: DiffConfig -> String -> String -> IO ColorString
 diff cfg left right =
     case (lines left, lines right) of
-      ([], []) -> return ""
+      ([], []) -> return emptyColorString
       ([], [_]) -> return $ singleLineDiff cfg left right
       ([_], []) -> return $ singleLineDiff cfg left right
       ([_], [_]) -> return $ singleLineDiff cfg left right
       _ -> multiLineDiff cfg left right
 
-diffWithSensibleConfig :: String -> String -> IO String
+diffWithSensibleConfig :: String -> String -> IO ColorString
 diffWithSensibleConfig s1 s2 =
-    do b <- useColors
-       let dc = if b then defaultTerminalDiffConfig else defaultNoColorsDiffConfig
-       diff dc s1 s2
+    diff defaultDiffConfig s1 s2
 
 {-
 Haskell diff, in case the diff tool is not present
 -}
-multiLineDiffHaskell :: String -> String -> String
-multiLineDiffHaskell left right =ppDiff $ D.getGroupedDiff (lines left) (lines right) -- this code is now part of the Diff library (hence the >0.3 in Cabal)
- 
+multiLineDiffHaskell :: String -> String -> ColorString
+multiLineDiffHaskell left right =
+    noColor $ ppDiff $ D.getGroupedDiff (lines left) (lines right) -- this code is now part of the Diff library (hence the >0.3 in Cabal)
 
 debug = trace
 -- debug _ x = x
@@ -250,7 +214,7 @@ main =
        left <- readFile leftFp
        right <- readFile rightFp
        diff <- return $ multiLineDiffHaskell left right
-       putStr diff
+       putStr $ T.unpack $ renderColorString diff True
 
 -- Testcases:
 --
@@ -258,4 +222,3 @@ main =
 -- vs.
 -- > 1
 -- > 2
-

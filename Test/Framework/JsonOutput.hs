@@ -61,12 +61,14 @@ module Test.Framework.JsonOutput (
 
 import Test.Framework.TestTypes
 import Test.Framework.Location
+import Test.Framework.Colors
 
 import qualified Data.Aeson as J
 import Data.Aeson ((.=))
 
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.Lazy.Char8 as BSLC
+import qualified Data.Text as T
 
 class J.ToJSON a => HTFJsonObj a
 
@@ -89,7 +91,7 @@ data TestEndEventObj
       , te_result :: TestResult
       , te_location :: Maybe Location
       , te_callers :: [(Maybe String, Location)]
-      , te_message :: String
+      , te_message :: T.Text
       , te_wallTimeMs :: Int
       }
 
@@ -191,8 +193,9 @@ mkTestStartEventObj ft flatName =
 mkTestEndEventObj :: FlatTestResult -> String -> TestEndEventObj
 mkTestEndEventObj ftr flatName =
     let r = ft_payload ftr
+        msg = renderColorString (rr_message r) False
     in TestEndEventObj (mkTestObj ftr flatName) (rr_result r) (rr_location r) (rr_callers r)
-                       (rr_message r) (rr_wallTimeMs r)
+                       msg (rr_wallTimeMs r)
 
 mkTestListObj :: [(FlatTest, String)] -> TestListObj
 mkTestListObj l =

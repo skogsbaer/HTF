@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-|
 
 This module defines functions for notifying all test reporters registered about
@@ -8,6 +9,7 @@ Further, it defines the standard test reporters for HTF's various output formats
 -}
 module Test.Framework.TestReporter (
 
+    IsParallel(..), IsJsonOutput(..), IsXmlOutput(..),
     reportAllTests, reportGlobalStart, reportTestStart, reportTestResult,
     reportGlobalResults, defaultTestReporters
 
@@ -18,11 +20,13 @@ import Test.Framework.Location
 import Test.Framework.Colors
 import Test.Framework.Utils
 import Test.Framework.JsonOutput
+import Test.Framework.XmlOutput
 
 import System.IO
 import Control.Monad.RWS
 import Text.PrettyPrint
 
+import qualified Data.Text.IO as T
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 
@@ -56,13 +60,18 @@ reportGlobalResults t l1 l2 l3 l4 =
     do reps <- asks tc_reporters
        mapM_ (\r -> tr_reportGlobalResults r t l1 l2 l3 l4) reps
 
+data IsParallel = Parallel | NonParallel
+data IsJsonOutput = JsonOutput | NoJsonOutput
+data IsXmlOutput = XmlOutput | NoXmlOutput
+
 -- | The default test reporters for HTF.
-defaultTestReporters :: Bool -- ^ 'True' if tests are run in parallel
-                     -> Bool -- ^ 'True' if machine output should be produced
+defaultTestReporters :: IsParallel
+                     -> IsJsonOutput
+                     -> IsXmlOutput
                      -> [TestReporter]
-defaultTestReporters inParallel forMachine =
+defaultTestReporters inParallel forMachine doXml =
     case (inParallel, forMachine) of
-      (False, False) ->
+      (NonParallel, NoJsonOutput) ->
           [TestReporter
            { tr_id = "rep_seq_human"
            , tr_reportAllTests = reportAllTestsH
@@ -70,8 +79,8 @@ defaultTestReporters inParallel forMachine =
            , tr_reportTestStart = reportTestStartHS
            , tr_reportTestResult = reportTestResultHS
            , tr_reportGlobalResults = reportGlobalResultsH
-           }]
-      (True, False) ->
+           }] ++ xmlReporters
+      (Parallel, NoJsonOutput) ->
           [TestReporter
            { tr_id = "rep_par_human"
            , tr_reportAllTests = reportAllTestsH
@@ -79,8 +88,8 @@ defaultTestReporters inParallel forMachine =
            , tr_reportTestStart = reportTestStartHP
            , tr_reportTestResult = reportTestResultHP
            , tr_reportGlobalResults = reportGlobalResultsH
-           }]
-      (False, True) ->
+           }] ++ xmlReporters
+      (NonParallel, JsonOutput) ->
           [TestReporter
            { tr_id = "rep_seq_machine"
            , tr_reportAllTests = reportAllTestsM
@@ -88,8 +97,8 @@ defaultTestReporters inParallel forMachine =
            , tr_reportTestStart = reportTestStartMS
            , tr_reportTestResult = reportTestResultMS
            , tr_reportGlobalResults = reportGlobalResultsM
-           }]
-      (True, True) ->
+           }] ++ xmlReporters
+      (Parallel, JsonOutput) ->
           [TestReporter
            { tr_id = "rep_par_machine"
            , tr_reportAllTests = reportAllTestsM
@@ -97,7 +106,14 @@ defaultTestReporters inParallel forMachine =
            , tr_reportTestStart = reportTestStartMP
            , tr_reportTestResult = reportTestResultMP
            , tr_reportGlobalResults = reportGlobalResultsM
-           }]
+           }] ++ xmlReporters
+    where
+      xmlReporters =
+          case doXml of
+            NoXmlOutput -> []
+            XmlOutput -> [(emptyTestReporter "rep_xml") {
+                            tr_reportGlobalResults = reportGlobalResultsXml
+                          }]
 
 --
 -- output for humans
@@ -112,8 +128,8 @@ humanTestName ft =
 
 reportHumanTestStartMessage :: ReportLevel -> GenFlatTest a -> TR ()
 reportHumanTestStartMessage level ft =
-    do t <- liftIO $ colorize testStartColor "[TEST] "
-       reportTR level (t ++ (humanTestName ft))
+    do let t = colorize testStartColor "[TEST] "
+       reportTR level (t +++ noColor (humanTestName ft))
 
 -- sequential
 reportGlobalStartHS :: ReportGlobalStart
@@ -128,40 +144,27 @@ reportTestResultHS ftr =
         msg = attachCallStack (rr_message (ft_payload ftr)) (rr_callers (ft_payload ftr))
     in case res of
          Pass ->
-             do suf <- okSuffix
-                reportMessage Debug msg suf
+             reportMessage Debug msg okSuffix
          Pending ->
              do reportHumanTestStartMessageIfNeeded
-                suf <- pendingSuffix
-                reportMessage Info msg suf
+                reportMessage Info msg pendingSuffix
          Fail ->
              do reportHumanTestStartMessageIfNeeded
-                suf <- failureSuffix
-                reportMessage Info msg suf
+                reportMessage Info msg failureSuffix
          Error ->
              do reportHumanTestStartMessageIfNeeded
-                suf <- errorSuffix
-                reportMessage Info msg suf
+                reportMessage Info msg errorSuffix
    where
-     attachCallStack msg callStack =
-         case reverse callStack of
-           [] -> msg
-           l -> ensureNewline msg ++
-                unlines (map formatCallStackElem l)
-     formatCallStackElem (mMsg, loc) =
-         "  called from " ++ showLoc loc ++ (case mMsg of
-                                               Nothing -> ""
-                                               Just s -> " (" ++ s ++ ")")
      reportHumanTestStartMessageIfNeeded =
          do tc <- ask
             when (tc_quiet tc) (reportHumanTestStartMessage Info ftr)
      reportMessage level msg suffix =
-         reportTR level (ensureNewline msg ++ suffix ++ timeStr)
+         reportTR level (ensureNewlineColorString msg +++ suffix +++ noColor timeStr)
      timeStr = " (" ++ show (rr_wallTimeMs (ft_payload ftr)) ++ "ms)\n"
-     failureSuffix = liftIO $ colorize warningColor "*** Failed!"
-     errorSuffix = liftIO $ colorize warningColor "@@@ Error!"
-     pendingSuffix = liftIO $ colorize pendingColor "^^^ Pending!"
-     okSuffix = liftIO $ colorize testOkColor  "+++ OK"
+     failureSuffix = colorize warningColor "*** Failed!"
+     errorSuffix = colorize warningColor "@@@ Error!"
+     pendingSuffix = colorize pendingColor "^^^ Pending!"
+     okSuffix = colorize testOkColor  "+++ OK"
 
 -- parallel
 reportGlobalStartHP :: ReportGlobalStart
@@ -169,7 +172,7 @@ reportGlobalStartHP _ = return ()
 
 reportTestStartHP :: ReportTestStart
 reportTestStartHP ft =
-     do reportTR Debug ("Starting " ++ (humanTestName ft))
+     do reportStringTR Debug ("Starting " ++ (humanTestName ft))
 
 reportTestResultHP :: ReportTestResult
 reportTestResultHP ftr =
@@ -179,7 +182,7 @@ reportTestResultHP ftr =
 -- results and all tests
 reportAllTestsH :: ReportAllTests
 reportAllTestsH l =
-    reportDoc Info (renderTestNames l)
+    reportStringTR Info (render (renderTestNames l))
 
 reportGlobalResultsH :: ReportGlobalResults
 reportGlobalResultsH t passedL pendingL failedL errorL =
@@ -188,27 +191,28 @@ reportGlobalResultsH t passedL pendingL failedL errorL =
            failed = length failedL
            error = length errorL
            total = passed + failed + error + pending
-       pendings <- liftIO $ colorize pendingColor "* Pending:"
-       failures <- liftIO $ colorize warningColor "* Failures:"
-       errors <- liftIO $ colorize warningColor "* Errors:"
-       reportTR Info ("* Tests:    " ++ show total ++ "\n" ++
-                      "* Passed:   " ++ show passed ++ "\n" ++
-                      pendings ++ "  " ++ show pending ++ "\n" ++
-                      failures ++ " " ++ show failed ++ "\n" ++
-                      errors ++ "   " ++ show error)
+       let pendings = colorize pendingColor "* Pending:"
+           failures = colorize warningColor "* Failures:"
+           errors = colorize warningColor "* Errors:"
+       reportTR Info ("* Tests:    " +++ showC total +++ "\n" +++
+                      "* Passed:   " +++ showC passed +++ "\n" +++
+                      pendings +++ "  " +++ showC pending +++ "\n" +++
+                      failures +++ " " +++ showC failed +++ "\n" +++
+                      errors +++ "   " +++ showC error)
        when (pending > 0) $
-          reportDoc Info
-              (text ('\n' : pendings) $$ renderTestNames' (reverse pendingL))
+          reportTR Info
+              ("\n" +++ pendings +++ renderTestNames' (reverse pendingL))
        when (failed > 0) $
-          reportDoc Info
-              (text ('\n' : failures) $$ renderTestNames' (reverse failedL))
+          reportTR Info
+              ("\n" +++ failures +++ renderTestNames' (reverse failedL))
        when (error > 0) $
-          reportDoc Info
-              (text ('\n' : errors) $$ renderTestNames' (reverse errorL))
-       reportTR Info ("\nTotal execution time: " ++ show t ++ "ms")
+          reportTR Info
+              ("\n" +++ errors +++ renderTestNames' (reverse errorL))
+       reportStringTR Info ("\nTotal execution time: " ++ show t ++ "ms")
     where
+      showC x = noColor (show x)
       renderTestNames' rrs =
-          nest 2 $ renderTestNames rrs
+          noColor $ render $ nest 2 $ renderTestNames rrs
 
 renderTestNames :: [GenFlatTest a] -> Doc
 renderTestNames l =
@@ -254,15 +258,26 @@ reportGlobalResultsM t pass pending failed errors =
     let json = mkTestResultsObj t (length pass) (length pending) (length failed) (length errors)
     in reportJsonTR json
 
+reportGlobalResultsXml :: ReportGlobalResults
+reportGlobalResultsXml t pass pending failed errors =
+    do let xml = mkGlobalResultsXml t pass pending failed errors
+       tc <- ask
+       case tc_outputXml tc of
+         Just fname -> liftIO $ withFile fname WriteMode $ \h -> BSL.hPut h xml
+         Nothing -> liftIO $ BSL.putStr xml
+
 --
 -- General reporting routines
 --
 
-reportDoc :: ReportLevel -> Doc -> TR ()
-reportDoc level doc = reportTR level (render doc)
-
-reportTR :: ReportLevel -> String -> TR ()
+reportTR :: ReportLevel -> ColorString -> TR ()
 reportTR level msg =
+    do tc <- ask
+       let s = renderColorString msg (tc_useColors tc)
+       reportGen tc level (\h -> T.hPutStrLn h s)
+
+reportStringTR :: ReportLevel -> String -> TR ()
+reportStringTR level msg =
     do tc <- ask
        reportGen tc level (\h -> hPutStrLn h msg)
 

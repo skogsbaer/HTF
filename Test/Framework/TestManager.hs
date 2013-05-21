@@ -57,6 +57,7 @@ import Test.Framework.TestTypes
 import Test.Framework.CmdlineOptions
 import Test.Framework.TestReporter
 import Test.Framework.Location
+import Test.Framework.Colors
 
 -- | Construct a test where the given 'Assertion' checks a quick check property.
 -- Mainly used internally by the htfpp preprocessor.
@@ -127,7 +128,7 @@ runFlatTest ft =
        (res, time) <- liftIO $ measure $ HU.performTestCase (ft_payload ft)
        let (testResult, (mLoc, callers, msg)) =
              case res of
-               Nothing -> (Pass, (Nothing, [], ""))
+               Nothing -> (Pass, (Nothing, [], emptyColorString))
                Just (isFailure, msg') ->
                    if ft_sort ft /= QuickCheckTest
                       then let utr = deserializeHUnitMsg msg'
@@ -137,7 +138,7 @@ runFlatTest ft =
                                       | otherwise -> Error
                            in (r, (utr_location utr, utr_callingLocations utr, utr_message utr))
                       else let (r, s) = deserializeQuickCheckMsg msg'
-                           in (r, (Nothing, [], s))
+                           in (r, (Nothing, [], noColor s))
            rr = FlatTest
                   { ft_sort = ft_sort ft
                   , ft_path = ft_path ft

@@ -1,5 +1,5 @@
 Name:             HTF
-Version:          0.10.0.7
+Version:          0.11.0.0
 License:          LGPL
 License-File:     LICENSE
 Copyright:        (c) 2005-2012 Stefan Wehr
@@ -166,7 +166,8 @@ Library
                     haskell-src-exts >= 1.11,
                     aeson >= 0.6,
                     text >= 0.11,
-                    old-time >= 1.0
+                    old-time >= 1.0,
+                    xmlgen >= 0.6
   if !os(windows)
     Build-Depends:   unix >= 2.4
   Exposed-Modules:
@@ -182,6 +183,7 @@ Library
     Test.Framework.Tutorial
     Test.Framework.Pretty
     Test.Framework.JsonOutput
+    Test.Framework.XmlOutput
   Other-Modules:
     Test.Framework.TestManagerInternal
     Test.Framework.Utils

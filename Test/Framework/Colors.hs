@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE BangPatterns #-}
 --
 -- Copyright (c) 2011, 2012   Stefan Wehr - http://www.stefanwehr.de
 --
@@ -18,18 +20,19 @@
 
 module Test.Framework.Colors (
 
-    Color(..), PrimColor(..), startColor, withColor, colorize
-  , reset
+    Color(..), PrimColor(..), ColorString(..), PrimColorString(..)
   , firstDiffColor, secondDiffColor, skipDiffColor, diffColor
   , warningColor, testStartColor, testOkColor, pendingColor
+  , emptyColorString, (+++), unlinesColorString, colorStringFind, ensureNewlineColorString
+  , colorize, colorizeText, colorize', colorizeText'
+  , noColor, noColorText, noColor', noColorText'
+  , renderColorString
 
-  , setUseColors, useColors
 ) where
 
-import System.IO.Unsafe (unsafePerformIO)
-import Data.IORef
-
--- REVERSE            = "\033[2m"
+import qualified Data.Text as T
+import Data.String
+import Control.Monad
 
 firstDiffColor = Color Magenta False
 secondDiffColor = Color Blue False
@@ -41,14 +44,15 @@ testOkColor = Color Green False
 pendingColor = Color Cyan True
 
 data Color = Color PrimColor Bool
+           deriving (Eq, Show, Read)
 
 data PrimColor = Black | Blue | Green | Cyan | Red | Magenta
                | Brown | Gray | DarkGray | LightBlue
                | LightGreen | LightCyan | LightRed | LightMagenta
                | Yellow | White | NoColor
-             deriving (Eq, Show)
+             deriving (Eq, Show, Read)
 
-startColor :: Color -> String
+startColor :: Color -> T.Text
 startColor (Color c isBold) =
     (case c of
        Black -> "\ESC[0;30m"
@@ -67,28 +71,113 @@ startColor (Color c isBold) =
        LightMagenta -> "\ESC[1;35m"
        Yellow -> "\ESC[1;33m"
        White -> "\ESC[1;37m"
-       NoColor -> "") ++
+       NoColor -> "") `T.append`
     (if isBold then "\ESC[1m" else "")
 
-reset :: String
+reset :: T.Text
 reset = "\ESC[0;0m"
 
-withColor :: Color -> String -> String
-withColor c s = startColor c ++ s ++ reset
+data PrimColorString = PrimColorString Color T.Text (Maybe T.Text) {- no-color fallback -}
+                    deriving (Eq, Show, Read)
 
-colorize :: Color -> String -> IO String
-colorize c s =
-    do b <- useColors
-       return $ if b then withColor c s else s
+newtype ColorString = ColorString { unColorString :: [PrimColorString] }
+                    deriving (Eq, Show, Read)
 
--- We store the info about the use of colors in a global variable instead of the TestConfigs because
--- hunit tests must known whether to colorize diffs.
-_useColors :: IORef Bool
-_useColors = unsafePerformIO (newIORef False)
-{-# NOINLINE _useColors #-}
+instance IsString ColorString where
+    fromString = noColor
 
-useColors :: IO Bool
-useColors = readIORef _useColors
+emptyColorString :: ColorString
+emptyColorString = noColor ""
 
-setUseColors :: Bool -> IO ()
-setUseColors b = atomicModifyIORef _useColors (\_ -> (b, ()))
+unlinesColorString :: [ColorString] -> ColorString
+unlinesColorString l =
+    concatColorString $
+    map (\x -> appendPrimColorString x (PrimColorString (Color NoColor False) (T.pack "\n") Nothing)) l
+    where
+      appendPrimColorString (ColorString l) x =
+          ColorString (l ++ [x])
+
+concatColorString :: [ColorString] -> ColorString
+concatColorString l =
+    ColorString $ concatMap (\(ColorString l) -> l) l
+
+colorStringFind :: (Char -> Bool) -> ColorString -> Bool -> Maybe Char
+colorStringFind pred (ColorString l) c =
+    let f = if c then pcolorStringFindColor else pcolorStringFindNoColor
+    in msum (map f l)
+    where
+      pcolorStringFindColor (PrimColorString _ t _) = tfind t
+      pcolorStringFindNoColor (PrimColorString _ t Nothing) = tfind t
+      pcolorStringFindNoColor (PrimColorString _ _ (Just t)) = tfind t
+      tfind t = T.find pred t
+
+ensureNewlineColorString :: ColorString -> ColorString
+ensureNewlineColorString cs@(ColorString l) =
+    let (colors, noColors) = unzip $ map colorsAndNoColors (reverse l)
+        nlColor = needsNl colors
+        nlNoColor = needsNl noColors
+    in if not nlColor && not nlNoColor
+       then cs
+       else ColorString (l ++
+                         [PrimColorString (Color NoColor False) (mkNl nlColor)
+                                              (Just (mkNl nlNoColor))])
+    where
+      mkNl True = "\n"
+      mkNl False = ""
+      colorsAndNoColors (PrimColorString _ t1 (Just t2)) = (t1, t2)
+      colorsAndNoColors (PrimColorString _ t1 Nothing) = (t1, t1)
+      needsNl [] = False
+      needsNl (t:ts) =
+          let t' = T.dropWhileEnd (\c -> c == ' ') t
+          in if T.null t'
+             then needsNl ts
+             else T.last t' /= '\n'
+
+colorize :: Color -> String -> ColorString
+colorize c s = colorizeText c (T.pack s)
+
+colorizeText :: Color -> T.Text -> ColorString
+colorizeText !c !t = ColorString [PrimColorString c t Nothing]
+
+colorize' :: Color -> String -> String -> ColorString
+colorize' c s x = colorizeText' c (T.pack s) (T.pack x)
+
+colorizeText' :: Color -> T.Text -> T.Text -> ColorString
+colorizeText' !c !t !x = ColorString [PrimColorString c t (Just x)]
+
+noColor :: String -> ColorString
+noColor = colorize (Color NoColor False)
+
+noColorText :: T.Text -> ColorString
+noColorText = colorizeText (Color NoColor False)
+
+noColor' :: String -> String -> ColorString
+noColor' s1 s2 = colorize' (Color NoColor False) s1 s2
+
+noColorText' :: T.Text -> T.Text -> ColorString
+noColorText' t1 t2 = colorizeText' (Color NoColor False) t1 t2
+
+infixr 5  +++
+
+(+++) :: ColorString -> ColorString -> ColorString
+cs1 +++ cs2 =
+    case (cs1, cs2) of
+      (ColorString [PrimColorString c1 t1 m1], ColorString (PrimColorString c2 t2 m2 : rest))
+          | c1 == c2 ->
+              let m3 = case (m1, m2) of
+                         (Nothing, Nothing) -> Nothing
+                         (Just x1, Just x2) -> Just (x1 `T.append` x2)
+                         (Just x1, Nothing) -> Just (x1 `T.append` t2)
+                         (Nothing, Just x2) -> Just (t1 `T.append` x2)
+              in ColorString (PrimColorString c1 (t1 `T.append` t2) m3 : rest)
+      (ColorString ps1, ColorString ps2) -> ColorString (ps1 ++ ps2)
+
+renderColorString :: ColorString -> Bool -> T.Text
+renderColorString (ColorString l) useColor =
+    T.concat (map render l)
+    where
+      render = if useColor then renderColors else renderNoColors
+      renderNoColors (PrimColorString _ _ (Just t)) = t
+      renderNoColors (PrimColorString _ t Nothing) = t
+      renderColors (PrimColorString c t _) =
+          T.concat [startColor c, t, reset]

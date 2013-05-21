@@ -10,14 +10,14 @@ module Test.Framework.TestTypes (
   -- * Organizing tests
   TestID, Assertion, Test(..), TestSuite(..), TestSort(..),
   TestPath(..), GenFlatTest(..), FlatTest, TestFilter,
-  testPathToList, flatName,
+  testPathToList, flatName, finalName, prefixName,
 
   -- * Executing tests
   TR, TestState(..), initTestState, TestConfig(..), TestOutput(..),
 
   -- * Reporting results
   ReportAllTests, ReportGlobalStart, ReportTestStart, ReportTestResult, ReportGlobalResults,
-  TestReporter(..),
+  TestReporter(..), emptyTestReporter, attachCallStack, CallStack,
 
   -- * Specifying results.
   TestResult(..), FlatTestResult, Milliseconds, RunResult(..)
@@ -25,6 +25,7 @@ module Test.Framework.TestTypes (
 ) where
 
 import Test.Framework.Location
+import Test.Framework.Colors
 
 import Control.Monad.RWS
 import System.IO
@@ -62,7 +63,25 @@ testPathToList (TestPathCompound mi p) =
 -- | Creates a string representation from a 'TestPath'.
 flatName :: TestPath -> String
 flatName p =
-    List.intercalate ":" (map (fromMaybe "") (testPathToList p))
+    flatNameFromList (testPathToList p)
+
+flatNameFromList :: [Maybe TestID] -> String
+flatNameFromList l =
+    List.intercalate ":" (map (fromMaybe "") l)
+
+-- | Returns the final name of a 'TestPath'
+finalName :: TestPath -> String
+finalName (TestPathBase i) = i
+finalName (TestPathCompound _ p) = finalName p
+
+-- | Returns the name of the prefix of a test path. The prefix is everything except the
+--   last element.
+prefixName :: TestPath -> String
+prefixName path =
+    let l = case reverse (testPathToList path) of
+              [] -> []
+              (_:xs) -> reverse xs
+    in flatNameFromList l
 
 -- | Generic type for flattened tests and their results.
 data GenFlatTest a
@@ -86,15 +105,30 @@ data TestResult = Pass | Pending | Fail | Error
 -- | A type synonym for time in milliseconds.
 type Milliseconds = Int
 
+-- | A type for call-stacks
+type CallStack = [(Maybe String, Location)]
+
 -- | The result of a test run.
 data RunResult
     = RunResult
       { rr_result :: TestResult       -- ^ The summary result of the test.
       , rr_location :: Maybe Location -- ^ The location where the test failed (if applicable).
-      , rr_callers :: [(Maybe String, Location)] -- ^ Information about the callers of the location where the test failed
-      , rr_message :: String          -- ^ A message describing the result.
+      , rr_callers :: CallStack       -- ^ Information about the callers of the location where the test failed
+      , rr_message :: ColorString     -- ^ A message describing the result.
       , rr_wallTimeMs :: Milliseconds -- ^ Execution time in milliseconds.
       }
+
+attachCallStack :: ColorString -> CallStack -> ColorString
+attachCallStack msg callStack =
+    case reverse callStack of
+      [] -> msg
+      l -> ensureNewlineColorString msg +++
+           noColor (unlines (map formatCallStackElem l))
+    where
+      formatCallStackElem (mMsg, loc) =
+          "  called from " ++ showLoc loc ++ (case mMsg of
+                                                Nothing -> ""
+                                                Just s -> " (" ++ s ++ ")")
 
 -- | The result of running a 'FlatTest'
 type FlatTestResult = GenFlatTest RunResult
@@ -123,8 +157,10 @@ data TestConfig
 
 --      , tc_threads :: Maybe Int       Use @Just i@ for parallel execution with @i@ threads, @Nothing@ for sequential execution (currently unused).
       , tc_output :: TestOutput         -- ^ Output destination of progress and result messages.
+      , tc_outputXml :: Maybe FilePath  -- ^ Output destination of XML result summary
       , tc_filter :: TestFilter         -- ^ Filter for the tests to run.
       , tc_reporters :: [TestReporter]  -- ^ Test reporters to use.
+      , tc_useColors :: Bool            -- ^ Whether to use colored output
       }
 
 instance Show TestConfig where
@@ -147,6 +183,17 @@ data TestReporter
       , tr_reportTestStart :: ReportTestStart      -- ^ Called to report the start of a single test.
       , tr_reportTestResult :: ReportTestResult    -- ^ Called to report the result of a single test.
       , tr_reportGlobalResults :: ReportGlobalResults  -- ^ Called to report the overall results of all tests.
+      }
+
+emptyTestReporter :: String -> TestReporter
+emptyTestReporter id =
+    TestReporter
+      { tr_id = id
+      , tr_reportAllTests = \_ -> return ()
+      , tr_reportGlobalStart = \_ -> return ()
+      , tr_reportTestStart = \_ -> return ()
+      , tr_reportTestResult = \_ -> return ()
+      , tr_reportGlobalResults = \_ _ _ _ _ -> return ()
       }
 
 instance Show TestReporter where

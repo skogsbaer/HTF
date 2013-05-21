@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -cpp -pgmPcpphs -optP --layout -optP --hashes -optP --cpp #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 --
 -- Copyright (c) 2005, 2009, 2012  Stefan Wehr - http://www.stefanwehr.de
@@ -98,7 +99,7 @@ import Test.Framework.Pretty
 
 -- WARNING: do not forget to add a preprocessor macro for new assertions!!
 
-assertFailure__ :: Location -> String -> IO a
+assertFailure__ :: Location -> ColorString -> IO a
 assertFailure__ loc s = unitTestFail (Just loc) s
 
 {- |
@@ -106,7 +107,8 @@ Fail with the given reason, supplying the error location and the error message.
 -}
 assertFailure_ :: Location -> String -> IO a
 assertFailure_ loc s =
-    assertFailure__ loc (mkMsg "assertFailure" "" ("failed at " ++ showLoc loc) ++ ": " ++ s)
+    assertFailure__ loc (mkMsg "assertFailure" ""
+                                   ("failed at " ++ showLoc loc ++ ": " ++ s))
 
 {- |
 Use @unitTestPending' msg test@ to mark the given test as pending
@@ -115,11 +117,15 @@ without removing it from the test suite and without deleting or commenting out t
 unitTestPending' :: String -> IO a -> IO a
 unitTestPending' msg _ = unitTestPending msg
 
-mkMsg :: String -> String -> String -> String
-mkMsg fun extraInfo s =
-    if null extraInfo
-       then fun ++ (' ':s)
-       else fun ++ " (" ++ extraInfo ++ ") " ++ s
+mkMsg :: String -> String -> String -> ColorString
+mkMsg s1 s2 s3 = mkColorMsg s1 s2 (noColor s3)
+
+mkColorMsg :: String -> String -> ColorString -> ColorString
+mkColorMsg fun extraInfo s =
+    let pref = if null extraInfo
+               then fun ++ " "
+               else fun ++ " (" ++ extraInfo ++ ") "
+    in noColor pref +++ s
 
 --
 -- Dirty macro hackery (I'm too lazy ...)
@@ -165,15 +171,15 @@ CreateAssertions(assertBool, Bool)
 -- Equality Assertions
 --
 
-equalityFailedMessage :: String -> String -> IO String
+equalityFailedMessage :: String -> String -> IO ColorString
 equalityFailedMessage exp act =
     do d <- diffWithSensibleConfig expP actP
-       expected_ <- colorize firstDiffColor "* expected:"
-       but_got_ <- colorize secondDiffColor "* but got:"
-       diff_ <- colorize diffColor "* diff:"
-       return ("\n" ++ expected_ ++ " " ++ withNewline expP ++
-               "\n" ++ but_got_ ++ "  " ++ withNewline actP ++
-               "\n" ++ diff_ ++ "     " ++ withNewline d ++
+       let expected_ = colorize firstDiffColor "* expected:"
+       let but_got_ = colorize secondDiffColor "* but got:"
+       let diff_ = colorize diffColor "* diff:"
+       return ("\n" +++ expected_ +++ " " +++ noColor (withNewline expP) +++
+               "\n" +++ but_got_ +++ "  " +++ noColor (withNewline actP) +++
+               "\n" +++ diff_ +++ "     " +++ newlineBeforeDiff d +++ d +++
                (if stringEq
                    then "\nWARNING: strings are equal but actual values differ!"
                    else ""))
@@ -183,6 +189,11 @@ equalityFailedMessage exp act =
             [] -> s
             [_] -> s
             _ -> '\n':s
+      newlineBeforeDiff d =
+          let f b = case colorStringFind (\c -> c == '\n') d b of
+                      Just _ -> "\n"
+                      Nothing -> ""
+          in noColor' (f True) (f False)
       (expP, actP, stringEq) =
           case (pp exp, pp act) of
             (Nothing, _) -> (exp, act, exp == act)
@@ -212,7 +223,8 @@ _assertEqual_ :: (Eq a, Show a)
 _assertEqual_ name loc s expected actual =
     if expected /= actual
        then do x <- equalityFailedMessage (show expected) (show actual)
-               assertFailure__ loc (mkMsg name s $ "failed at " ++ showLoc loc ++ x)
+               assertFailure__ loc (mkColorMsg name s $
+                                    noColor ("failed at " ++ showLoc loc) +++ x)
        else return ()
 
 DocAssertion(assertEqual, Fail if the two values of type @a@ are not equal.
@@ -238,7 +250,8 @@ _assertEqualPretty_ :: (Eq a, Pretty a)
 _assertEqualPretty_ name loc s expected actual =
     if expected /= actual
        then do x <- equalityFailedMessage (showPretty expected) (showPretty actual)
-               assertFailure__ loc (mkMsg name s $ "failed at " ++ showLoc loc ++ x)
+               assertFailure__ loc (mkColorMsg name s
+                                       (noColor ("failed at " ++ showLoc loc) +++ x))
        else return ()
 
 DocAssertion(assertEqualPretty, Fail if the two values of type @a@ are not equal.
@@ -299,8 +312,8 @@ _assertListsEqualAsSets_ name loc s expected actual =
                                  ++ "\n actual length: " ++ show na))
              | not (unorderedEq expected actual) ->
                  do x <- equalityFailedMessage (show expected) (show actual)
-                    assertFailure__ loc (mkMsg "assertSetEqual" s
-                                   ("failed at " ++ showLoc loc ++ x))
+                    assertFailure__ loc (mkColorMsg "assertSetEqual" s
+                                         (noColor ("failed at " ++ showLoc loc) +++ x))
              | otherwise -> return ()
     where unorderedEq l1 l2 =
               null (l1 \\ l2) && null (l2 \\ l1)

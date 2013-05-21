@@ -64,6 +64,7 @@ data CmdlineOptions = CmdlineOptions {
     , opts_negated :: [String]          -- ^ Regular expressions matching test names which should /not/ run.
 --    , opts_threads :: Maybe Int         -- ^ Use @Just i@ for parallel execution with @i@ threads, @Nothing@ for sequential execution (currently unused).
     , opts_machineOutput :: Bool        -- ^ Format output for machines (JSON format) or humans. See 'Test.Framework.JsonOutput' for a definition of the JSON format.
+    , opts_machineOutputXml :: Maybe FilePath -- ^ Output file for junit-style XML output. See 'Test.Framework.XmlOutput' for a definition of the XML format.
     , opts_useColors :: Maybe Bool      -- ^ Use @Just b@ to enable/disable use of colors, @Nothing@ infers the use of colors.
     , opts_outputFile :: Maybe FilePath -- ^ The output file, defaults to stdout
     , opts_listTests :: Bool            -- ^ If 'True', lists all tests available and exits.
@@ -81,6 +82,7 @@ defaultCmdlineOptions = CmdlineOptions {
     , opts_negated = []
 --    , opts_threads = Nothing
     , opts_machineOutput = False
+    , opts_machineOutputXml = Nothing
     , opts_useColors = Nothing
     , opts_outputFile = Nothing
     , opts_listTests = False
@@ -105,7 +107,9 @@ optionDescriptions =
     , Option ['o']     ["output-file"] (ReqArg (\s o -> o { opts_outputFile = Just s })
                                                "FILE") "name of output file"
     , Option []        ["json"] (NoArg (\o -> o { opts_machineOutput = True }))
-                               "output results in machine-readable JSON format"
+                               "output results in machine-readable JSON format (incremental)"
+    , Option []        ["xml"] (ReqArg (\s o -> o { opts_machineOutputXml = Just s }) "FILE")
+                               "output results in junit-style XML format"
     , Option []        ["split"] (NoArg (\o -> o { opts_split = True }))
                                "splits results in separate files to avoid file locking (requires -o/--output-file)"
     , Option []        ["colors"]  (ReqArg (\s o -> o { opts_useColors = Just (parseBool s) })
@@ -156,7 +160,7 @@ parseTestArgs args =
                         else null pos || any (\s -> s `matches` flat) pos
               opts = (foldr ($) defaultCmdlineOptions optTrans) { opts_filter = pred }
           in case (opts_outputFile opts, opts_split opts) of
-               (Nothing, True) -> Left ("Option --split requires -o or --output-file\n\n" ++ 
+               (Nothing, True) -> Left ("Option --split requires -o or --output-file\n\n" ++
                                         usageInfo usageHeader optionDescriptions)
                _ -> Right opts
       (_,_,errs) ->
@@ -187,14 +191,17 @@ testConfigFromCmdlineOptions opts =
              _ -> do (outputHandle, closeOutput, mOutputFd) <- openOutputFile
                      colors <- checkColors mOutputFd
                      return (TestOutputHandle outputHandle closeOutput, colors)
-       setUseColors colors
 --       let threads = opts_threads opts
-       let reporters = defaultTestReporters False {-(isJust threads)-} (opts_machineOutput opts)
+       let reporters = defaultTestReporters NonParallel {-(isJust threads)-}
+                                            (if opts_machineOutput opts then JsonOutput else NoJsonOutput)
+                                            (if isJust (opts_machineOutputXml opts) then XmlOutput else NoXmlOutput)
        return $ TestConfig { tc_quiet = opts_quiet opts
 --                           , tc_threads = threads
                            , tc_output = output
+                           , tc_outputXml = opts_machineOutputXml opts
                            , tc_reporters = reporters
-                           , tc_filter = opts_filter opts }
+                           , tc_filter = opts_filter opts
+                           , tc_useColors = colors }
     where
 #ifdef mingw32_HOST_OS
       openOutputFile =
