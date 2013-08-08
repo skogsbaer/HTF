@@ -120,11 +120,11 @@ runParallel n entries =
                                     return ()
                              Work action post ->
                                  do res <- try action
-                                    evaluate res
+                                    _ <- evaluate res
                                     writeNamedChan fromWorker (WorkResult (post res) toWorker)
                                     loop
-             forkIO (loop `catch` (\(e::BlockedIndefinitelyOnMVar) ->
-                                       fail ("worker " ++ show i ++ ": " ++ show e)))
+             _ <- forkIO (loop `catch` (\(e::BlockedIndefinitelyOnMVar) ->
+                                          fail ("worker " ++ show i ++ ": " ++ show e)))
              return toWorker
 
 --

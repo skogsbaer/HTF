@@ -67,8 +67,8 @@ popen' run minput =
     --  data gets pulled as it becomes available. you have to force the
     --  output strings before waiting for the process to terminate.
     --
-    forkIO (Control.Exception.evaluate (length output) >> return ())
-    forkIO (Control.Exception.evaluate (length errput) >> return ())
+    _ <- forkIO (Control.Exception.evaluate (length output) >> return ())
+    _ <- forkIO (Control.Exception.evaluate (length errput) >> return ())
 
     -- And now we wait. We must wait after we read, unsurprisingly.
     ecode <- waitForProcess pid -- blocks without -threaded, you're warned.
