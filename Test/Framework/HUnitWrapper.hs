@@ -83,7 +83,6 @@ module Test.Framework.HUnitWrapper (
 ) where
 
 import Control.Exception
-import Control.Monad.Trans
 import Control.Monad.Trans.Control
 import qualified Test.HUnit as HU hiding ( assertFailure )
 import qualified Language.Haskell.Exts.Pretty as HE
@@ -359,7 +358,7 @@ DocAssertion(assertThrowsIO, Fail if executing the 'IO' action does not
 CreateAssertionsCtx(assertThrowsIO, Exception e, IO a -> (e -> Bool))
 
 _assertThrowsSomeIO_ :: String -> Location -> String -> IO a -> HU.Assertion
-_assertThrowsSomeIO_ name loc s x = _assertThrowsIO_ name loc s x (\ (e::SomeException) -> True)
+_assertThrowsSomeIO_ name loc s x = _assertThrowsIO_ name loc s x (\ (_e::SomeException) -> True)
 DocAssertion(assertThrowsSomeIO, Fail if executing the 'IO' action does not
              throw an exception.)
 CreateAssertions(assertThrowsSomeIO, IO a)
@@ -373,7 +372,7 @@ CreateAssertionsCtx(assertThrows, Exception e, a -> (e -> Bool))
 
 _assertThrowsSome_ :: String -> Location -> String -> a -> HU.Assertion
 _assertThrowsSome_ name loc s x =
-    _assertThrows_ name loc s x (\ (e::SomeException) -> True)
+    _assertThrows_ name loc s x (\ (_e::SomeException) -> True)
 DocAssertion(assertThrowsSome, Fail if evaluating the expression of type @a@ does not
              throw an exception.)
 CreateAssertions(assertThrowsSome, a)

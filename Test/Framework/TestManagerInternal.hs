@@ -34,7 +34,6 @@ import Test.Framework.Location
 import Test.Framework.Colors
 
 import qualified Test.HUnit.Lang as HU
-import Control.Monad.Trans
 import Control.Monad.Trans.Control
 import qualified Control.Exception.Lifted as Exc
 

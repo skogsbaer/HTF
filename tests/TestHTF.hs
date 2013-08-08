@@ -32,6 +32,7 @@ import System.Exit
 import System.IO
 import System.IO.Temp
 import Control.Exception
+import Control.Monad
 import qualified Data.HashMap.Strict as M
 import qualified Data.Aeson as J
 import Data.Aeson ( (.=) )
@@ -65,7 +66,8 @@ test_assertEqual = assertEqual 1 2
 
 test_assertEqualV = assertEqualVerbose "blub" 1 2
 
-test_assertEqualNoShow = assertEqualNoShow A B
+test_assertEqualNoShow = withOptions (\opts -> opts { to_parallel = False }) $
+                         assertEqualNoShow A B
 
 test_assertListsEqualAsSets = assertListsEqualAsSets [1,2] [2]
 
@@ -83,7 +85,7 @@ test_assertThrowsIO1 = assertThrows (fail "ERROR" :: IO ()) (handleExc False)
 
 test_assertThrowsIO2 = assertThrowsIO (fail "ERROR") (handleExc True)
 
-test_someError = error "Bart Simpson!!"
+test_someError = error "Bart Simpson!!" :: IO ()
 
 test_pendingTest = unitTestPending "This test is pending"
 
@@ -147,9 +149,9 @@ checkOutput output =
        check jsons (J.object ["type" .= J.String "test-end"
                              ,"test" .= J.object ["flatName" .= J.String "Main:diff"]])
                    (J.object ["test" .= J.object ["location" .= J.object ["file" .= J.String "TestHTF.hs$"
-                                                                         ,"line" .= J.toJSON (101::Int)]]
+                                                                         ,"line" .= J.toJSON (103::Int)]]
                              ,"location" .= J.object ["file" .= J.String "TestHTF.hs$"
-                                                     ,"line" .= J.toJSON (102::Int)]])
+                                                     ,"line" .= J.toJSON (104::Int)]])
        check jsons (J.object ["type" .= J.String "test-end"
                              ,"test" .= J.object ["flatName" .= J.String "Foo.A:a"]])
                    (J.object ["test" .= J.object ["location" .= J.object ["file" .= J.String "Foo/A.hs$"
@@ -160,10 +162,10 @@ checkOutput output =
                              ,"test" .= J.object ["flatName" .= J.String "Main:subAssert"]])
                    (J.object ["callers" .= J.toJSON [J.object ["message" .= J.Null
                                                               ,"location" .= J.object ["file" .= J.String "TestHTF.hs$"
-                                                                                      ,"line" .= J.toJSON (90::Int)]]
+                                                                                      ,"line" .= J.toJSON (92::Int)]]
                                                     ,J.object ["message" .= J.String "I'm another sub"
                                                               ,"location" .= J.object ["file" .= J.String "TestHTF.hs$"
-                                                                                      ,"line" .= J.toJSON (92::Int)]]]])
+                                                                                      ,"line" .= J.toJSON (94::Int)]]]])
     where
       check jsons pred assert =
           case filter (\j -> matches j pred) jsons of
@@ -210,8 +212,12 @@ main =
        bbts <- blackBoxTests (dirPrefix </> "bbt") (dirPrefix </> "./run-bbt.sh") ".x"
                  (defaultBBTArgs { bbtArgs_verbose = False })
        let tests = [addToTestSuite htf_thisModulesTests bbts] ++ htf_importedTests
+       when ("--help" `elem` args || "-h" `elem` args) $
+            do hPutStrLn stderr ("USGAGE: dist/build/test/test [--direct]")
+               ecode <- runTestWithArgs ["--help"] ([] :: [Test])
+               exitWith ecode
        case args of
-         "--interactive":rest ->
+         "--direct":rest ->
              do ecode <- runTestWithArgs rest tests
                 case ecode of
                   ExitFailure _ -> return ()
@@ -219,7 +225,8 @@ main =
          _ ->
              do withSystemTempFile "HTF-out" $ \outFile h ->
                   do hClose h
-                     ecode <- runTestWithArgs ["--json", "--output-file=" ++ outFile] tests
+                     ecode <- runTestWithArgs ["-j4", "--deterministic",
+                                               "--json", "--output-file=" ++ outFile] tests
                      case ecode of
                        ExitFailure _ -> checkOutput outFile
                        _ -> fail ("unexpected exit code: " ++ show ecode)

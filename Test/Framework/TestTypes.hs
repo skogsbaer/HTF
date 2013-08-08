@@ -1,4 +1,5 @@
-{-| 
+{-# LANGUAGE FlexibleInstances #-}
+{-|
 
 This module defines types (and small auxiliary functions)
 for organizing tests, for configuring the execution of
@@ -8,9 +9,10 @@ tests, and for representing and reporting their results.
 module Test.Framework.TestTypes (
 
   -- * Organizing tests
-  TestID, Assertion, Test(..), TestSuite(..), TestSort(..),
+  TestID, Assertion, Test(..), TestOptions(..), AssertionWithTestOptions(..), WithTestOptions(..),
+  TestSuite(..), TestSort(..),
   TestPath(..), GenFlatTest(..), FlatTest, TestFilter,
-  testPathToList, flatName, finalName, prefixName,
+  testPathToList, flatName, finalName, prefixName, defaultTestOptions, withOptions,
 
   -- * Executing tests
   TR, TestState(..), initTestState, TestConfig(..), TestOutput(..),
@@ -42,8 +44,44 @@ type TestID = String
 data TestSort = UnitTest | QuickCheckTest | BlackBoxTest
               deriving (Eq,Show,Read)
 
+-- | General options for tests
+data TestOptions = TestOptions {
+      to_parallel :: Bool
+    }
+    deriving (Eq,Show,Read)
+
+-- | The default 'TestOptions'
+defaultTestOptions :: TestOptions
+defaultTestOptions = TestOptions {
+                       to_parallel = True
+                     }
+
+-- | Something with 'TestOptions'
+data WithTestOptions a = WithTestOptions {
+      wto_options :: TestOptions
+    , wto_payload :: a
+    }
+    deriving (Eq,Show,Read)
+
+-- | Shortcut for constructing a 'WithTestOptions' value.
+withOptions :: (TestOptions -> TestOptions) -> a -> WithTestOptions a
+withOptions f x = WithTestOptions (f defaultTestOptions) x
+
+-- | A type class for an assertion with 'TestOptions'.
+class AssertionWithTestOptions a where
+    testOptions :: a -> TestOptions
+    assertion :: a -> Assertion
+
+instance AssertionWithTestOptions (IO a) where
+    testOptions _ = defaultTestOptions
+    assertion io = io >> return ()
+
+instance AssertionWithTestOptions (WithTestOptions (IO a)) where
+    testOptions (WithTestOptions opts _) = opts
+    assertion (WithTestOptions _ io) = io >> return ()
+
 -- | Abstract type for tests and their results.
-data Test = BaseTest TestSort TestID (Maybe Location) Assertion
+data Test = BaseTest TestSort TestID (Maybe Location) TestOptions Assertion
           | CompoundTest TestSuite
 
 -- | Abstract type for test suites and their results.
@@ -93,7 +131,7 @@ data GenFlatTest a
       }
 
 -- | Flattened representation of tests.
-type FlatTest = GenFlatTest Assertion
+type FlatTest = GenFlatTest (WithTestOptions Assertion)
 
 -- | A filter is a predicate on 'FlatTest'. If the predicate is 'True', the flat test is run.
 type TestFilter = FlatTest -> Bool
@@ -154,8 +192,8 @@ data TestOutput = TestOutputHandle Handle Bool -- ^ Output goes to 'Handle', boo
 data TestConfig
     = TestConfig
       { tc_quiet :: Bool                -- ^ If set, displays messages only for failed tests.
-
---      , tc_threads :: Maybe Int       Use @Just i@ for parallel execution with @i@ threads, @Nothing@ for sequential execution (currently unused).
+      , tc_threads :: Maybe Int         -- ^ Use @Just i@ for parallel execution with @i@ threads, @Nothing@ for sequential execution.
+      , tc_shuffle :: Bool              -- ^ Shuffle tests before parallel execution
       , tc_output :: TestOutput         -- ^ Output destination of progress and result messages.
       , tc_outputXml :: Maybe FilePath  -- ^ Output destination of XML result summary
       , tc_filter :: TestFilter         -- ^ Filter for the tests to run.

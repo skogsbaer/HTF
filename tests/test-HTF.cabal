@@ -17,6 +17,7 @@ Executable test
                      process >= 1.0,
                      regex-compat >= 0.92
   Default-language:  Haskell2010
+  Ghc-options: -threaded
 
 Test-Suite tutorial
   Type:              exitcode-stdio-1.0

@@ -72,7 +72,7 @@ defaultArgs = stdArgs { chatty = False }
 -- | Change the default 'Args' used to evaluate quick check properties.
 setDefaultArgs :: Args -> IO ()
 setDefaultArgs args =
-    do withMVar qcState $ \state -> return (state { qc_args = args })
+    do _ <- withMVar qcState $ \state -> return (state { qc_args = args })
        return ()
 
 -- | Retrieve the 'Args' currently used per default when evaluating quick check properties.
@@ -92,7 +92,7 @@ testableAsAssertion t =
     withMVar qcState $ \state ->
         do eitherArgs <-
                (let a = (argsModifier t) (qc_args state)
-                in do evaluate (length (show a))
+                in do _ <- evaluate (length (show a))
                       return (Right a))
                `catch`
                (\e -> return $ Left (show (e :: SomeException)))

@@ -22,6 +22,9 @@ module Test.Framework.Utils where
 import System.Directory
 import Data.Char
 import System.Time hiding (diffClockTimes)
+import System.Random
+import Data.Array.IO
+import Control.Monad
 
 infixr 6 </>
 
@@ -120,7 +123,7 @@ readM :: (Monad m, Read a) => String -> m a
 readM s | [x] <- parse = return x
         | otherwise    = fail $ "Failed parse: " ++ show s
     where
-      parse = [x | (x,t) <- reads s]
+      parse = [x | (x, []) <- reads s]
 
 ensureNewline :: String -> String
 ensureNewline s =
@@ -149,3 +152,19 @@ diffClockTimes (TOD s1 p1) (TOD s0 p0) =
       -- bring all into microseconds
       picoseconds i = i `div` (1000 * 1000)
       seconds i = i * 1000000
+
+-- | Randomly shuffle a list
+--   /O(N)/
+shuffleIO :: [a] -> IO [a]
+shuffleIO xs = do
+        ar <- newArray n xs
+        forM [1..n] $ \i -> do
+            j <- randomRIO (i,n)
+            vi <- readArray ar i
+            vj <- readArray ar j
+            writeArray ar j vi
+            return vj
+  where
+    n = length xs
+    newArray :: Int -> [a] -> IO (IOArray Int a)
+    newArray n xs =  newListArray (1,n) xs

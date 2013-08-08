@@ -46,6 +46,7 @@ import Control.Monad.RWS
 import System.Exit (ExitCode(..), exitWith)
 import System.Environment (getArgs)
 import Control.Exception (finally)
+import qualified Data.List as List
 
 import System.IO
 
@@ -58,21 +59,23 @@ import Test.Framework.CmdlineOptions
 import Test.Framework.TestReporter
 import Test.Framework.Location
 import Test.Framework.Colors
+import Test.Framework.ThreadPool
 
 -- | Construct a test where the given 'Assertion' checks a quick check property.
 -- Mainly used internally by the htfpp preprocessor.
 makeQuickCheckTest :: TestID -> Location -> Assertion -> Test
-makeQuickCheckTest id loc ass = BaseTest QuickCheckTest id (Just loc) ass
+makeQuickCheckTest id loc ass = BaseTest QuickCheckTest id (Just loc) defaultTestOptions ass
 
 -- | Construct a unit test from the given 'IO' action.
 -- Mainly used internally by the htfpp preprocessor.
-makeUnitTest :: TestID -> Location -> IO a -> Test
-makeUnitTest id loc ass = BaseTest UnitTest id (Just loc) (ass >> return ())
+makeUnitTest :: AssertionWithTestOptions a => TestID -> Location -> a -> Test
+makeUnitTest id loc ass =
+    BaseTest UnitTest id (Just loc) (testOptions ass) (assertion ass)
 
 -- | Construct a black box test from the given 'Assertion'.
 -- Mainly used internally.
 makeBlackBoxTest :: TestID -> Assertion -> Test
-makeBlackBoxTest id ass = BaseTest BlackBoxTest id Nothing ass
+makeBlackBoxTest id ass = BaseTest BlackBoxTest id Nothing defaultTestOptions ass
 
 -- | Create a named 'TestSuite' from a list of 'Test' values.
 makeTestSuite :: TestID -> [Test] -> TestSuite
@@ -109,8 +112,8 @@ instance TestableHTF (IO a) where
     flatten action = flatten (makeUnitTest "unnamed test" unknownLocation action)
 
 flattenTest :: Test -> [FlatTest]
-flattenTest (BaseTest sort id mloc x) =
-    [FlatTest sort (TestPathBase id) mloc x]
+flattenTest (BaseTest sort id mloc opts x) =
+    [FlatTest sort (TestPathBase id) mloc (WithTestOptions opts x)]
 flattenTest (CompoundTest ts) =
     flattenTestSuite ts
 
@@ -122,39 +125,57 @@ flattenTestSuite (AnonTestSuite ts) =
     let fts = concatMap flattenTest ts
     in map (\ft -> ft { ft_path = TestPathCompound Nothing (ft_path ft) }) fts
 
-runFlatTest :: FlatTest -> TR FlatTestResult
-runFlatTest ft =
-    do reportTestStart ft
-       (res, time) <- liftIO $ measure $ HU.performTestCase (ft_payload ft)
-       let (testResult, (mLoc, callers, msg)) =
-             case res of
-               Nothing -> (Pass, (Nothing, [], emptyColorString))
-               Just (isFailure, msg') ->
-                   if ft_sort ft /= QuickCheckTest
-                      then let utr = deserializeHUnitMsg msg'
-                               r = case () of
-                                     _| utr_pending utr -> Pending
-                                      | isFailure -> Fail
-                                      | otherwise -> Error
-                           in (r, (utr_location utr, utr_callingLocations utr, utr_message utr))
-                      else let (r, s) = deserializeQuickCheckMsg msg'
-                           in (r, (Nothing, [], noColor s))
-           rr = FlatTest
-                  { ft_sort = ft_sort ft
-                  , ft_path = ft_path ft
-                  , ft_location = ft_location ft
-                  , ft_payload = RunResult testResult mLoc callers msg time }
-       return rr
-
-handleRunResult :: FlatTestResult -> TR ()
-handleRunResult r =
-    do modify (\s -> s { ts_results = r : ts_results s })
-       reportTestResult r
+mkFlatTestRunner :: FlatTest -> ThreadPoolEntry TR () (Maybe (Bool, String), Int)
+mkFlatTestRunner ft = (pre, action, post)
+    where
+      pre = reportTestStart ft
+      action _ = measure $ HU.performTestCase (wto_payload (ft_payload ft))
+      post excOrResult =
+          let (testResult, (mLoc, callers, msg, time)) =
+                 case excOrResult of
+                   Left exc -> (Error, (Nothing,
+                                        [],
+                                        noColor ("Running test unexpectedly failed: " ++ show exc),
+                                        (-1)))
+                   Right (res, time) ->
+                       case res of
+                         Nothing -> (Pass, (Nothing, [], emptyColorString, time))
+                         Just (isFailure, msg') ->
+                           if ft_sort ft /= QuickCheckTest
+                              then let utr = deserializeHUnitMsg msg'
+                                       r = case () of
+                                             _| utr_pending utr -> Pending
+                                              | isFailure -> Fail
+                                              | otherwise -> Error
+                                   in (r, (utr_location utr, utr_callingLocations utr, utr_message utr, time))
+                              else let (r, s) = deserializeQuickCheckMsg msg'
+                                   in (r, (Nothing, [], noColor s, time))
+              rr = FlatTest
+                     { ft_sort = ft_sort ft
+                     , ft_path = ft_path ft
+                     , ft_location = ft_location ft
+                     , ft_payload = RunResult testResult mLoc callers msg time }
+          in do modify (\s -> s { ts_results = rr : ts_results s })
+                reportTestResult rr
 
 runAllFlatTests :: [FlatTest] -> TR ()
 runAllFlatTests tests =
     do reportGlobalStart tests
-       mapM_ (\ft -> runFlatTest ft >>= handleRunResult) tests
+       tc <- ask
+       case tc_threads tc of
+         Nothing ->
+             let entries = map mkFlatTestRunner tests
+             in tp_run sequentialThreadPool entries
+         Just i ->
+             let (ptests, stests) = List.partition (\t -> to_parallel (wto_options (ft_payload t))) tests
+                 pentries' = map mkFlatTestRunner ptests
+                 sentries = map mkFlatTestRunner stests
+             in do tp <- parallelThreadPool i
+                   pentries <- if tc_shuffle tc
+                               then liftIO (shuffleIO pentries')
+                               else return pentries'
+                   tp_run tp pentries
+                   tp_run sequentialThreadPool sentries
 
 -- | Run something testable using the 'Test.Framework.TestConfig.defaultCmdlineOptions'.
 runTest :: TestableHTF t => t              -- ^ Testable thing

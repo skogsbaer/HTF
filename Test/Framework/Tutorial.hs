@@ -368,6 +368,3 @@ You should also have a look at the sample project at
 -}
 
 ) where
-
-import Test.Framework
-import qualified Test.HUnit.Base

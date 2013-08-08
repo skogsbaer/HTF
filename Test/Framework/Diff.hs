@@ -19,7 +19,7 @@
 
 module Test.Framework.Diff (
 
-    DiffConfig(..), diffWithSensibleConfig, diff
+    DiffConfig(..), diffWithSensibleConfig, diff, main
 
 ) where
 
@@ -29,26 +29,18 @@ import Prelude hiding (catch)
 
 import Control.Exception (catch, finally, IOException)
 import qualified Data.List as List
-import qualified Data.Map as Map
 import Data.Char
 import qualified Data.Algorithm.Diff as D
 import Data.Algorithm.DiffOutput
 import Test.Framework.Colors
-import Test.Framework.Pretty
 
 -- for testing
 import System.IO
 import System.Directory
 import System.Exit
 import System.Process
-import Test.QuickCheck
-import System.IO.Unsafe (unsafePerformIO)
-import Debug.Trace (trace)
 import System.Environment (getArgs)
-import Data.Maybe (mapMaybe, catMaybes)
 import qualified Data.Text as T
-
-import Test.HUnit
 
 data Pos = First | Middle | Last | FirstLast
          deriving (Eq)
@@ -62,10 +54,6 @@ isFirst :: Pos -> Bool
 isFirst First = True
 isFirst FirstLast = True
 isFirst _ = False
-
-isMiddle :: Pos -> Bool
-isMiddle Middle = True
-isMiddle _ = False
 
 data DiffConfig = DiffConfig {
     -- for single line diffs
@@ -147,12 +135,13 @@ multiLineDiff cfg left right =
            doDiff fpLeft fpRight
     where
       doDiff leftFile rightFile =
-          (do (ecode, out, err) <- readProcessWithExitCode "diff" [leftFile, rightFile] ""
+          (do (ecode, out, _err) <- readProcessWithExitCode "diff" [leftFile, rightFile] ""
               case ecode of
                 ExitSuccess -> return (format out)
                 ExitFailure 1 -> return (format out)
-                ExitFailure i -> return $ multiLineDiffHaskell left right)
-             -- if we can't launch diff, use the Haskell code. We don't write the exception anywhere to not pollute test results.
+                ExitFailure _i -> return $ multiLineDiffHaskell left right)
+             -- if we can't launch diff, use the Haskell code.
+             -- We don't write the exception anywhere to not pollute test results.
             `catch` (\(_::IOException) -> return $ multiLineDiffHaskell left right)
       saveRemove fp =
           removeFile fp `catch` (\e -> hPutStrLn stderr (show (e::IOException)))
@@ -177,6 +166,7 @@ multiLineDiff cfg left right =
                                                      fromSecond right
                                   (left, []) -> noColor left
                  | otherwise -> noColor l
+            [] -> noColor l
           where
             fromFirst s = dc_fromFirst cfg s
             fromSecond s = dc_fromSecond cfg s
@@ -200,9 +190,6 @@ Haskell diff, in case the diff tool is not present
 multiLineDiffHaskell :: String -> String -> ColorString
 multiLineDiffHaskell left right =
     noColor $ ppDiff $ D.getGroupedDiff (lines left) (lines right) -- this code is now part of the Diff library (hence the >0.3 in Cabal)
-
-debug = trace
--- debug _ x = x
 
 main =
     do args <- getArgs

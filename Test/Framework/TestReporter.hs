@@ -9,7 +9,7 @@ Further, it defines the standard test reporters for HTF's various output formats
 -}
 module Test.Framework.TestReporter (
 
-    IsParallel(..), IsJsonOutput(..), IsXmlOutput(..),
+    IsParallel(..), isParallelFromBool, IsJsonOutput(..), IsXmlOutput(..),
     reportAllTests, reportGlobalStart, reportTestStart, reportTestResult,
     reportGlobalResults, defaultTestReporters
 
@@ -18,7 +18,6 @@ module Test.Framework.TestReporter (
 import Test.Framework.TestTypes
 import Test.Framework.Location
 import Test.Framework.Colors
-import Test.Framework.Utils
 import Test.Framework.JsonOutput
 import Test.Framework.XmlOutput
 
@@ -27,7 +26,6 @@ import Control.Monad.RWS
 import Text.PrettyPrint
 
 import qualified Data.Text.IO as T
-import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 
 -- | Invokes 'tr_reportAllTests' on all test reporters registered.
@@ -61,6 +59,11 @@ reportGlobalResults t l1 l2 l3 l4 =
        mapM_ (\r -> tr_reportGlobalResults r t l1 l2 l3 l4) reps
 
 data IsParallel = Parallel | NonParallel
+
+isParallelFromBool :: Bool -> IsParallel
+isParallelFromBool True = Parallel
+isParallelFromBool False = NonParallel
+
 data IsJsonOutput = JsonOutput | NoJsonOutput
 data IsXmlOutput = XmlOutput | NoXmlOutput
 
@@ -280,11 +283,6 @@ reportStringTR :: ReportLevel -> String -> TR ()
 reportStringTR level msg =
     do tc <- ask
        reportGen tc level (\h -> hPutStrLn h msg)
-
-reportBytesTR :: ReportLevel -> BS.ByteString -> TR ()
-reportBytesTR level msg =
-    do tc <- ask
-       reportGen tc level (\h -> BS.hPut h msg)
 
 reportLazyBytesTR :: ReportLevel -> BSL.ByteString -> TR ()
 reportLazyBytesTR level msg =

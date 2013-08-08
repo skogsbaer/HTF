@@ -1,11 +1,9 @@
 * Relase 0.11
-** Fallback parser
+** New parser
 *** Use the lexer of haskell-src-exts
-** Parallel test execution
-*** Options --threads=[N] or -j [N]
-*** Some test cannot be run in parallel
-
 ** Support for timeouts (--timeout=SECS)
 ** External interface for integrating other test frameworks
 *** Support for Smallcheck and/or Lazy Smallcheck
 *** Configuration file for htfpp
+**** Expansion templates (extensible!)
+** Support for benchmarks

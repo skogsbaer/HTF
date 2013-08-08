@@ -141,6 +141,8 @@ Executable htfpp
                     haskell-src-exts >= 1.11,
                     old-time >= 1.0,
                     directory >= 1.0,
+                    array,
+                    random >= 1.0,
                     base == 4.*
   Other-Modules:
     Test.Framework.Preprocessor
@@ -148,7 +150,7 @@ Executable htfpp
   Default-language:  Haskell2010
 
 Library
-  Build-Depends:    
+  Build-Depends:
                     HUnit >= 1.2.5,
                     QuickCheck >= 2.3,
                     base == 4.*,
@@ -167,6 +169,7 @@ Library
                     aeson >= 0.6,
                     text >= 0.11,
                     old-time >= 1.0,
+                    array,
                     xmlgen >= 0.6
   if !os(windows)
     Build-Depends:   unix >= 2.4
@@ -184,6 +187,7 @@ Library
     Test.Framework.Pretty
     Test.Framework.JsonOutput
     Test.Framework.XmlOutput
+    Test.Framework.ThreadPool
   Other-Modules:
     Test.Framework.TestManagerInternal
     Test.Framework.Utils
@@ -191,7 +195,7 @@ Library
     Test.Framework.Diff
     Test.Framework.Process
   Default-language:  Haskell2010
-  -- Ghc-Options: -fwarn-unused-imports -fwarn-unused-binds
+  Ghc-Options: -W -Werror -fwarn-unused-imports -fwarn-unused-binds -fwarn-unused-matches -fwarn-unused-do-bind -fwarn-wrong-do-bind
 
 Test-Suite TestHTF
   Main-is:           TestHTF.hs
@@ -211,3 +215,13 @@ Test-Suite TestHTF
   Default-language:  Haskell2010
   Other-Modules:
     Foo.A, Foo.B, TestHTFHunitBackwardsCompatible
+
+Test-Suite TestThreadPools
+  Main-is:           ThreadPoolTest.hs
+  Type:              exitcode-stdio-1.0
+  Hs-Source-Dirs:    tests
+  Build-depends:     base == 4.*,
+                     random,
+                     mtl,
+                     HTF
+  Default-language:  Haskell2010

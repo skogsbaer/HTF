@@ -45,13 +45,9 @@ module Test.Framework.BlackBoxTest (
 import Prelude hiding ( catch )
 #endif
 
-import System.IO
 import System.Exit
-import Control.Exception
 import System.Directory
-import Data.List ( mapAccumL )
 import qualified Data.Map as Map
-import Control.Monad
 
 import Test.Framework.Process
 import Test.Framework.TestManager
