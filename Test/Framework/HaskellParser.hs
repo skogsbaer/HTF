@@ -105,15 +105,51 @@ parse originalFileName input =
          of the symbols _:"'>!#$%&*+./<=>?@\^|-~ with at most length 8 -}
       parseMode :: Parser.ParseMode
       parseMode = Parser.ParseMode { Parser.parseFilename = originalFileName
+                                   , Parser.baseLanguage = Ext.Haskell2010
                                    , Parser.ignoreLanguagePragmas = False
                                    , Parser.ignoreLinePragmas = False
-                                   , Parser.extensions =
-                                       Ext.glasgowExts ++
-                                       [Ext.BangPatterns, Ext.TemplateHaskell]
-                                   , Parser.fixities =
-                                       Just (Fix.baseFixities ++
-                                             Fix.infixr_ 0 ["==>"])
+                                   , Parser.extensions = (map Ext.EnableExtension
+                                                              extensions)
+                                   , Parser.fixities = Nothing
                                    }
+      extensions =
+       [ Ext.ForeignFunctionInterface
+       , Ext.UnliftedFFITypes
+       , Ext.GADTs
+       , Ext.ScopedTypeVariables
+       , Ext.UnboxedTuples
+       , Ext.TypeSynonymInstances
+       , Ext.StandaloneDeriving
+       , Ext.DeriveDataTypeable
+       , Ext.FlexibleContexts
+       , Ext.FlexibleInstances
+       , Ext.ConstrainedClassMethods
+       , Ext.MultiParamTypeClasses
+       , Ext.FunctionalDependencies
+       , Ext.MagicHash
+       , Ext.PolymorphicComponents
+       , Ext.ExistentialQuantification
+       , Ext.UnicodeSyntax
+       , Ext.PostfixOperators
+       , Ext.PatternGuards
+       , Ext.LiberalTypeSynonyms
+       , Ext.RankNTypes
+       , Ext.ImpredicativeTypes
+       , Ext.TypeOperators
+       , Ext.RecursiveDo
+       , Ext.ParallelListComp
+       , Ext.EmptyDataDecls
+       , Ext.KindSignatures
+       , Ext.GeneralizedNewtypeDeriving
+       , Ext.TypeFamilies
+       , Ext.NamedFieldPuns
+       , Ext.RecordWildCards
+       , Ext.PackageImports
+       , Ext.ViewPatterns
+       , Ext.TupleSections
+       , Ext.NondecreasingIndentation
+       , Ext.DoAndIfThenElse
+       ]
       unknownLoc :: Syn.SrcLoc
       unknownLoc = Syn.SrcLoc originalFileName 0 0
       transformModule (Syn.Module _ (Syn.ModuleName moduleName) _ _ _ imports decls)
