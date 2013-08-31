@@ -1,9 +1,11 @@
-* Relase 0.11
+* Relase 0.12
 ** New parser
-*** Use the lexer of haskell-src-exts
+*** Add support for MultiWayIf and LambdaCase to haskell-src-exts
+*** Allow default Fixities for haskell-src-exts
 ** Support for timeouts (--timeout=SECS)
 ** External interface for integrating other test frameworks
 *** Support for Smallcheck and/or Lazy Smallcheck
 *** Configuration file for htfpp
 **** Expansion templates (extensible!)
 ** Support for benchmarks
+** Collect testmodules with a new preprocessor (new preprocessor runs on the main module)
