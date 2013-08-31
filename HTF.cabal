@@ -81,10 +81,8 @@ Description:
       the imported tests. See "Test.Framework.Tutorial" for details.
 
 Tested-With:
-                  GHC==7.0.4,
-                  GHC==7.2.1,
                   GHC==7.4.2,
-                  GHC==7.6.1
+                  GHC==7.6.2
 Build-Type:       Simple
 Cabal-Version:    >= 1.10
 Extra-Source-Files:
@@ -138,7 +136,7 @@ Source-Repository head
 Executable htfpp
   Main-Is:          HTFPP.hs
   Build-Depends:    cpphs >= 1.12,
-                    haskell-src-exts >= 1.11,
+                    haskell-src-exts >= 1.14,
                     old-time >= 1.0,
                     directory >= 1.0,
                     array,
@@ -155,7 +153,7 @@ Library
                     QuickCheck >= 2.3,
                     base == 4.*,
                     random >= 1.0,
-                    containers >= 0.3,
+                    containers >= 0.5,
                     process >= 1.0,
                     directory >= 1.0,
                     mtl >= 1.1 && < 2.2,
@@ -224,4 +222,11 @@ Test-Suite TestThreadPools
                      random,
                      mtl,
                      HTF
+  Default-language:  Haskell2010
+
+Test-Suite Tutorial
+  Type:              exitcode-stdio-1.0
+  Main-is:           Tutorial.hs
+  Hs-Source-Dirs:    tests
+  Build-depends:     base >= 4, HTF
   Default-language:  Haskell2010

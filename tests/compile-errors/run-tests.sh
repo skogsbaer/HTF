@@ -2,7 +2,7 @@
 
 cd "$(dirname $0)"
 
-FLAGS="-hide-all-packages -package HTF -package base --make"
+FLAGS="-hide-all-packages -package base -package-conf ../../dist/package.conf.inplace -package HTF --make"
 lineno=7
 
 function check()

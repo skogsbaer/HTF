@@ -1,22 +1,14 @@
 #!/bin/bash
 
 set -e
+ghc-pkg unregister HTF || true
 
-cabal configure --enable-tests
-cabal build
-cabal test
-cabal install
+cabal configure --enable-tests || exit 1
+cabal build || exit 1
+cabal test || exit 1
+cabal install || exit 1
 
-cd tests
-mkdir -p dist/build/htfpp
-cp ../dist/build/htfpp/htfpp dist/build/htfpp
-cabal configure --enable-tests
-cabal build
-cabal test
-
-cd ../sample
-mkdir -p dist/build/htfpp
-cp ../dist/build/htfpp/htfpp dist/build/htfpp
-cabal configure --enable-tests
-cabal build
-cabal test
+cd sample
+cabal configure --enable-tests || exit 1
+cabal build || exit 1
+cabal test || exit 1

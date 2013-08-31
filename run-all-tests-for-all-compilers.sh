@@ -30,6 +30,10 @@ do
         result="FAIL"
     fi
     RESULT="$RESULT\nResult for GHC version $ghc_version: $result"
+    if [ $ecode -ne 0 ]
+    then
+        exit 1
+    fi
 done
 
 echo

@@ -6,7 +6,6 @@ Build-type:    Simple
 Executable test
   Main-is: TestHTF.hs
   Build-depends:     base >= 4,
-                     HTF >= 0.11,
                      bytestring >= 0.9,
                      aeson >= 0.6,
                      unordered-containers >= 0.2,
@@ -18,6 +17,7 @@ Executable test
                      regex-compat >= 0.92
   Default-language:  Haskell2010
   Ghc-options: -threaded
+  Hs-source-dirs: ., ..
 
 Test-Suite tutorial
   Type:              exitcode-stdio-1.0
