@@ -24,7 +24,7 @@ module Test.Framework.ThreadPool (
 
 ) where
 
-import Control.Exception
+import qualified Control.Exception as Ex
 import Control.Monad
 import Control.Monad.Trans
 import Control.Concurrent
@@ -34,7 +34,7 @@ import System.Random
 
 type ThreadPoolEntry m a b = ( m a        -- pre-action, must not throw exceptions
                              , a -> IO b  -- action
-                             , Either SomeException b -> m ()  -- post-action, must not throw exceptions
+                             , Either Ex.SomeException b -> m ()  -- post-action, must not throw exceptions
                              )
 
 data ThreadPool m a b
@@ -55,10 +55,10 @@ runSequentially entries =
     where
       run (pre, action, post) =
           do a <- pre
-             b <- liftIO $ try (action a)
+             b <- liftIO $ Ex.try (action a)
              post b
 
-data WorkItem m b = Work (IO b) (Either SomeException b -> m ()) | Done
+data WorkItem m b = Work (IO b) (Either Ex.SomeException b -> m ()) | Done
 
 instance Show (WorkItem m b) where
     show (Work _ _) = "Work"
@@ -119,11 +119,11 @@ runParallel n entries =
                                  do debug ("worker" ++ show i ++ " exiting!")
                                     return ()
                              Work action post ->
-                                 do res <- try action
-                                    _ <- evaluate res
+                                 do res <- Ex.try action
+                                    _ <- Ex.evaluate res
                                     writeNamedChan fromWorker (WorkResult (post res) toWorker)
                                     loop
-             _ <- forkIO (loop `catch` (\(e::BlockedIndefinitelyOnMVar) ->
+             _ <- forkIO (loop `Ex.catch` (\(e::Ex.BlockedIndefinitelyOnMVar) ->
                                           fail ("worker " ++ show i ++ ": " ++ show e)))
              return toWorker
 
@@ -210,6 +210,6 @@ runTestParallel nEntries n =
           when (exp == act) $ fail (what ++ " wrong, did not expected " ++ show exp)
 
 threadPoolTest (i, j) nEntries =
-    mapM (runTestParallel nEntries) [i..j] `catch`
-             (\(e::BlockedIndefinitelyOnMVar) ->
+    mapM (runTestParallel nEntries) [i..j] `Ex.catch`
+             (\(e::Ex.BlockedIndefinitelyOnMVar) ->
                   fail ("main-thread blocked " ++ show e))
