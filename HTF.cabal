@@ -193,7 +193,7 @@ Library
     Test.Framework.Diff
     Test.Framework.Process
   Default-language:  Haskell2010
-  Ghc-Options: -W -Werror -fwarn-unused-imports -fwarn-unused-binds -fwarn-unused-matches -fwarn-unused-do-bind -fwarn-wrong-do-bind
+  Ghc-Options: -W -fwarn-unused-imports -fwarn-unused-binds -fwarn-unused-matches -fwarn-unused-do-bind -fwarn-wrong-do-bind
 
 Test-Suite TestHTF
   Main-is:           TestHTF.hs
