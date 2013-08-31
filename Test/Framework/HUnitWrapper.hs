@@ -60,6 +60,8 @@ module Test.Framework.HUnitWrapper (
   assertThrowsSome_, assertThrowsSomeVerbose_,
   assertThrowsIO_, assertThrowsIOVerbose_,
   assertThrowsSomeIO_, assertThrowsSomeIOVerbose_,
+  assertThrowsM_, assertThrowsMVerbose_,
+  assertThrowsSomeM_, assertThrowsSomeMVerbose_,
 
   -- * Assertions on Either values
   assertLeft_, assertLeftVerbose_,
@@ -83,7 +85,9 @@ module Test.Framework.HUnitWrapper (
 ) where
 
 import Control.Exception
+import qualified Control.Exception.Lifted as ExL
 import Control.Monad.Trans.Control
+import Control.Monad.Trans
 import qualified Test.HUnit as HU hiding ( assertFailure )
 import qualified Language.Haskell.Exts.Pretty as HE
 import qualified Language.Haskell.Exts.Parser as HE
@@ -342,17 +346,7 @@ CreateAssertions(assertEmpty, [a])
 _assertThrowsIO_ :: Exception e
                  => String -> Location -> String -> IO a -> (e -> Bool) -> HU.Assertion
 _assertThrowsIO_ name loc s x f =
-    do res <- try x
-       case res of
-         Right _ -> assertFailure__ loc (mkMsg name s
-                                   ("failed at " ++ showLoc loc ++
-                                    ": no exception was thrown"))
-         Left e -> if f e then return ()
-                   else assertFailure__ loc (mkMsg name s
-                                       ("failed at " ++
-                                        showLoc loc ++
-                                        ": wrong exception was thrown: " ++
-                                        show e))
+    _assertThrowsM_ name loc s x f
 DocAssertion(assertThrowsIO, Fail if executing the 'IO' action does not
              throw an exception satisfying the given predicate @(e -> Bool)@.)
 CreateAssertionsCtx(assertThrowsIO, Exception e, IO a -> (e -> Bool))
@@ -362,6 +356,34 @@ _assertThrowsSomeIO_ name loc s x = _assertThrowsIO_ name loc s x (\ (_e::SomeEx
 DocAssertion(assertThrowsSomeIO, Fail if executing the 'IO' action does not
              throw an exception.)
 CreateAssertions(assertThrowsSomeIO, IO a)
+
+_assertThrowsM_ :: (MonadBaseControl IO m, MonadIO m, Exception e)
+                => String -> Location -> String -> m a -> (e -> Bool) -> m ()
+_assertThrowsM_ name loc s x f =
+    do res <- ExL.try x
+       case res of
+         Right _ -> liftIO $
+                    assertFailure__ loc (mkMsg name s
+                                   ("failed at " ++ showLoc loc ++
+                                    ": no exception was thrown"))
+         Left e -> if f e then return ()
+                   else liftIO $
+                        assertFailure__ loc (mkMsg name s
+                                       ("failed at " ++
+                                        showLoc loc ++
+                                        ": wrong exception was thrown: " ++
+                                        show e))
+DocAssertion(assertThrowsM, Fail if executing the 'm' action does not
+             throw an exception satisfying the given predicate @(e -> Bool)@.)
+CreateAssertionsGeneric(assertThrowsM, (MonadBaseControl IO m, MonadIO m, Exception e) =>,
+                        m a -> (e -> Bool), m ())
+
+_assertThrowsSomeM_ :: (MonadBaseControl IO m, MonadIO m)
+                    => String -> Location -> String -> m a -> m ()
+_assertThrowsSomeM_ name loc s x = _assertThrowsM_ name loc s x (\ (_e::SomeException) -> True)
+DocAssertion(assertThrowsSomeM, Fail if executing the 'm' action does not
+             throw an exception.)
+CreateAssertionsGeneric(assertThrowsSomeM, (MonadBaseControl IO m, MonadIO m) =>, m a, m ())
 
 _assertThrows_ :: Exception e
                => String -> Location -> String -> a -> (e -> Bool) -> HU.Assertion
