@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {- |
 
 See <http://pzolee.blogs.balabit.com/2012/11/jenkins-vs-junit-xml-format/>
@@ -16,7 +17,11 @@ module Test.Framework.XmlOutput (
 
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.List as List
+#if MIN_VERSION_containers(0,5,0)
 import qualified Data.Map.Strict as Map
+#else
+import qualified Data.Map as Map
+#endif
 import qualified Data.Text as T
 import Text.Printf
 
