@@ -1,3 +1,6 @@
+* 0.11.0.1 (2013-09-03)
+  - support for containers-0.4.* (thanks to M. Snoyman)
+
 * 0.11.0.0 (2013-08-31)
   - fallback to pure Haskell diff if no diff binary found (thanks JP Moresmau)
   - use cabal test feature (thanks Tom Brow)
