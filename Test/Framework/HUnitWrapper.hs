@@ -490,10 +490,10 @@ CreateAssertions(assertNothingNoShow, Maybe a)
 -- In this case, if @i@ is not positive, you will get the location of the caller.
 --
 -- /Note:/ Don't use subAssert_ directly but use the preprocessor macro @subAssert@.
-subAssert_ :: MonadBaseControl IO m => Location -> m () -> m()
+subAssert_ :: MonadBaseControl IO m => Location -> m a -> m a
 subAssert_ loc ass = unitTestSubAssert loc Nothing ass
 
 
 -- | Same as 'subAssert_' but with an additional error message.
-subAssertVerbose_ :: MonadBaseControl IO m => Location -> String -> m () -> m ()
+subAssertVerbose_ :: MonadBaseControl IO m => Location -> String -> m a -> m a
 subAssertVerbose_ loc msg ass = unitTestSubAssert loc (Just msg) ass

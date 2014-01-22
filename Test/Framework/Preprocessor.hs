@@ -26,6 +26,7 @@ import qualified Data.List as List
 import System.IO ( hPutStrLn, stderr )
 import Language.Preprocessor.Cpphs ( runCpphs,
                                      CpphsOptions(..),
+                                     BoolOptions(..),
                                      defaultCpphsOptions)
 
 import Test.Framework.HaskellParser
@@ -200,6 +201,7 @@ transform hunitBackwardsCompat originalFileName input =
                                     defines defaultCpphsOptions ++
                                     assertDefines hunitBackwardsCompat (mi_htfPrefix info) ++
                                     nameDefines info
+                              , boolopts = (boolopts defaultCpphsOptions) { lang = False } -- lex as text
                               }
       additionalCode :: ModuleInfo -> String
       additionalCode info =

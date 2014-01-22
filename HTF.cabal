@@ -1,5 +1,5 @@
 Name:             HTF
-Version:          0.11.0.1
+Version:          0.11.1.0
 License:          LGPL
 License-File:     LICENSE
 Copyright:        (c) 2005-2012 Stefan Wehr
@@ -156,7 +156,7 @@ Library
                     containers >= 0.4.2.1,
                     process >= 1.0,
                     directory >= 1.0,
-                    mtl >= 1.1 && < 2.2,
+                    mtl >= 1.1,
                     monad-control >= 0.3,
                     lifted-base >= 0.1,
                     pretty >= 1.0,
