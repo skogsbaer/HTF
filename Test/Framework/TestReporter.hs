@@ -204,13 +204,13 @@ reportGlobalResultsH t passedL pendingL failedL errorL =
                       errors +++ "   " +++ showC error)
        when (pending > 0) $
           reportTR Info
-              ("\n" +++ pendings +++ renderTestNames' (reverse pendingL))
+              ("\n" +++ pendings +++ "\n" +++ renderTestNames' (reverse pendingL))
        when (failed > 0) $
           reportTR Info
-              ("\n" +++ failures +++ renderTestNames' (reverse failedL))
+              ("\n" +++ failures +++ "\n" +++ renderTestNames' (reverse failedL))
        when (error > 0) $
           reportTR Info
-              ("\n" +++ errors +++ renderTestNames' (reverse errorL))
+              ("\n" +++ errors +++ "\n" +++ renderTestNames' (reverse errorL))
        reportStringTR Info ("\nTotal execution time: " ++ show t ++ "ms")
     where
       showC x = noColor (show x)
