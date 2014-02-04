@@ -201,7 +201,7 @@ transform hunitBackwardsCompat originalFileName input =
                                     defines defaultCpphsOptions ++
                                     assertDefines hunitBackwardsCompat (mi_htfPrefix info) ++
                                     nameDefines info
-                              , boolopts = (boolopts defaultCpphsOptions) { lang = False } -- lex as text
+                              , boolopts = (boolopts defaultCpphsOptions) { lang = True } -- lex as haskell
                               }
       additionalCode :: ModuleInfo -> String
       additionalCode info =
