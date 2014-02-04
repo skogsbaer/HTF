@@ -1,5 +1,5 @@
 Name:             HTF
-Version:          0.11.1.0
+Version:          0.11.1.1
 License:          LGPL
 License-File:     LICENSE
 Copyright:        (c) 2005-2012 Stefan Wehr
@@ -209,6 +209,7 @@ Test-Suite TestHTF
                      filepath >= 1.1,
                      directory >= 1.0,
                      regex-compat >= 0.92,
+                     random,
                      HTF
   Default-language:  Haskell2010
   Other-Modules:
