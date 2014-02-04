@@ -6,8 +6,8 @@ then
 fi
 mkdir -p dist/build/htfpp || exit 1
 cp ../dist/build/htfpp/htfpp dist/build/htfpp || exit 1
-cabal configure || exit 1
-cabal build || exit 1
+cabal-1.16.0 configure || exit 1
+cabal-1.16.0 build || exit 1
 dist/build/test/test || exit 1
 echo "Tests ok"
 

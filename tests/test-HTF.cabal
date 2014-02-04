@@ -14,7 +14,21 @@ Executable test
                      directory >= 1.0,
                      filepath >= 1.1,
                      process >= 1.0,
-                     regex-compat >= 0.92
+                     regex-compat >= 0.92,
+                     random,
+                     mtl,
+                     pretty,
+                     containers,
+                     xmlgen,
+                     unix,
+                     array,
+                     old-time,
+                     lifted-base,
+                     monad-control,
+                     HUnit,
+                     QuickCheck,
+                     Diff,
+                     haskell-src-exts
   Default-language:  Haskell2010
   Ghc-options: -threaded
   Hs-source-dirs: ., ..
