@@ -1,4 +1,6 @@
 {-# OPTIONS_GHC -F -pgmF ./dist/build/htfpp/htfpp #-}
+module Tutorial where
+
 import System.Environment ( getArgs )
 import System.Exit ( exitWith )
 import Test.Framework

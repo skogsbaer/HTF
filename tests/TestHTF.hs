@@ -19,7 +19,6 @@
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 -- 02111-1307, USA.
 --
-
 import Test.Framework
 import Test.Framework.TestManager
 import Test.Framework.BlackBoxTest
@@ -45,9 +44,10 @@ import {-@ HTF_TESTS @-} qualified TestHTFHunitBackwardsCompatible
 import {-@ HTF_TESTS @-} qualified Foo.A as A
 import {-@ HTF_TESTS @-} Foo.B
 
+import Tutorial hiding (main)
+
 data T = A | B
        deriving Eq
-
 {-
 stringGap = "hello \
             \world!"
