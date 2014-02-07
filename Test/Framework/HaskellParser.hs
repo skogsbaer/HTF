@@ -21,9 +21,6 @@ import Data.Maybe
 import Data.Char ( isSpace, isDigit )
 import qualified Data.List as List
 import Control.Exception ( evaluate, catch, SomeException )
-#if !MIN_VERSION_base(4,6,0)
-import Prelude hiding ( catch )
-#endif
 
 import qualified Language.Haskell.Exts as Exts
 import qualified Language.Haskell.Exts.Parser as Parser
@@ -39,10 +36,12 @@ type Name = String
 
 data Decl = Decl { decl_loc :: Location
                  , decl_name :: Name }
+                  deriving (Show)
 
 data Pragma = Pragma { pr_name :: String
                      , pr_args :: String
                      , pr_loc :: Location }
+                  deriving (Show)
 
 data ParseResult a = ParseOK a | ParseError Location String
 
@@ -50,11 +49,13 @@ data Module = Module { mod_name :: Name
                      , mod_imports :: [ImportDecl]
                      , mod_decls :: [Decl]
                      , mod_htfPragmas :: [Pragma] }
+                  deriving (Show)
 
 data ImportDecl = ImportDecl { imp_moduleName :: Name
                              , imp_qualified :: Bool
                              , imp_alias :: Maybe Name
                              , imp_loc :: Location }
+                  deriving (Show)
 
 -- Returns for lines of the form '# <number> "<filename>"'
 -- (see http://gcc.gnu.org/onlinedocs/cpp/Preprocessor-Output.html#Preprocessor-Output)

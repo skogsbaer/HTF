@@ -1,7 +1,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 --
--- Copyright (c) 2009-2012 Stefan Wehr - http://www.stefanwehr.de
+-- Copyright (c) 2009-2014 Stefan Wehr - http://www.stefanwehr.de
 --
 -- This library is free software; you can redistribute it and/or
 -- modify it under the terms of the GNU Lesser General Public
@@ -20,6 +21,7 @@
 
 module Test.Framework.Preprocessor ( transform, progName ) where
 
+import qualified Data.Text as T
 import Data.Char ( toLower, isSpace, isDigit )
 import Data.Maybe ( mapMaybe )
 import qualified Data.List as List
@@ -109,11 +111,14 @@ data ModuleInfo = ModuleInfo { mi_htfPrefix  :: String
                              , mi_htfImports :: [ImportDecl]
                              , mi_defs       :: [Definition]
                              , mi_moduleName :: String }
+                  deriving (Show)
 
 data Definition = TestDef String Location String
                 | PropDef String Location String
+                  deriving (Show)
 
 data ImportOrPragma = IsImport ImportDecl | IsPragma Pragma
+                  deriving (Show)
 
 analyse :: FilePath -> String
         -> IO (ParseResult ModuleInfo)
@@ -167,14 +172,76 @@ analyse originalFileName inputString =
       getLine (IsImport imp) = (lineNumber (imp_loc imp))
       getLine (IsPragma prag) = (lineNumber (pr_loc prag))
 
+breakOn :: T.Text -> T.Text -> Maybe (T.Text, T.Text)
+breakOn t1 t2 =
+    let (pref, suf) = T.breakOn t1 t2
+    in if pref == t2
+       then Nothing
+       else Just (pref, T.drop (T.length t1) suf)
+
+poorMensAnalyse :: FilePath -> String -> IO ModuleInfo
+poorMensAnalyse originalFileName inputString =
+    let (modName, defs, impDecls) = doAna (zip [1..] (lines inputString)) ("", [], [])
+    in return $ ModuleInfo "Test.Framework." impDecls defs modName
+    where
+      doAna [] (modName, revDefs, impDecls) = (modName, reverse revDefs, reverse impDecls)
+      doAna ((lineNo, line) : restLines) (modName, defs, impDecls) =
+          case line of
+            'm':'o':'d':'u':'l':'e':rest ->
+                if null modName
+                then doAna restLines (takeWhile (not . isSpace) (dropWhile isSpace rest),
+                                      defs, impDecls)
+                else doAna restLines (modName, defs, impDecls)
+            't':'e':'s':'t':'_':rest ->
+                let testName = takeWhile (not . isSpace) rest
+                    def = TestDef testName loc ("test_" ++ testName)
+                in doAna restLines (modName, def : defs, impDecls)
+            'p':'r':'o':'p':'_':rest ->
+                let testName = takeWhile (not . isSpace) rest
+                    def = PropDef testName loc ("prop_" ++ testName)
+                in doAna restLines (modName, def : defs, impDecls)
+            'i':'m':'p':'o':'r':'t':rest ->
+                case breakOn importPragma (T.pack rest) of
+                  Just (pref, suf) ->
+                      case poorMensParseImportLine loc (pref `T.append` suf) of
+                        Just impDecl -> doAna restLines (modName, defs, impDecl : impDecls)
+                        Nothing -> doAna restLines (modName, defs, impDecls)
+                  Nothing -> doAna restLines (modName, defs, impDecls)
+            _ -> doAna restLines (modName, defs, impDecls)
+          where
+            loc = makeLoc originalFileName lineNo
+            importPragma = T.pack "{-@ HTF_TESTS @-}"
+
+poorMensParseImportLine :: Location -> T.Text -> Maybe ImportDecl
+poorMensParseImportLine loc t =
+    let (q, rest) =
+            case breakOn "qualified" t of
+              Nothing -> (False, T.strip t)
+              Just (_, rest) -> (True, T.strip rest)
+        modName = T.takeWhile (not . isSpace) rest
+        afterModName = T.strip $ T.drop (T.length modName) rest
+    in case breakOn "as" afterModName of
+         Nothing -> Just $ ImportDecl (T.unpack modName) q Nothing loc
+         Just (_, suf) ->
+             let strippedSuf = T.strip suf
+                 alias = if T.null strippedSuf then Nothing else Just (T.unpack strippedSuf)
+             in Just $ ImportDecl (T.unpack modName) q alias loc
+
 transform :: Bool -> FilePath -> String -> IO String
 transform hunitBackwardsCompat originalFileName input =
     do analyseResult <- analyse originalFileName input
        case analyseResult of
          ParseError loc err ->
-             do warn ("Parsing of " ++ originalFileName ++ " failed at line "
-                      ++ show (lineNumber loc) ++ ": " ++ err)
-                preprocess (ModuleInfo "" [] [] "UNKNOWN_MODULE") input
+             do poorInfo <- poorMensAnalyse originalFileName input
+                warn ("Parsing of " ++ originalFileName ++ " failed at line "
+                      ++ show (lineNumber loc) ++ ": " ++ err ++
+                      "\nFalling back to poor man's parser. This parser may " ++
+                      "return incomplete results. The result returned was: " ++
+                      "\nPrefix: " ++ mi_htfPrefix poorInfo ++
+                      "\nModule name: " ++ mi_moduleName poorInfo ++
+                      "\nDefinitions: " ++ show (mi_defs poorInfo) ++
+                      "\nHTF imports: " ++ show (mi_htfImports poorInfo))
+                preprocess poorInfo input
          ParseOK info ->
              preprocess info input
     where
