@@ -21,6 +21,9 @@ import Data.Maybe
 import Data.Char ( isSpace, isDigit )
 import qualified Data.List as List
 import Control.Exception ( evaluate, catch, SomeException )
+#if !MIN_VERSION_base(4,6,0)
+import Prelude hiding ( catch )
+#endif
 
 import qualified Language.Haskell.Exts as Exts
 import qualified Language.Haskell.Exts.Parser as Parser
