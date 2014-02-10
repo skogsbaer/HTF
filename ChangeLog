@@ -1,3 +1,6 @@
+* 0.11.2.1 (2014-02-10)
+  - fixed compile error under ghc 7.4
+
 * 0.11.2 (2014-02-07)
   - fall-back to poor men's parser if parsing with haskell-src-exts fails
 
