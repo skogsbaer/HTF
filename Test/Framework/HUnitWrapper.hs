@@ -54,6 +54,7 @@ module Test.Framework.HUnitWrapper (
   assertListsEqualAsSets_, assertListsEqualAsSetsVerbose_,
   assertNotEmpty_, assertNotEmptyVerbose_,
   assertEmpty_, assertEmptyVerbose_,
+  assertElem_, assertElemVerbose_,
 
   -- * Assertions for exceptions
   assertThrows_, assertThrowsVerbose_,
@@ -338,6 +339,17 @@ _assertEmpty_ name loc s (_:_) =
 _assertEmpty_ _ _ _ [] = return ()
 DocAssertion(assertEmpty, Fail if the given list is a non-empty list.)
 CreateAssertions(assertEmpty, [a])
+
+_assertElem_ :: (Eq a, Show a) => String -> Location -> String -> a -> [a] -> HU.Assertion
+_assertElem_ name loc s x l =
+    if x `elem` l
+    then return ()
+    else assertFailure__ loc (mkMsg name s
+                              ("failed at " ++ showLoc loc ++
+                              "\n element: " ++ show x ++
+                               "\n list:   " ++ show l))
+DocAssertion(assertElem, Fail if the given element is not in the list.)
+CreateAssertionsCtx(assertElem, (Eq a, Show a), a -> [a])
 
 --
 -- Assertions for Exceptions
