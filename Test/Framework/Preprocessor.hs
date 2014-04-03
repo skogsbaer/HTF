@@ -21,6 +21,7 @@
 
 module Test.Framework.Preprocessor ( transform, progName ) where
 
+import Control.Monad
 import qualified Data.Text as T
 import Data.Char ( toLower, isSpace, isDigit )
 import Data.Maybe ( mapMaybe )
@@ -33,6 +34,9 @@ import Language.Preprocessor.Cpphs ( runCpphs,
 
 import Test.Framework.HaskellParser
 import Test.Framework.Location
+
+_DEBUG_ :: Bool
+_DEBUG_ = False
 
 progName :: String
 progName = "htfpp"
@@ -106,6 +110,10 @@ assertDefines hunitBackwardsCompat prefix =
 warn :: String -> IO ()
 warn s =
     hPutStrLn stderr $ progName ++ " warning: " ++ s
+
+note :: String -> IO ()
+note s =
+    when _DEBUG_ $ hPutStrLn stderr $ progName ++ " note: " ++ s
 
 data ModuleInfo = ModuleInfo { mi_htfPrefix  :: String
                              , mi_htfImports :: [ImportDecl]
@@ -233,7 +241,7 @@ transform hunitBackwardsCompat originalFileName input =
        case analyseResult of
          ParseError loc err ->
              do poorInfo <- poorMensAnalyse originalFileName input
-                warn ("Parsing of " ++ originalFileName ++ " failed at line "
+                note ("Parsing of " ++ originalFileName ++ " failed at line "
                       ++ show (lineNumber loc) ++ ": " ++ err ++
                       "\nFalling back to poor man's parser. This parser may " ++
                       "return incomplete results. The result returned was: " ++
