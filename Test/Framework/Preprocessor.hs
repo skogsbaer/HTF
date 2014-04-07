@@ -295,8 +295,7 @@ transform hunitBackwardsCompat originalFileName input =
           " " ++ name
       codeForDef pref (PropDef s loc name) =
           locPragma loc ++ pref ++ "makeQuickCheckTest " ++ (show s) ++ " " ++
-          codeForLoc pref loc ++ " (" ++ pref ++ "testableAsAssertion (" ++
-          pref ++ "asTestableWithQCArgs " ++ name ++ "))"
+          codeForLoc pref loc ++ " (" ++ pref ++ "qcAssertion " ++ name ++ ")"
       locPragma :: Location -> String
       locPragma loc =
           "{-# LINE " ++ show (lineNumber loc) ++ " " ++ show (fileName loc) ++ " #-}\n    "

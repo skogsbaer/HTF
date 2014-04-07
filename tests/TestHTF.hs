@@ -137,7 +137,7 @@ prop_fail' =
     where prop xs = xs == (reverse xs)
               where types = xs::[Int]
 
-prop_error' :: TestableWithQCArgs
+prop_error' :: WithQCArgs Bool
 prop_error' = withQCArgs changeArgs $ (error "Lisa" :: Bool)
 
 checkOutput output =
