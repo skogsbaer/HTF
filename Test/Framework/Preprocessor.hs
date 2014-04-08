@@ -70,32 +70,36 @@ nameDefines info =
      (importedTestListName, importedTestListFullName (mi_moduleName info))]
 
 allAsserts :: [String]
-allAsserts = ["assertBool"
-             ,"assertEqual"
-             ,"assertEqualPretty"
-             ,"assertEqualNoShow"
-             ,"assertNotEqual"
-             ,"assertNotEqualPretty"
-             ,"assertNotEqualNoShow"
-             ,"assertListsEqualAsSets"
-             ,"assertElem"
-             ,"assertEmpty"
-             ,"assertNotEmpty"
-             ,"assertThrows"
-             ,"assertThrowsSome"
-             ,"assertThrowsIO"
-             ,"assertThrowsSomeIO"
-             ,"assertThrowsM"
-             ,"assertThrowsSomeM"
-             ,"assertLeft"
-             ,"assertLeftNoShow"
-             ,"assertRight"
-             ,"assertRightNoShow"
-             ,"assertJust"
-             ,"assertNothing"
-             ,"assertNothingNoShow"
-             ,"subAssert"
-             ]
+allAsserts =
+    withGs ["assertBool"
+           ,"assertEqual"
+           ,"assertEqualPretty"
+           ,"assertEqualNoShow"
+           ,"assertNotEqual"
+           ,"assertNotEqualPretty"
+           ,"assertNotEqualNoShow"
+           ,"assertListsEqualAsSets"
+           ,"assertElem"
+           ,"assertEmpty"
+           ,"assertNotEmpty"
+           ,"assertLeft"
+           ,"assertLeftNoShow"
+           ,"assertRight"
+           ,"assertRightNoShow"
+           ,"assertJust"
+           ,"assertNothing"
+           ,"assertNothingNoShow"
+           ,"subAssert"
+           ,"subAssertVerbose"
+           ] ++ ["assertThrows"
+                ,"assertThrowsSome"
+                ,"assertThrowsIO"
+                ,"assertThrowsSomeIO"
+                ,"assertThrowsM"
+                ,"assertThrowsSomeM"]
+    where
+      withGs l =
+          concatMap (\s -> [s, 'g':s]) l
 
 assertDefines :: Bool -> String -> [(String, String)]
 assertDefines hunitBackwardsCompat prefix =

@@ -5,6 +5,9 @@ then
     cabal clean || exit 1
 fi
 mkdir -p dist/build/htfpp || exit 1
+pushd ..
+cabal build || exit 1
+popd
 cp ../dist/build/htfpp/htfpp dist/build/htfpp || exit 1
 cabal-1.16.0 configure || exit 1
 cabal-1.16.0 build || exit 1

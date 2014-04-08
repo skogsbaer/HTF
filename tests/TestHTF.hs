@@ -20,6 +20,7 @@
 -- 02111-1307, USA.
 --
 import Test.Framework
+import Test.Framework.Location
 import Test.Framework.TestManager
 import Test.Framework.BlackBoxTest
 
@@ -140,34 +141,50 @@ prop_fail' =
 prop_error' :: WithQCArgs Bool
 prop_error' = withQCArgs changeArgs $ (error "Lisa" :: Bool)
 
+test_genericAssertions =
+    case test1 of
+      AssertOk _ -> fail "did not expect AssertOk"
+      AssertFailed stack ->
+          do assertEqual 2 (length stack)
+             let [se1, se2] = stack
+             assertNothing (ase_message se1)
+             loc1 <- assertJust (ase_location se1)
+             _ <- assertJust (ase_message se2)
+             loc2 <- assertJust (ase_location se2)
+             assertEqual (fileName loc1) (fileName loc2)
+             assertEqual (lineNumber loc1 + 1) (lineNumber loc2)
+    where
+      test1 = gsubAssert test2
+      test2 = gassertEqual 1 (2::Int)
+
 checkOutput output =
     do bsl <- BSL.readFile output
        let jsons = map (fromJust . J.decode) (splitJson bsl)
        check jsons (J.object ["type" .= J.String "test-results"])
                    (J.object ["failures" .= J.toJSON (31::Int)
-                             ,"passed" .= J.toJSON (12::Int)
+                             ,"passed" .= J.toJSON (13::Int)
                              ,"pending" .= J.toJSON (2::Int)
                              ,"errors" .= J.toJSON (1::Int)])
        check jsons (J.object ["type" .= J.String "test-end"
                              ,"test" .= J.object ["flatName" .= J.String "Main:diff"]])
-                   (J.object ["test" .= J.object ["location" .= J.object ["file" .= J.String "TestHTF.hs$"
-                                                                         ,"line" .= J.toJSON (105::Int)]]
-                             ,"location" .= J.object ["file" .= J.String "TestHTF.hs$"
-                                                     ,"line" .= J.toJSON (106::Int)]])
+                   (J.object ["test" .= J.object ["location" .= J.object ["file" .= J.String "TestHTF.hs"
+                                                                         ,"line" .= J.toJSON (106::Int)]]
+                             ,"location" .= J.object ["file" .= J.String "TestHTF.hs"
+                                                     ,"line" .= J.toJSON (107::Int)]])
        check jsons (J.object ["type" .= J.String "test-end"
                              ,"test" .= J.object ["flatName" .= J.String "Foo.A:a"]])
-                   (J.object ["test" .= J.object ["location" .= J.object ["file" .= J.String "Foo/A.hs$"
+                   (J.object ["test" .= J.object ["location" .= J.object ["file" .= J.String "Foo/A.hs"
                                                                          ,"line" .= J.toJSON (10::Int)]]
                              ,"location" .= J.object ["file" .= J.String "./Foo/A.hs"
                                                      ,"line" .= J.toJSON (11::Int)]])
        check jsons (J.object ["type" .= J.String "test-end"
                              ,"test" .= J.object ["flatName" .= J.String "Main:subAssert"]])
                    (J.object ["callers" .= J.toJSON [J.object ["message" .= J.Null
-                                                              ,"location" .= J.object ["file" .= J.String "TestHTF.hs$"
-                                                                                      ,"line" .= J.toJSON (94::Int)]]
+                                                              ,"location" .= J.object ["file" .= J.String "TestHTF.hs"
+                                                                                      ,"line" .= J.toJSON (95::Int)]]
                                                     ,J.object ["message" .= J.String "I'm another sub"
-                                                              ,"location" .= J.object ["file" .= J.String "TestHTF.hs$"
-                                                                                      ,"line" .= J.toJSON (96::Int)]]]])
+                                                              ,"location" .= J.object ["file" .= J.String "TestHTF.hs"
+                                                                                      ,"line" .= J.toJSON (97::Int)]]]])
     where
       check jsons pred assert =
           case filter (\j -> matches j pred) jsons of

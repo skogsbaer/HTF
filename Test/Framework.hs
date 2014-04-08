@@ -33,6 +33,9 @@ module Test.Framework (
   -- * Quickcheck
   module Test.Framework.QuickCheckWrapper, TM.makeQuickCheckTest,
 
+  -- * Generic assertions
+  module Test.Framework.AssertM,
+
   -- * Organizing tests
   TM.makeTestSuite, TM.TestSuite, TM.htfMain, Loc.makeLoc
 
@@ -40,5 +43,6 @@ module Test.Framework (
 
 import Test.Framework.HUnitWrapper
 import Test.Framework.QuickCheckWrapper
+import Test.Framework.AssertM
 import qualified Test.Framework.TestManager as TM
 import qualified Test.Framework.Location as Loc
