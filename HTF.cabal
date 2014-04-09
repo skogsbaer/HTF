@@ -187,6 +187,7 @@ Library
     Test.Framework.JsonOutput
     Test.Framework.XmlOutput
     Test.Framework.ThreadPool
+    Test.Framework.AssertM
   Other-Modules:
     Test.Framework.TestManagerInternal
     Test.Framework.Utils
