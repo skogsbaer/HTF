@@ -71,7 +71,10 @@ defaultArgs = stdArgs { chatty = False }
 -- | Change the default 'Args' used to evaluate quick check properties.
 setDefaultArgs :: Args -> IO ()
 setDefaultArgs args =
-    atomicModifyIORef' qcState $ \state -> (state { qc_args = args }, ())
+    do force <- atomicModifyIORef qcState $ \state ->
+                  let newState = state { qc_args = args }
+                  in (newState, newState)
+       force `seq` return ()
 
 -- | Retrieve the 'Args' currently used per default when evaluating quick check properties.
 getCurrentArgs :: IO Args
