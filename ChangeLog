@@ -1,3 +1,9 @@
+* 0.11.3.4 (2014-04-10)
+  - completed changelog
+
+* 0.11.3.2 (2014-04-10)
+  - fix compile error (issue #34)
+
 * 0.11.3.1 (2014-04-09)
   - fix compile error under GHC 7.4 (fixes #33)
 
