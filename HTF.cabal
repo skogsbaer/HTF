@@ -169,7 +169,8 @@ Library
                     text >= 0.11,
                     old-time >= 1.0,
                     array,
-                    xmlgen >= 0.6
+                    xmlgen >= 0.6,
+                    base64-bytestring
   if !os(windows)
     Build-Depends:   unix >= 2.4
   Exposed-Modules:

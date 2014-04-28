@@ -36,6 +36,10 @@ import Test.Framework.Colors
 import qualified Test.HUnit.Lang as HU
 import Control.Monad.Trans.Control
 import qualified Control.Exception.Lifted as Exc
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+import qualified Data.ByteString.Base64 as Base64
+import qualified Data.ByteString.Char8 as BSC
 
 assertFailureHTF :: String -> Assertion
 -- Important: force the string argument, otherwise an error embedded
@@ -56,15 +60,42 @@ quickCheckTestPending m = assertFailureHTF (show (Pending, Just m))
 quickCheckTestPass :: String -> Assertion
 quickCheckTestPass m = assertFailureHTF (show (Pass, Just m))
 
-deserializeQuickCheckMsg :: String -> (TestResult, String)
+deserializeQuickCheckMsg :: String -> (TestResult, Maybe UnitTestResult, String)
 deserializeQuickCheckMsg msg =
     case readM msg of
       Nothing ->
-          (Error, msg)
+          (Error, Nothing, msg)
       Just (r, ms) ->
           case ms of
-            Nothing -> (r, "")
-            Just s -> (r, s)
+            Nothing -> (r, Nothing, "")
+            Just s ->
+                let (utr, msg) = extractUnitTestResult (T.pack s)
+                in (r, utr, T.unpack msg)
+    where
+      extractUnitTestResult t =
+          case breakOn (T.pack "<<<HTF<<<") t of
+            Nothing -> (Nothing, t)
+            Just (pref, rest) ->
+                case breakOn (T.pack ">>>HTF>>>") rest of
+                  Nothing -> (Nothing, t)
+                  Just (serUtr, suf) ->
+                      case Base64.decode (BSC.pack (T.unpack serUtr)) of
+                        Left _ -> (Nothing, t)
+                        Right bs ->
+                            case T.decodeUtf8' bs of
+                              Left _ -> (Nothing, t)
+                              Right x ->
+                                  case readM (T.unpack x) of
+                                    Nothing -> (Nothing, t)
+                                    Just utr ->
+                                        (Just utr,
+                                         pref `T.append` suf)
+      breakOn x t =
+          case T.breakOn x t of
+            (pref, suf) ->
+                if T.null suf
+                then Nothing
+                else Just (pref, T.drop (T.length x) suf)
 
 -- This is a HACK: we encode location and pending information as a datatype
 -- that we show and parse later using read.

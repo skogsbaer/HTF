@@ -37,6 +37,12 @@ module Test.Framework.QuickCheckWrapper (
   -- * Pending properties
   qcPending,
 
+  -- * Auxiliary functions
+#if !MIN_VERSION_QuickCheck(2,7,0)
+  ioProperty,
+#endif
+  assertionAsProperty,
+
   -- * Internal functions
   qcAssertion
 
@@ -46,17 +52,22 @@ module Test.Framework.QuickCheckWrapper (
 import Prelude hiding ( catch )
 #endif
 import Control.Exception ( SomeException, Exception, Handler(..),
-                           throw, catch, catches, evaluate )
+                           throw, throwIO, catch, catches, evaluate )
 import Data.Typeable (Typeable)
 import Data.Char
 import qualified Data.List as List
 import System.IO.Unsafe (unsafePerformIO)
 import Data.IORef
+import qualified Data.ByteString.Char8 as BSC
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+import qualified Data.ByteString.Base64 as Base64
 
 import Test.QuickCheck
-
+import Test.QuickCheck.Property hiding (reason)
 import Test.Framework.TestManager
 import Test.Framework.TestManagerInternal
+import Test.HUnit.Lang (HUnitFailure(..))
 
 data QCState = QCState { qc_args :: !Args }
 
@@ -123,7 +134,8 @@ qcAssertion qc =
                                                in take (length s - length pendingSuffix) s
                               in quickCheckTestPending pendingMsg
                          else do let replay = "Replay argument: " ++ (show (show (Just (gen, size))))
-                                 quickCheckTestFail (Just (adjustOutput msg ++ "\n" ++ replay))
+                                     out = adjustOutput msg
+                                 quickCheckTestFail (Just (out ++ "\n" ++ replay))
                   Right (GaveUp { output=msg }) ->
                       quickCheckTestFail (Just (adjustOutput msg))
                   Right (NoExpectedFailure { output=msg }) ->
@@ -172,3 +184,17 @@ withQCArgs = WithQCArgs
 -- without removing it from the test suite and without deleting or commenting out the property code.
 qcPending :: Testable t => String -> t -> t
 qcPending msg _ = throw (QCPendingException msg)
+
+#if !MIN_VERSION_QuickCheck(2,7,0)
+ioProperty :: Testable prop => IO prop -> Property
+ioProperty = morallyDubiousIOProperty
+#endif
+
+assertionAsProperty :: IO () -> Property
+assertionAsProperty action =
+    ioProperty $ catch action transHUnitFail >> return True
+    where
+      transHUnitFail exc@(HUnitFailure msg) =
+          let exc' = "<<<HTF<<<" ++ (BSC.unpack $ Base64.encode $ T.encodeUtf8 $ T.pack msg)
+                     ++ ">>>HTF>>>"
+          in throwIO (HUnitFailure exc')

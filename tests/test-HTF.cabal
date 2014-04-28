@@ -28,7 +28,8 @@ Executable test
                      HUnit,
                      QuickCheck,
                      Diff,
-                     haskell-src-exts
+                     haskell-src-exts,
+                     base64-bytestring
   Default-language:  Haskell2010
   Ghc-options: -threaded
   Hs-source-dirs: ., ..

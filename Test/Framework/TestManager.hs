@@ -46,6 +46,7 @@ import Control.Monad.RWS
 import System.Exit (ExitCode(..), exitWith)
 import System.Environment (getArgs)
 import Control.Exception (finally)
+import Data.Maybe
 import qualified Data.List as List
 
 import System.IO
@@ -148,8 +149,14 @@ mkFlatTestRunner ft = (pre, action, post)
                                               | isFailure -> Fail
                                               | otherwise -> Error
                                    in (r, (utr_location utr, utr_callingLocations utr, utr_message utr, time))
-                              else let (r, s) = deserializeQuickCheckMsg msg'
-                                   in (r, (Nothing, [], noColor s, time))
+                              else let (r, mUnitTestResult, s) = deserializeQuickCheckMsg msg'
+                                       loc = join $ fmap utr_location mUnitTestResult
+                                       callers = fromMaybe [] $ fmap utr_callingLocations mUnitTestResult
+                                       msg =
+                                           case mUnitTestResult of
+                                             Just utr -> utr_message utr +++ noColor "\n" +++ noColor s
+                                             Nothing -> noColor s
+                                   in (r, (loc, callers, msg, time))
               rr = FlatTest
                      { ft_sort = ft_sort ft
                      , ft_path = ft_path ft
