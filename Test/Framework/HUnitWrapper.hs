@@ -103,7 +103,10 @@ module Test.Framework.HUnitWrapper (
 
   -- * Sub assertions
   subAssert_, subAssertVerbose_,
-  gsubAssert_, gsubAssertVerbose_
+  gsubAssert_, gsubAssertVerbose_,
+
+  -- * HUnit re-exports
+  HU.HUnitFailure
 
 ) where
 
@@ -113,6 +116,7 @@ import Control.Monad.Trans.Control
 import Control.Monad.Trans
 import qualified Language.Haskell.Exts.Pretty as HE
 import qualified Language.Haskell.Exts.Parser as HE
+import qualified Test.HUnit.Lang as HU
 
 import Data.List ( (\\) )
 import System.IO.Unsafe (unsafePerformIO)
@@ -359,10 +363,14 @@ _assertListsEqualAsSets_ name loc s expected actual =
         na = length actual
         in case () of
             _| ne /= na ->
-                 genericAssertFailure__ loc (mkMsg name s
-                                             ("failed at " ++ showLoc loc
-                                              ++ "\n expected length: " ++ show ne
-                                              ++ "\n actual length: " ++ show na))
+                 do let x = equalityFailedMessage (show expected) (show actual)
+                    genericAssertFailure__ loc (mkColorMsg name s
+                                                (noColor
+                                                 ("failed at " ++ showLoc loc
+                                                  ++ "\n expected length: " ++ show ne
+                                                  ++ "\n actual length: " ++ show na) +++
+                                                  (if maxLength x < 5000
+                                                   then x else emptyColorString)))
              | not (unorderedEq expected actual) ->
                  do let x = equalityFailedMessage (show expected) (show actual)
                     genericAssertFailure__ loc (mkColorMsg "assertSetEqual" s
