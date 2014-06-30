@@ -466,7 +466,7 @@ _assertThrowsSome_ name loc s x =
     _assertThrows_ name loc s x (\ (_e::SomeException) -> True)
 DocAssertionNoGVariant(assertThrowsSome, Fail if evaluating the expression of type @a@ does not
                        throw an exception.)
-CreateAssertionsNoGVariant(assertThrowsSome, IO a)
+CreateAssertionsNoGVariant(assertThrowsSome, a)
 
 --
 -- Assertions on Either
