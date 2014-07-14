@@ -128,7 +128,7 @@ data ModuleInfo = ModuleInfo { mi_htfPrefix  :: String
 
 data Definition = TestDef String Location String
                 | PropDef String Location String
-                  deriving (Show)
+                  deriving (Eq, Show)
 
 data ImportOrPragma = IsImport ImportDecl | IsPragma Pragma
                   deriving (Show)
@@ -197,7 +197,10 @@ poorMensAnalyse originalFileName inputString =
     let (modName, defs, impDecls) = doAna (zip [1..] (lines inputString)) ("", [], [])
     in return $ ModuleInfo "Test.Framework." impDecls defs modName
     where
-      doAna [] (modName, revDefs, impDecls) = (modName, reverse revDefs, reverse impDecls)
+      defEqByName (TestDef n1 _ _) (TestDef n2 _ _) = n1 == n2
+      defEqByName (PropDef n1 _ _) (PropDef n2 _ _) = n1 == n2
+      defEqByName _ _ = False
+      doAna [] (modName, revDefs, impDecls) = (modName, reverse (List.nubBy defEqByName revDefs), reverse impDecls)
       doAna ((lineNo, line) : restLines) (modName, defs, impDecls) =
           case line of
             'm':'o':'d':'u':'l':'e':rest ->
