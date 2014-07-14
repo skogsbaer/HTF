@@ -1,0 +1,92 @@
+# -*- mode: shell-script -*-
+
+OUT=$(mktemp /tmp/XXXXXX)
+ERR=$(mktemp /tmp/XXXXXX)
+ECODE="undefined"
+
+trap "rm -f $OUT $ERR" EXIT
+
+BASEDIR=$(cd $(dirname ${BASH_SOURCE[0]}) > /dev/null && pwd -P)
+rm -rf $BASEDIR/.HTF
+
+function do_fail()
+{
+    echo "FAIL: $@"
+    echo
+    echo "stdout:"
+    cat "$OUT"
+    echo
+    echo "stderr:"
+    cat "$ERR"
+    exit 1
+}
+
+function run_test()
+{
+    rm -f "$OUT" "$ERR"
+    echo "Running test $@"
+    $BASEDIR/../../dist/build/TestHTF/TestHTF "$@" > "$OUT" 2> "$ERR"
+    ECODE=$?
+}
+
+function check_success()
+{
+    if [ "$ECODE" == "undefined" ]
+    then
+        do_fail "Cannot check exit code, no test run yet"
+    elif [ "$ECODE" != "0" ]
+    then
+        do_fail "Expected zero exit code, given $ECODE"
+    fi
+}
+
+function check_fail()
+{
+    if [ "$ECODE" == "undefined" ]
+    then
+        do_fail "Cannot check exit code, no test run yet"
+    elif [ "$ECODE" == "0" ]
+    then
+        do_fail "Expected non-zero exit code, given $ECODE"
+    fi
+}
+
+function check_timeout()
+{
+    n=$(grep ^timeout "$OUT" | wc -l | sed 's/[ \t]//g')
+    exp="$1"
+    if [ -z "$exp" ]
+    then
+        exp=1
+    fi
+    if [ "$n" != "$exp" ]
+    then
+        do_fail "Expected $exp timeouts, found $n"
+    fi
+}
+
+function get_count()
+{
+    count=$(gawk -F ':' '/\* '"$1"':/ {print $2}' "$OUT" | sed 's/ //g')
+    test -z "$(echo $count | sed 's/[0-9]//g')" -a ! -z "$count" || do_fail "count of $1 is not a number"
+    echo $count
+}
+
+function check_counts()
+{
+    test -e "$OUT" || do_fail "Output file $OUT does not exist, no test run yet"
+    total=$(get_count "Tests")
+    passed=$(get_count "Passed")
+    pending=$(get_count "Pending")
+    failures=$(get_count "Failures")
+    errors=$(get_count "Errors")
+    timeout=$(get_count "Timed out")
+    filtered=$(get_count "Filtered")
+    test $total -eq $1 || do_fail "$total total tests, expected $1"
+    test $passed -eq $2 || do_fail "$passed passed tests, expected $2"
+    test $pending -eq $3 || do_fail "$pending pending tests, expected $3"
+    test $failures -eq $4 || do_fail "$failures failed tests, expected $4"
+    test $errors -eq $5 || do_fail "$errors error tests, expected $5"
+    test $timeout -eq $6 || do_fail "$errors timed-out tests, expected $6"
+    test $filtered -eq $7 || do_fail "$errors timed-out tests, expected $7"
+}

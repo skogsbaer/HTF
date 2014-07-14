@@ -1,4 +1,4 @@
-* Relase 0.12
+* Relase 0.13
 ** New parser
 *** Add support for MultiWayIf and LambdaCase to haskell-src-exts
 *** Allow default Fixities for haskell-src-exts

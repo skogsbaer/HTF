@@ -7,5 +7,5 @@ import Test.Framework
 
 #include "test.h"
 
-test_a =
+test_a_FAIL =
     assertEqual x y

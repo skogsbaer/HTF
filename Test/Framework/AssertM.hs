@@ -13,7 +13,7 @@ module Test.Framework.AssertM (
 import Data.Maybe
 import qualified Data.Text as T
 
-import Test.Framework.TestManagerInternal
+import Test.Framework.TestInterface
 import Test.Framework.Location
 import Test.Framework.Colors
 
@@ -23,8 +23,8 @@ class Monad m => AssertM m where
     genericSubAssert :: Location -> Maybe String -> m a -> m a
 
 instance AssertM IO where
-    genericAssertFailure__ loc s = unitTestFail (Just loc) s
-    genericSubAssert loc mMsg action = unitTestSubAssert loc mMsg action
+    genericAssertFailure__ loc s = failHTF (FullTestResult (Just loc) [] (Just s) (Just Fail))
+    genericSubAssert loc mMsg action = subAssertHTF loc mMsg action
 
 -- | Stack trace element for generic assertions.
 data AssertStackElem

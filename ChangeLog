@@ -1,3 +1,15 @@
+* 0.12.0
+  - support for several new commandline options:
+      --history=FILE              Path to the history file. Default: ./.HTF/<ProgramName>.history
+      --fail-fast                 Fail and abort test run as soon as the first test fails.
+      --sort-by-prev-time         Sort tests ascending by their execution of the previous test run (if available). Default: false
+      --max-prev-ms=MILLISECONDS  Do not try to execute tests that had a execution time greater than MILLISECONDS in a previous test run.
+      --max-cur-ms=MILLISECONDS   Abort a test that runs more than MILLISECONDS.
+      --prev-factor=DOUBLE        Abort a test that runs more than DOUBLE times slower than in a previous run.
+      --timeout-is-success        Do not regard a test timeout as an error.
+  - potential backward incompatibility: JSON output format changed,
+    several new keys were introduced.
+
 * 0.11.3.4 (2014-04-10)
   - completed changelog
 

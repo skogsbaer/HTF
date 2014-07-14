@@ -50,19 +50,19 @@ import System.Directory
 import qualified Data.Map as Map
 
 import Test.Framework.Process
+import Test.Framework.TestInterface
 import Test.Framework.TestManager
-import Test.Framework.TestManagerInternal
 import Test.Framework.Utils
 
 {- |
 The type of a function comparing the content of a file
 against a string, similar to the unix tool @diff@.
 The first parameter is the name of the file containing the
-expected output. If this parameter is 'Nothing', then no output
-is expected. The second parameter is the actual output produced.
+expected output. If this parameter is 'Nothing', then output
+should not be checked. The second parameter is the actual output produced.
 If the result is 'Nothing' then no difference was found.
 Otherwise, a 'Just' value contains a string explaining the
-different.
+difference.
 -}
 type Diff = Maybe FilePath -> String -> IO (Maybe String)
 
@@ -121,6 +121,9 @@ runBlackBoxTest bbt =
 endOfOutput :: String -> String
 endOfOutput s = "[end of " ++ s ++ "]"
 
+blackBoxTestFail :: String -> Assertion
+blackBoxTestFail s = failHTF $ mkFullTestResult Fail (Just s)
+
 {- |
 Use a value of this datatype to customize various aspects
 of your black box tests.
@@ -128,8 +131,8 @@ of your black box tests.
 data BBTArgs = BBTArgs { bbtArgs_stdinSuffix    :: String -- ^ File extension for the file used as stdin.
                        , bbtArgs_stdoutSuffix   :: String -- ^ File extension for the file specifying expected output on stdout.
                        , bbtArgs_stderrSuffix   :: String -- ^ File extension for the file specifying expected output on stderr.
-                       , bbtArgs_dynArgsName    :: String -- ^ Name of a file defining various arguments for executing the tests contained in a subdirectory of the test hierarchy. If a directory contains a such-named file, the arguments apply to all testfiles directly contained in this directory. See the documentation of 'blackBoxTests' for a specification of the argument file format.
-                       , bbtArgs_verbose        :: Bool   -- ^ Ge verbose or not.
+                       , bbtArgs_dynArgsName    :: String -- ^ Name of a file defining various arguments for executing the tests contained in a subdirectory of the test hierarchy. If a directory contains a such-named file, the arguments apply to all testfiles directly contained in this directory. See the documentation of 'blackBoxTests' for a specification of the argument file format. Default: BBTArgs
+                       , bbtArgs_verbose        :: Bool   -- ^ Be verbose or not.
                        , bbtArgs_stdoutDiff     :: Diff   -- ^ Diff program for comparing output on stdout with the expected value.
                        , bbtArgs_stderrDiff     :: Diff   -- ^ Diff program for comparing output on stderr with the expected value.
                        }
@@ -162,24 +165,21 @@ A default value for the 'Diff' datatype that simple resorts to the
 -}
 defaultDiff :: Diff
 defaultDiff expectFile real =
-    do mexe <- findExecutable "diff"
-       let exe = case mexe of
-                   Just p -> p
-                   Nothing -> error ("diff command not in path")
-       case expectFile of
-         Nothing | null real -> return Nothing
-                 | otherwise -> return $ Just ("no output expected, but " ++
-                                               "given:\n" ++ real ++
-                                               (endOfOutput "given output"))
-         Just expect ->
-             do (out, err, exitCode) <- popen exe ["-u", expect, "-"]
-                                          (Just real)
-                case exitCode of
-                  ExitSuccess -> return Nothing       -- no difference
-                  ExitFailure 1 ->                    -- files differ
-                      return $ Just (out ++ (endOfOutput "diff output"))
-                  ExitFailure i -> error ("diff command failed with exit " ++
-                                          "code " ++ show i ++ ": " ++ err)
+    case expectFile of
+      Nothing -> return Nothing
+      Just expect ->
+          do mexe <- findExecutable "diff"
+             let exe = case mexe of
+                         Just p -> p
+                         Nothing -> error ("diff command not in path")
+             (out, err, exitCode) <- popen exe ["-u", expect, "-"]
+                                        (Just real)
+             case exitCode of
+               ExitSuccess -> return Nothing       -- no difference
+               ExitFailure 1 ->                    -- files differ
+                   return $ Just (out ++ (endOfOutput "diff output"))
+               ExitFailure i -> error ("diff command failed with exit " ++
+                                       "code " ++ show i ++ ": " ++ err)
 
 {- |
 Collects all black box tests with the given file extension stored in a specific directory.
@@ -198,13 +198,15 @@ is @bbt-dir\/should-pass\/x.num@. Running the corresponding 'Test' invokes
 with @bbt-dir\/should-pass\/x.num@ as the last commandline argument.
 The other commandline arguments are taken from the flags specification given in the
 file whose name is stored in the 'bbtArgs_dynArgsName' field of the 'BBTArgs' record
-(see below).
+(see below, default is BBTArgs).
 
 If @bbt-dir\/should-pass\/x.in@ existed, its content
 would be used as stdin. The tests succeeds
 if the exit code of the program is zero and
 the output on stdout and stderr matches the contents of
 @bbt-dir\/should-pass\/x.out@ and @bbt-dir\/should-pass\/x.err@, respectively.
+If @bbt-dir\/should-pass\/x.out@ and @bbt-dir\/should-pass\/x.err@ do
+not exist, then output is not checked.
 
 The 'bbtArgs_dynArgsName' field of the 'BBTArgs' record specifies a filename
 that contains some more configuration flags for the tests. The following

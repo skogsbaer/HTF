@@ -93,6 +93,7 @@ data TestEndEventObj
       , te_callers :: [(Maybe String, Location)]
       , te_message :: T.Text
       , te_wallTimeMs :: Int
+      , te_timedOut :: Bool
       }
 
 instance J.ToJSON TestEndEventObj where
@@ -105,17 +106,10 @@ instance J.ToJSON TestEndEventObj where
                                              (te_callers te))
                  ,"result" .= J.toJSON (te_result te)
                  ,"message" .= J.toJSON (te_message te)
-                 ,"wallTime" .= J.toJSON (te_wallTimeMs te)]
+                 ,"wallTime" .= J.toJSON (te_wallTimeMs te)
+                 ,"timedOut" .= J.toJSON (te_timedOut te)]
 
 instance HTFJsonObj TestEndEventObj
-
-instance J.ToJSON TestResult where
-    toJSON r = J.String $
-        case r of
-          Pass -> "pass"
-          Pending -> "pending"
-          Fail -> "fail"
-          Error -> "error"
 
 -- "test-list" message
 data TestListObj
@@ -138,6 +132,8 @@ data TestResultsObj
       , tr_pending :: Int
       , tr_failed :: Int
       , tr_errors :: Int
+      , tr_timedOut :: Int
+      , tr_filtered :: Int
       }
 
 instance J.ToJSON TestResultsObj where
@@ -146,6 +142,8 @@ instance J.ToJSON TestResultsObj where
                         ,"pending" .= J.toJSON (tr_pending r)
                         ,"failures" .= J.toJSON (tr_failed r)
                         ,"errors" .= J.toJSON (tr_errors r)
+                        ,"timedOut" .= J.toJSON (tr_timedOut r)
+                        ,"filtered" .= J.toJSON (tr_filtered r)
                         ,"wallTime" .= J.toJSON (tr_wallTimeMs r)]
 
 instance HTFJsonObj TestResultsObj
@@ -195,20 +193,22 @@ mkTestEndEventObj ftr flatName =
     let r = ft_payload ftr
         msg = renderColorString (rr_message r) False
     in TestEndEventObj (mkTestObj ftr flatName) (rr_result r) (rr_location r) (rr_callers r)
-                       msg (rr_wallTimeMs r)
+                       msg (rr_wallTimeMs r) (rr_timeout r)
 
 mkTestListObj :: [(FlatTest, String)] -> TestListObj
 mkTestListObj l =
     TestListObj (map (\(ft, flatName) -> mkTestObj ft flatName) l)
 
-mkTestResultsObj :: Milliseconds -> Int -> Int -> Int -> Int -> TestResultsObj
-mkTestResultsObj time passed pending failed errors =
+mkTestResultsObj :: ReportGlobalResultsArg -> TestResultsObj
+mkTestResultsObj arg =
     TestResultsObj
-    { tr_wallTimeMs = time
-    , tr_passed = passed
-    , tr_pending = pending
-    , tr_failed = failed
-    , tr_errors = errors
+    { tr_wallTimeMs = rgra_timeMs arg
+    , tr_passed = length (rgra_passed arg)
+    , tr_pending = length (rgra_pending arg)
+    , tr_failed = length (rgra_failed arg)
+    , tr_errors = length (rgra_errors arg)
+    , tr_timedOut = length (rgra_timedOut arg)
+    , tr_filtered = length (rgra_filtered arg)
     }
 
 decodeObj :: HTFJsonObj a => a -> BSL.ByteString

@@ -9,16 +9,16 @@ tests, and for representing and reporting their results.
 module Test.Framework.TestTypes (
 
   -- * Organizing tests
-  TestID, Assertion, Test(..), TestOptions(..), AssertionWithTestOptions(..), WithTestOptions(..),
+  TestID, Test(..), TestOptions(..), AssertionWithTestOptions(..), WithTestOptions(..),
   TestSuite(..), TestSort(..),
   TestPath(..), GenFlatTest(..), FlatTest, TestFilter,
-  testPathToList, flatName, finalName, prefixName, defaultTestOptions, withOptions,
+  testPathToList, flatName, finalName, prefixName, defaultTestOptions, withOptions, historyKey,
 
   -- * Executing tests
   TR, TestState(..), initTestState, TestConfig(..), TestOutput(..),
 
   -- * Reporting results
-  ReportAllTests, ReportGlobalStart, ReportTestStart, ReportTestResult, ReportGlobalResults,
+  ReportAllTests, ReportGlobalStart, ReportTestStart, ReportTestResult, ReportGlobalResults, ReportGlobalResultsArg(..),
   TestReporter(..), emptyTestReporter, attachCallStack, CallStack,
 
   -- * Specifying results.
@@ -28,14 +28,14 @@ module Test.Framework.TestTypes (
 
 import Test.Framework.Location
 import Test.Framework.Colors
+import Test.Framework.History
+import Test.Framework.TestInterface
 
 import Control.Monad.RWS
 import System.IO
 import Data.Maybe
 import qualified Data.List as List
-
--- | An assertion is just an 'IO' action.
-type Assertion = IO ()
+import qualified Data.Text as T
 
 -- | Type for naming tests.
 type TestID = String
@@ -91,6 +91,7 @@ data TestSuite = TestSuite TestID [Test]
 -- | A type denoting the hierarchical name of a test.
 data TestPath = TestPathBase TestID
               | TestPathCompound (Maybe TestID) TestPath
+                deriving (Show)
 
 -- | Splits a 'TestPath' into a list of test identifiers.
 testPathToList :: TestPath -> [Maybe TestID]
@@ -130,18 +131,15 @@ data GenFlatTest a
       , ft_payload :: a               -- ^ A generic payload.
       }
 
+-- | Key of a flat test for the history database.
+historyKey :: GenFlatTest a -> T.Text
+historyKey ft = T.pack (flatName (ft_path ft))
+
 -- | Flattened representation of tests.
 type FlatTest = GenFlatTest (WithTestOptions Assertion)
 
 -- | A filter is a predicate on 'FlatTest'. If the predicate is 'True', the flat test is run.
 type TestFilter = FlatTest -> Bool
-
--- | The summary result of a test.
-data TestResult = Pass | Pending | Fail | Error
-                deriving (Show, Read, Eq)
-
--- | A type synonym for time in milliseconds.
-type Milliseconds = Int
 
 -- | A type for call-stacks
 type CallStack = [(Maybe String, Location)]
@@ -154,6 +152,7 @@ data RunResult
       , rr_callers :: CallStack       -- ^ Information about the callers of the location where the test failed
       , rr_message :: ColorString     -- ^ A message describing the result.
       , rr_wallTimeMs :: Milliseconds -- ^ Execution time in milliseconds.
+      , rr_timeout :: Bool            -- ^ 'True' if the execution took too long
       }
 
 attachCallStack :: ColorString -> CallStack -> ColorString
@@ -199,6 +198,13 @@ data TestConfig
       , tc_filter :: TestFilter         -- ^ Filter for the tests to run.
       , tc_reporters :: [TestReporter]  -- ^ Test reporters to use.
       , tc_useColors :: Bool            -- ^ Whether to use colored output
+      , tc_historyFile :: FilePath      -- ^ Path to history file
+      , tc_history :: TestHistory       -- ^ History of previous test runs
+      , tc_sortByPrevTime :: Bool       -- ^ Sort ascending by previous execution times
+      , tc_failFast :: Bool             -- ^ Stop test run as soon as one test fails
+      , tc_timeoutIsSuccess :: Bool     -- ^ Do not regard timeout as an error
+      , tc_maxSingleTestTime :: Maybe Milliseconds -- ^ Maximum time in milliseconds a single test is allowed to run
+      , tc_prevFactor :: Maybe Double   -- ^ Maximum factor a single test is allowed to run slower than its previous execution
       }
 
 instance Show TestConfig where
@@ -206,10 +212,20 @@ instance Show TestConfig where
         showParen (prec > 0) $
         showString "TestConfig { " .
         showString "tc_quiet=" . showsPrec 1 (tc_quiet tc) .
---        showString ", tc_threads=" . showsPrec 1 (tc_threads tc) .
+        showString ", tc_threads=" . showsPrec 1 (tc_threads tc) .
+        showString ", tc_shuffle=" . showsPrec 1 (tc_shuffle tc) .
         showString ", tc_output=" . showsPrec 1 (tc_output tc) .
+        showString ", tc_outputXml=" . showsPrec 1 (tc_outputXml tc) .
         showString ", tc_filter=<filter>" .
         showString ", tc_reporters=" . showsPrec 1 (tc_reporters tc) .
+        showString ", tc_useColors=" . showsPrec 1 (tc_useColors tc) .
+        showString ", tc_historyFile=" . showsPrec 1 (tc_historyFile tc) .
+        showString ", tc_history=" . showsPrec 1 (tc_history tc) .
+        showString ", tc_sortByPrevTime=" . showsPrec 1 (tc_sortByPrevTime tc) .
+        showString ", tc_failFast=" . showsPrec 1 (tc_failFast tc) .
+        showString ", tc_timeoutIsSuccess=" . showsPrec 1 (tc_timeoutIsSuccess tc) .
+        showString ", tc_maxSingleTestTime=" . showsPrec 1 (tc_maxSingleTestTime tc) .
+        showString ", tc_prevFactor=" . showsPrec 1 (tc_prevFactor tc) .
         showString " }"
 
 -- | A 'TestReporter' provides hooks to customize the output of HTF.
@@ -231,7 +247,7 @@ emptyTestReporter id =
       , tr_reportGlobalStart = \_ -> return ()
       , tr_reportTestStart = \_ -> return ()
       , tr_reportTestResult = \_ -> return ()
-      , tr_reportGlobalResults = \_ _ _ _ _ -> return ()
+      , tr_reportGlobalResults = \_ -> return ()
       }
 
 instance Show TestReporter where
@@ -252,10 +268,16 @@ type ReportTestStart = FlatTest -> TR ()
 -- | Reports the result of a single test.
 type ReportTestResult = FlatTestResult -> TR ()
 
+data ReportGlobalResultsArg
+    = ReportGlobalResultsArg
+    { rgra_timeMs :: Milliseconds
+    , rgra_passed :: [FlatTestResult]
+    , rgra_pending :: [FlatTestResult]
+    , rgra_failed :: [FlatTestResult]
+    , rgra_errors :: [FlatTestResult]
+    , rgra_timedOut :: [FlatTestResult]
+    , rgra_filtered :: [FlatTest]
+    }
+
 -- | Reports the overall results of all tests.
-type ReportGlobalResults = Milliseconds     -- ^ wall time in ms
-                        -> [FlatTestResult] -- ^ passed tests
-                        -> [FlatTestResult] -- ^ pending tests
-                        -> [FlatTestResult] -- ^ failed tests
-                        -> [FlatTestResult] -- ^ erroneous tests
-                        -> TR ()
+type ReportGlobalResults = ReportGlobalResultsArg -> TR ()

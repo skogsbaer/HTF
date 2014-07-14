@@ -172,23 +172,19 @@ millisToSeconds :: Milliseconds -> Seconds
 millisToSeconds millis =
     fromInteger (toInteger millis) / 1000.0
 
-mkGlobalResultsXml :: Milliseconds     -- ^ wall time in ms
-                   -> [FlatTestResult] -- ^ passed tests
-                   -> [FlatTestResult] -- ^ pending tests
-                   -> [FlatTestResult] -- ^ failed tests
-                   -> [FlatTestResult] -- ^ erroneous tests
-                   -> BSL.ByteString
-mkGlobalResultsXml t pass pending failed errors =
-    let nPassed = length pass
-        nPending = length pending
-        nFailed = length failed
-        nErrors = length errors
-        byModules = groupByModule (pass ++ pending ++ failed ++ errors)
+mkGlobalResultsXml :: ReportGlobalResultsArg -> BSL.ByteString
+mkGlobalResultsXml arg =
+    let nPassed = length (rgra_passed arg)
+        nPending = length (rgra_pending arg)
+        nFailed = length (rgra_failed arg)
+        nErrors = length (rgra_errors arg)
+        byModules = groupByModule (rgra_passed arg ++ rgra_pending arg ++
+                                   rgra_failed arg ++ rgra_errors arg)
         suites = map mkTestSuite (zip [0..] byModules)
         root = Testsuites
                { tss_tests = nPassed + nPending + nFailed + nErrors
                , tss_failures = nFailed
                , tss_errors = nErrors
-               , tss_time = millisToSeconds t
+               , tss_time = millisToSeconds (rgra_timeMs arg)
                , tss_suites = suites }
     in renderAsXml (JunitXmlOutput root)

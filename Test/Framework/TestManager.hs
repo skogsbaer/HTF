@@ -1,3 +1,5 @@
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 --
 -- Copyright (c) 2009-2012   Stefan Wehr - http://www.stefanwehr.de
 --
@@ -30,7 +32,7 @@ module Test.Framework.TestManager (
   module Test.Framework.TestTypes,
 
   -- * Running tests
-  htfMain, runTest, runTest', runTestWithArgs, runTestWithArgs',
+  htfMain, htfMainWithArgs, runTest, runTest', runTestWithArgs, runTestWithArgs',
   runTestWithOptions, runTestWithOptions', runTestWithConfig, runTestWithConfig',
 
   -- * Organzing tests
@@ -45,22 +47,25 @@ module Test.Framework.TestManager (
 import Control.Monad.RWS
 import System.Exit (ExitCode(..), exitWith)
 import System.Environment (getArgs)
-import Control.Exception (finally)
+import qualified Control.Exception as Exc
 import Data.Maybe
+import Data.Time
 import qualified Data.List as List
+import qualified Data.ByteString as BS
+import Data.IORef
+import Control.Concurrent
 
 import System.IO
 
-import qualified Test.HUnit.Lang as HU
-
 import Test.Framework.Utils
-import Test.Framework.TestManagerInternal
+import Test.Framework.TestInterface
 import Test.Framework.TestTypes
 import Test.Framework.CmdlineOptions
 import Test.Framework.TestReporter
 import Test.Framework.Location
 import Test.Framework.Colors
 import Test.Framework.ThreadPool
+import Test.Framework.History
 
 -- | Construct a test where the given 'Assertion' checks a quick check property.
 -- Mainly used internally by the htfpp preprocessor.
@@ -126,63 +131,190 @@ flattenTestSuite (AnonTestSuite ts) =
     let fts = concatMap flattenTest ts
     in map (\ft -> ft { ft_path = TestPathCompound Nothing (ft_path ft) }) fts
 
-mkFlatTestRunner :: FlatTest -> ThreadPoolEntry TR () (Maybe (Bool, String), Int)
-mkFlatTestRunner ft = (pre, action, post)
+maxRunTime :: TestConfig -> FlatTest -> Maybe Milliseconds
+maxRunTime tc ft =
+    let mt1 = tc_maxSingleTestTime tc
+        mt2 =
+            case tc_prevFactor tc of
+              Nothing -> Nothing
+              Just d ->
+                  case max (fmap htr_timeMs (findHistoricSuccessfulTestResult (historyKey ft) (tc_history tc)))
+                           (fmap htr_timeMs (findHistoricTestResult (historyKey ft) (tc_history tc)))
+                  of
+                    Nothing -> Nothing
+                    Just t -> Just $ ceiling (fromInteger (toInteger t) * d)
+    in case (mt1, mt2) of
+         (Just t1, Just t2) -> Just (min t1 t2)
+         (_, Nothing) -> mt1
+         (Nothing, _) -> mt2
+
+-- | HTF uses this function to execute the given assertion as a HTF test.
+performTestHTF :: Assertion -> IO FullTestResult
+performTestHTF action =
+    do action
+       return (mkFullTestResult Pass Nothing)
+     `Exc.catches`
+      [Exc.Handler (\(HTFFailure res) -> return res)
+      ,Exc.Handler handleUnexpectedException]
+    where
+      handleUnexpectedException exc =
+          case Exc.fromException exc of
+            Just (async :: Exc.AsyncException) ->
+                case async of
+                  Exc.StackOverflow -> exceptionAsError exc
+                  _ -> Exc.throwIO exc
+            _ -> exceptionAsError exc
+      exceptionAsError exc =
+          return (mkFullTestResult Error (Just $ show (exc :: Exc.SomeException)))
+
+data TimeoutResult a
+    = TimeoutResultOk a
+    | TimeoutResultException Exc.SomeException
+    | TimeoutResultTimeout
+
+timeout :: Int -> IO a -> IO (Maybe a)
+timeout microSecs action
+    | microSecs < 0 = fmap Just action
+    | microSecs == 0 = return Nothing
+    | otherwise =
+        do resultChan <- newChan
+           finishedVar <- newIORef False
+           workerTid <- forkIO (wrappedAction resultChan finishedVar)
+           _ <- forkIO (threadDelay microSecs >> writeChan resultChan TimeoutResultTimeout)
+           res <- readChan resultChan
+           case res of
+             TimeoutResultTimeout ->
+                 do atomicModifyIORef finishedVar (\_ -> (True, ()))
+                    killThread workerTid
+                    return Nothing
+             TimeoutResultOk x ->
+                 return (Just x)
+             TimeoutResultException exc ->
+                 Exc.throwIO exc
+    where
+      wrappedAction resultChan finishedVar =
+          Exc.mask $ \restore ->
+                   (do x <- restore action
+                       writeChan resultChan (TimeoutResultOk x))
+                   `Exc.catch`
+                   (\(exc::Exc.SomeException) ->
+                        do b <- shouldReraiseException exc finishedVar
+                           if b then Exc.throwIO exc else writeChan resultChan (TimeoutResultException exc))
+      shouldReraiseException exc finishedVar =
+          case Exc.fromException exc of
+            Just (async :: Exc.AsyncException) ->
+                case async of
+                  Exc.ThreadKilled -> atomicModifyIORef finishedVar (\old -> (old, old))
+                  _ -> return False
+            _ -> return False
+
+data PrimTestResult
+    = PrimTestResultNoTimeout FullTestResult
+    | PrimTestResultTimeout
+
+mkFlatTestRunner :: TestConfig -> FlatTest -> ThreadPoolEntry TR () (PrimTestResult, Milliseconds)
+mkFlatTestRunner tc ft = (pre, action, post)
     where
       pre = reportTestStart ft
-      action _ = measure $ HU.performTestCase (wto_payload (ft_payload ft))
+      action _ =
+          let run = performTestHTF (wto_payload (ft_payload ft))
+          in case maxRunTime tc ft of
+               Nothing ->
+                   do (res, time) <- measure run
+                      return (PrimTestResultNoTimeout res, time)
+               Just maxMs ->
+                    do mx <- timeout (1000 * maxMs) $ measure run
+                       case mx of
+                         Nothing -> return (PrimTestResultTimeout, maxMs)
+                         Just (res, time) ->
+                             return (PrimTestResultNoTimeout res, time)
       post excOrResult =
-          let (testResult, (mLoc, callers, msg, time)) =
+          let (testResult, time) =
                  case excOrResult of
-                   Left exc -> (Error, (Nothing,
-                                        [],
-                                        noColor ("Running test unexpectedly failed: " ++ show exc),
-                                        (-1)))
+                   Left exc ->
+                       (FullTestResult
+                        { ftr_location = Nothing
+                        , ftr_callingLocations = []
+                        , ftr_message = Just $ noColor ("Running test unexpectedly failed: " ++ show exc)
+                        , ftr_result = Just Error
+                        }
+                       ,(-1))
                    Right (res, time) ->
                        case res of
-                         Nothing -> (Pass, (Nothing, [], emptyColorString, time))
-                         Just (isFailure, msg') ->
-                           if ft_sort ft /= QuickCheckTest
-                              then let utr = deserializeHUnitMsg msg'
-                                       r = case () of
-                                             _| utr_pending utr -> Pending
-                                              | isFailure -> Fail
-                                              | otherwise -> Error
-                                   in (r, (utr_location utr, utr_callingLocations utr, utr_message utr, time))
-                              else let (r, mUnitTestResult, s) = deserializeQuickCheckMsg msg'
-                                       loc = join $ fmap utr_location mUnitTestResult
-                                       callers = fromMaybe [] $ fmap utr_callingLocations mUnitTestResult
-                                       msg =
-                                           case mUnitTestResult of
-                                             Just utr -> utr_message utr +++ noColor "\n" +++ noColor s
-                                             Nothing -> noColor s
-                                   in (r, (loc, callers, msg, time))
+                         PrimTestResultTimeout ->
+                             (FullTestResult
+                              { ftr_location = Nothing
+                              , ftr_callingLocations = []
+                              , ftr_message = Just $ colorize warningColor "timeout"
+                              , ftr_result = Nothing
+                              }
+                             ,time)
+                         PrimTestResultNoTimeout res ->
+                             let res' =
+                                     if isNothing (ftr_message res) && isNothing (ftr_result res)
+                                     then res { ftr_message = Just (colorize warningColor "timeout") }
+                                     else res
+                             in (res', time)
+              (sumRes, isTimeout) =
+                  case ftr_result testResult of
+                    Just x -> (x, False)
+                    Nothing -> (if tc_timeoutIsSuccess tc then Pass else Error, True)
               rr = FlatTest
+
                      { ft_sort = ft_sort ft
                      , ft_path = ft_path ft
                      , ft_location = ft_location ft
-                     , ft_payload = RunResult testResult mLoc callers msg time }
+                     , ft_payload = RunResult sumRes (ftr_location testResult)
+                                              (ftr_callingLocations testResult)
+                                              (fromMaybe emptyColorString (ftr_message testResult))
+                                              time isTimeout
+                     }
           in do modify (\s -> s { ts_results = rr : ts_results s })
                 reportTestResult rr
+                return (stopFlag sumRes)
+      stopFlag result =
+          if not (tc_failFast tc)
+          then DoNotStop
+          else case result of
+                 Pass -> DoNotStop
+                 Pending -> DoNotStop
+                 Fail -> DoStop
+                 Error -> DoStop
 
-runAllFlatTests :: [FlatTest] -> TR ()
-runAllFlatTests tests =
+runAllFlatTests :: TestConfig -> [FlatTest] -> TR ()
+runAllFlatTests tc tests' =
     do reportGlobalStart tests
        tc <- ask
        case tc_threads tc of
          Nothing ->
-             let entries = map mkFlatTestRunner tests
+             let entries = map (mkFlatTestRunner tc) tests
              in tp_run sequentialThreadPool entries
          Just i ->
              let (ptests, stests) = List.partition (\t -> to_parallel (wto_options (ft_payload t))) tests
-                 pentries' = map mkFlatTestRunner ptests
-                 sentries = map mkFlatTestRunner stests
+                 pentries' = map (mkFlatTestRunner tc) ptests
+                 sentries = map (mkFlatTestRunner tc) stests
              in do tp <- parallelThreadPool i
                    pentries <- if tc_shuffle tc
                                then liftIO (shuffleIO pentries')
                                else return pentries'
                    tp_run tp pentries
                    tp_run sequentialThreadPool sentries
+    where
+      tests = sortTests tests'
+      sortTests ts =
+          if not (tc_sortByPrevTime tc)
+          then ts
+          else map snd $ List.sortBy compareTests (map (\t -> (historyKey t, t)) ts)
+      compareTests (t1, _) (t2, _) =
+          case (max (fmap htr_timeMs (findHistoricSuccessfulTestResult t1 (tc_history tc)))
+                    (fmap htr_timeMs (findHistoricTestResult t1 (tc_history tc)))
+               ,max (fmap htr_timeMs (findHistoricSuccessfulTestResult t2 (tc_history tc)))
+                    (fmap htr_timeMs (findHistoricTestResult t2 (tc_history tc))))
+          of
+            (Just t1, Just t2) -> compare t1 t2
+            (Just _, Nothing) -> GT
+            (Nothing, Just _) -> LT
+            (Nothing, Nothing) -> EQ
 
 -- | Run something testable using the 'Test.Framework.TestConfig.defaultCmdlineOptions'.
 runTest :: TestableHTF t => t              -- ^ Testable thing
@@ -238,13 +370,17 @@ runTestWithOptions' opts t =
                    (if opts_listTests opts
                       then let fts = filter (opts_filter opts) (flatten t)
                            in return (runRWST (reportAllTests fts) tc initTestState >> return (), ExitSuccess)
-                      else runTestWithConfig' tc t)
-               return (printSummary `finally` cleanup tc, ecode)
+                      else do (printSummary, ecode, history) <- runTestWithConfig' tc t
+                              storeHistory (tc_historyFile tc) history
+                              return (printSummary, ecode))
+               return (printSummary `Exc.finally` cleanup tc, ecode)
     where
       cleanup tc =
           case tc_output tc of
             TestOutputHandle h True -> hClose h
             _ -> return ()
+      storeHistory file history =
+          BS.writeFile file (serializeTestHistory history)
 
 -- | Runs something testable with the given 'TestConfig'.
 -- The result is 'ExitSuccess' if all tests were executed successfully,
@@ -253,32 +389,59 @@ runTestWithOptions' opts t =
 --
 -- A test is /successful/ if the test terminates and no assertion fails.
 -- A test is said to /fail/ if an assertion fails but no other error occur.
-runTestWithConfig :: TestableHTF t => TestConfig -> t -> IO ExitCode
+runTestWithConfig :: TestableHTF t => TestConfig -> t -> IO (ExitCode, TestHistory)
 runTestWithConfig tc t =
-    do (printSummary, ecode) <- runTestWithConfig' tc t
+    do (printSummary, ecode, history) <- runTestWithConfig' tc t
        printSummary
-       return ecode
+       return (ecode, history)
 
 -- | Runs something testable with the given 'TestConfig'. Does not
 -- print the overall test results but returns an 'IO' action for doing so.
 -- See 'runTestWithConfig' for a specification of the 'ExitCode' result.
-runTestWithConfig' :: TestableHTF t => TestConfig -> t -> IO (IO (), ExitCode)
+runTestWithConfig' :: TestableHTF t => TestConfig -> t -> IO (IO (), ExitCode, TestHistory)
 runTestWithConfig' tc t =
-     do ((_, s, _), time) <-
+     do let allTests = flatten t
+            activeTests = filter (tc_filter tc) allTests
+            filteredTests = filter (not . tc_filter tc) allTests
+        startTime <- getCurrentTime
+        ((_, s, _), time) <-
             measure $
-            runRWST (runAllFlatTests (filter (tc_filter tc) (flatten t))) tc initTestState
+            runRWST (runAllFlatTests tc activeTests) tc initTestState
         let results = reverse (ts_results s)
             passed = filter (\ft -> (rr_result . ft_payload) ft == Pass) results
             pending = filter (\ft -> (rr_result . ft_payload) ft == Pending) results
             failed = filter (\ft -> (rr_result . ft_payload) ft == Fail) results
             error = filter (\ft -> (rr_result . ft_payload) ft == Error) results
+            timedOut = filter (\ft -> (rr_timeout . ft_payload) ft) results
+            arg = ReportGlobalResultsArg
+                  { rgra_timeMs = time
+                  , rgra_passed = passed
+                  , rgra_pending = pending
+                  , rgra_failed = failed
+                  , rgra_errors = error
+                  , rgra_timedOut = timedOut
+                  , rgra_filtered = filteredTests
+    }
         let printSummary =
-                runRWST (reportGlobalResults time passed pending failed error) tc (TestState [] (ts_index s)) -- keep index from run
+                runRWST (reportGlobalResults arg) tc (TestState [] (ts_index s)) -- keep index from run
+            !newHistory = updateHistory startTime results (tc_history tc)
         return (printSummary >> return (),
                 case () of
                    _| length failed == 0 && length error == 0 -> ExitSuccess
                     | length error == 0 -> ExitFailure 1
-                    | otherwise -> ExitFailure 2)
+                    | otherwise -> ExitFailure 2
+               ,newHistory)
+    where
+      updateHistory :: UTCTime -> [FlatTestResult] -> TestHistory -> TestHistory
+      updateHistory time results history =
+          let runHistory = mkTestRunHistory time (map (\res -> HistoricTestResult {
+                                                                 htr_testId = historyKey res
+                                                               , htr_result = rr_result (ft_payload res)
+                                                               , htr_timedOut = rr_timeout (ft_payload res)
+                                                               , htr_timeMs = rr_wallTimeMs (ft_payload res)
+                                                               })
+                                                      results)
+          in updateTestHistory runHistory history
 
 -- | Runs something testable by parsing the commandline arguments as test options
 -- (using 'parseTestArgs'). Exits with the exit code returned by 'runTestWithArgs'.
@@ -286,5 +449,11 @@ runTestWithConfig' tc t =
 htfMain :: TestableHTF t => t -> IO ()
 htfMain tests =
     do args <- getArgs
-       ecode <- runTestWithArgs args tests
+       htfMainWithArgs args tests
+
+-- | Runs something testable by parsing the commandline arguments as test options
+-- (using 'parseTestArgs'). Exits with the exit code returned by 'runTestWithArgs'.
+htfMainWithArgs :: TestableHTF t => [String] -> t -> IO ()
+htfMainWithArgs args tests =
+    do ecode <- runTestWithArgs args tests
        exitWith ecode

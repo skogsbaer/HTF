@@ -4,4 +4,4 @@ module Foo.B (htf_thisModulesTests) where
 
 import qualified Test.Framework as HTF
 
-test_b = assertEqual 1 1
+test_b_OK = assertEqual 1 1

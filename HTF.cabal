@@ -1,5 +1,5 @@
 Name:             HTF
-Version:          0.11.4.0
+Version:          0.12.0.0
 License:          LGPL
 License-File:     LICENSE
 Copyright:        (c) 2005-2012 Stefan Wehr
@@ -170,15 +170,19 @@ Library
                     old-time >= 1.0,
                     array,
                     xmlgen >= 0.6,
-                    base64-bytestring
+                    base64-bytestring,
+                    vector,
+                    time
   if !os(windows)
     Build-Depends:   unix >= 2.4
   Exposed-Modules:
     Test.Framework
     Test.Framework.HUnitWrapper
     Test.Framework.TestManager
+    Test.Framework.TestInterface
     Test.Framework.TestTypes
     Test.Framework.TestReporter
+    Test.Framework.History
     Test.Framework.CmdlineOptions
     Test.Framework.QuickCheckWrapper
     Test.Framework.BlackBoxTest
@@ -189,10 +193,9 @@ Library
     Test.Framework.XmlOutput
     Test.Framework.ThreadPool
     Test.Framework.AssertM
-  Other-Modules:
-    Test.Framework.TestManagerInternal
-    Test.Framework.Utils
     Test.Framework.Colors
+  Other-Modules:
+    Test.Framework.Utils
     Test.Framework.Diff
     Test.Framework.Process
   Default-language:  Haskell2010
@@ -200,7 +203,7 @@ Library
 
 Test-Suite TestHTF
   Main-is:           TestHTF.hs
-  Hs-Source-Dirs:    tests
+  Hs-Source-Dirs:    tests, tests/real-bbt
   Type:              exitcode-stdio-1.0
   Build-depends:     base == 4.*,
                      bytestring >= 0.9,
@@ -228,9 +231,13 @@ Test-Suite TestThreadPools
                      HTF
   Default-language:  Haskell2010
 
-Test-Suite Tutorial
+Test-Suite MiscTests
+  Main-is:           MiscTest.hs
   Type:              exitcode-stdio-1.0
-  Main-is:           Tutorial.hs
   Hs-Source-Dirs:    tests
-  Build-depends:     base >= 4, HTF
+  Build-depends:     base == 4.*,
+                     random,
+                     mtl,
+                     HTF,
+                     HUnit
   Default-language:  Haskell2010

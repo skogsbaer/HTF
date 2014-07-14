@@ -117,7 +117,7 @@ import qualified Language.Haskell.Exts.Parser as HE
 import Data.List ( (\\) )
 import System.IO.Unsafe (unsafePerformIO)
 
-import Test.Framework.TestManagerInternal
+import Test.Framework.TestInterface
 import Test.Framework.Location
 import Test.Framework.Diff
 import Test.Framework.Colors
@@ -137,6 +137,13 @@ gassertFailure_ loc s =
 -- | Specialization of 'gassertFailure'.
 assertFailure_ :: Location -> String -> IO a
 assertFailure_ = gassertFailure_
+
+{- |
+Signals that the current unit test is pending.
+-}
+unitTestPending :: String -> IO a
+unitTestPending s =
+    failHTF (FullTestResult Nothing [] (Just $ noColor s) (Just Pending))
 
 {- |
 Use @unitTestPending' msg test@ to mark the given test as pending
@@ -558,7 +565,7 @@ CreateAssertions(assertNothingNoShow, Maybe a)
 --
 -- /Note:/ Don't use subAssert_ directly but use the preprocessor macro @subAssert@.
 subAssert_ :: MonadBaseControl IO m => Location -> m a -> m a
-subAssert_ loc ass = unitTestSubAssert loc Nothing ass
+subAssert_ loc ass = subAssertHTF loc Nothing ass
 
 -- | Generic variant of 'subAssert_'.
 gsubAssert_ :: AssertM m => Location -> m a -> m a
@@ -566,7 +573,7 @@ gsubAssert_ loc ass = genericSubAssert loc Nothing ass
 
 -- | Same as 'subAssert_' but with an additional error message.
 subAssertVerbose_ :: MonadBaseControl IO m => Location -> String -> m a -> m a
-subAssertVerbose_ loc msg ass = unitTestSubAssert loc (Just msg) ass
+subAssertVerbose_ loc msg ass = subAssertHTF loc (Just msg) ass
 
 -- | Generic variant of 'subAssertVerbose_'.
 gsubAssertVerbose_ :: AssertM m => Location -> String -> m a -> m a

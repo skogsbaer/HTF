@@ -34,16 +34,26 @@ import System.IO.Temp
 import Control.Exception
 import Control.Monad
 import qualified Data.HashMap.Strict as M
+import qualified Data.HashSet as Set
 import qualified Data.Aeson as J
 import Data.Aeson ( (.=) )
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.Lazy.Char8 as BSLC
 import Data.Maybe
 import qualified Data.Text as T
+import qualified Data.List as List
 import qualified Text.Regex as R
 import {-@ HTF_TESTS @-} qualified TestHTFHunitBackwardsCompatible
 import {-@ HTF_TESTS @-} qualified Foo.A as A
 import {-@ HTF_TESTS @-} Foo.B
+
+import FailFast
+import MaxCurTime
+import MaxPrevTime
+import UniqTests1
+import UniqTests2
+import PrevFactor
+import SortByPrevTime
 
 import Tutorial hiding (main)
 
@@ -58,41 +68,40 @@ stringGap = "hello world!"
 handleExc :: a -> SomeException -> a
 handleExc x _ = x
 
-test_assertFailure =
-    assertFailure "I'm a failure"
+test_assertFailure_FAIL = assertFailure "I'm a failure"
 
-test_stringGap = assertEqual stringGap "hello world!"
+test_stringGap_OK = assertEqual stringGap "hello world!"
 
-test_assertEqual = assertEqual 1 2
+test_assertEqual_FAIL = assertEqual 1 2
 
-test_assertEqualV = assertEqualVerbose "blub" 1 2
+test_assertEqualV_FAIL = assertEqualVerbose "blub" 1 2
 
-test_assertEqualNoShow = withOptions (\opts -> opts { to_parallel = False }) $
-                         assertEqualNoShow A B
+test_assertEqualNoShow_FAIL = withOptions (\opts -> opts { to_parallel = False }) $
+                              assertEqualNoShow A B
 
-test_assertListsEqualAsSets = assertListsEqualAsSets [1,2] [2]
+test_assertListsEqualAsSets_FAIL = assertListsEqualAsSets [1,2] [2]
 
-test_assertSetEqualSuccess = assertListsEqualAsSets [1,2] [2,1]
+test_assertSetEqualSuccess_OK = assertListsEqualAsSets [1,2] [2,1]
 
-test_assertNotEmpty = assertNotEmpty []
+test_assertNotEmpty_FAIL = assertNotEmpty []
 
-test_assertEmpty = assertEmpty [1]
+test_assertEmpty_FAIL = assertEmpty [1]
 
-test_assertElem = assertElem 1 [0,2,3]
+test_assertElem_FAIL = assertElem 1 [0,2,3]
 
-test_assertThrows = assertThrows (return () :: IO ()) (handleExc True)
+test_assertThrows_FAIL = assertThrows (return () :: IO ()) (handleExc True)
 
-test_assertThrows' = assertThrows (error "ERROR") (handleExc False)
+test_assertThrows'_FAIL = assertThrows (error "ERROR") (handleExc False)
 
-test_assertThrowsIO1 = assertThrows (fail "ERROR" :: IO ()) (handleExc False)
+test_assertThrowsIO1_FAIL = assertThrows (fail "ERROR" :: IO ()) (handleExc False)
 
-test_assertThrowsIO2 = assertThrowsIO (fail "ERROR") (handleExc True)
+test_assertThrowsIO2_OK = assertThrowsIO (fail "ERROR") (handleExc True)
 
-test_someError = error "Bart Simpson!!" :: IO ()
+test_someError_ERROR = error "Bart Simpson!!" :: IO ()
 
-test_pendingTest = unitTestPending "This test is pending"
+test_pendingTest_PENDING = unitTestPending "This test is pending"
 
-test_subAssert = subAssert anotherSub
+test_subAssert_FAIL = subAssert anotherSub
     where
       anotherSub = subAssertVerbose "I'm another sub" (assertNegative 42)
       assertNegative n = assertBool (n < 0)
@@ -103,7 +112,7 @@ data Expr = PlusExpr Expr Expr
           | Variable String
             deriving (Eq, Show)
 
-test_diff =
+test_diff_FAIL =
     assertEqual (mkExpr 1) (mkExpr 2)
     where
       mkExpr i =
@@ -113,35 +122,35 @@ test_diff =
                              (Literal 581))
                    (Variable "egg")
 
-prop_ok :: [Int] -> Property
-prop_ok xs = classify (null xs) "trivial" $ xs == (reverse (reverse xs))
+prop_ok_OK :: [Int] -> Property
+prop_ok_OK xs = classify (null xs) "trivial" $ xs == (reverse (reverse xs))
 
-prop_fail :: [Int] -> Bool
-prop_fail xs = xs == (reverse xs)
+prop_fail_FAIL :: [Int] -> Bool
+prop_fail_FAIL xs = xs == (reverse xs)
 
-prop_pendingProp :: Int -> Bool
-prop_pendingProp x = qcPending "This property is pending" (x == 0)
+prop_pendingProp_PENDING :: Int -> Bool
+prop_pendingProp_PENDING x = qcPending "This property is pending" (x == 0)
 
-prop_exhaust = False ==> True
+prop_exhaust_FAIL = False ==> True
 
-prop_error :: Bool
-prop_error = error "Lisa"
+prop_error_FAIL :: Bool
+prop_error_FAIL = error "Lisa"
 
 changeArgs args = args { maxSuccess = 1 }
 
-prop_ok' = withQCArgs (\a -> a { maxSuccess = 1}) $
-                     \xs -> classify (null xs) "trivial" $
-                            (xs::[Int]) == (reverse (reverse xs))
+prop_ok'_OK = withQCArgs (\a -> a { maxSuccess = 1}) $
+                        \xs -> classify (null xs) "trivial" $
+                               (xs::[Int]) == (reverse (reverse xs))
 
-prop_fail' =
+prop_fail'_FAIL =
     withQCArgs (\a -> a { replay = read "Just (1292732529 652912053,3)" }) prop
     where prop xs = xs == (reverse xs)
               where types = xs::[Int]
 
-prop_error' :: WithQCArgs Bool
-prop_error' = withQCArgs changeArgs $ (error "Lisa" :: Bool)
+prop_error'_FAIL :: WithQCArgs Bool
+prop_error'_FAIL = withQCArgs changeArgs $ (error "Lisa" :: Bool)
 
-test_genericAssertions =
+test_genericAssertions_OK =
     case test1 of
       AssertOk _ -> fail "did not expect AssertOk"
       AssertFailed stack ->
@@ -157,35 +166,151 @@ test_genericAssertions =
       test1 = gsubAssert test2
       test2 = gassertEqual 1 (2::Int)
 
+-- find . -name '*.hs' | xargs egrep -w -o -h "[a-zA-Z0-9_']+_PENDING" | sed 's/test_//g; s/prop_//g' | sort -u
+pendingTests :: [T.Text]
+pendingTests =
+    ["pendingProp_PENDING"
+    ,"pendingTest_PENDING"]
+
+failedTests :: [T.Text]
+failedTests =
+-- $ find . -name '*.hs' | xargs egrep -w -o -h "[a-zA-Z0-9_']+_FAIL" | sed 's/test_//g; s/prop_//g' | sort -u
+    ["1_FAIL"
+    ,"a_FAIL"
+    ,"assertElem_FAIL"
+    ,"assertEmpty_FAIL"
+    ,"assertEqualNoShow_FAIL"
+    ,"assertEqualV_FAIL"
+    ,"assertEqual_FAIL"
+    ,"assertFailure_FAIL"
+    ,"assertListsEqualAsSets_FAIL"
+    ,"assertNotEmpty_FAIL"
+    ,"assertThrows'_FAIL"
+    ,"assertThrowsIO1_FAIL"
+    ,"assertThrows_FAIL"
+    ,"diff_FAIL"
+    ,"error'_FAIL"
+    ,"error_FAIL"
+    ,"exhaust_FAIL"
+    ,"fail'_FAIL"
+    ,"fail_FAIL"
+    ,"subAssert_FAIL"
+-- $ find bbt -name '*not_ok*.x'
+    ,"bbt/should_fail/not_ok_because_stderr1.x"
+    ,"bbt/should_fail/not_ok_because_stderr2.x"
+    ,"bbt/should_fail/not_ok_because_stdout1.x"
+    ,"bbt/should_fail/not_ok_because_stdout2.x"
+    ,"bbt/should_fail/not_ok_because_succeeds.x"
+    ,"bbt/should_pass/not_ok_because_fails.x"
+    ,"bbt/should_pass/not_ok_because_stderr1.x"
+    ,"bbt/should_pass/not_ok_because_stderr2.x"
+    ,"bbt/should_pass/not_ok_because_stdout1.x"
+    ,"bbt/should_pass/not_ok_because_stdout2.x"
+    ,"bbt/Verbose/not_ok_because_stdout1.x"]
+
+-- $ find . -name '*.hs' | xargs egrep -w -o -h "[a-zA-Z0-9_']+_ERROR" | sed 's/test_//g; s/prop_//g' | sort -u
+errorTests :: [T.Text]
+errorTests = ["someError_ERROR"]
+
+passedTests :: [T.Text]
+passedTests =
+    -- $ find . -name '*.hs' | xargs egrep -w -o -h "[a-zA-Z0-9_']+_OK" | sed 's/test_//g; s/prop_//g' | sort -u
+    ["2_OK"
+    ,"assertSetEqualSuccess_OK"
+    ,"assertThrowsIO2_OK"
+    ,"b_OK"
+    ,"genericAssertions_OK"
+    ,"ok'_OK"
+    ,"ok_OK"
+    ,"stringGap_OK"
+-- $ find bbt -name '*ok*.x' | grep -v not_ok
+    ,"bbt/should_fail/ok1.x"
+    ,"bbt/should_fail/ok2.x"
+    ,"bbt/should_pass/ok1.x"
+    ,"bbt/should_pass/ok2.x"
+    ,"bbt/should_pass/stdin_ok.x"]
+
+timedOutTests = []
+
 checkOutput output =
     do bsl <- BSL.readFile output
        let jsons = map (fromJust . J.decode) (splitJson bsl)
+       let (pass, fail, error, pending, timedOut) = foldl checkStatus ([], [], [], [], []) jsons
+       checkAsSet "passed" passedTests pass
+       checkAsSet "failed" failedTests fail
+       checkAsSet "errors" errorTests error
+       checkAsSet "pending" pendingTests pending
+       checkAsSet "timed-out" timedOutTests timedOut
        check jsons (J.object ["type" .= J.String "test-results"])
-                   (J.object ["failures" .= J.toJSON (31::Int)
-                             ,"passed" .= J.toJSON (13::Int)
-                             ,"pending" .= J.toJSON (2::Int)
-                             ,"errors" .= J.toJSON (1::Int)])
+                   (J.object ["failures" .= J.toJSON (length failedTests)
+                             ,"passed" .= J.toJSON (length passedTests)
+                             ,"pending" .= J.toJSON (length pendingTests)
+                             ,"errors" .= J.toJSON (length errorTests)
+                             ,"timedOut" .= J.toJSON (length timedOutTests)])
        check jsons (J.object ["type" .= J.String "test-end"
-                             ,"test" .= J.object ["flatName" .= J.String "Main:diff"]])
+                             ,"test" .= J.object ["flatName" .= J.String "Main:diff_FAIL"]])
                    (J.object ["test" .= J.object ["location" .= J.object ["file" .= J.String "TestHTF.hs"
-                                                                         ,"line" .= J.toJSON (106::Int)]]
+                                                                         ,"line" .= J.toJSON (106+lineOffset)]]
                              ,"location" .= J.object ["file" .= J.String "TestHTF.hs"
-                                                     ,"line" .= J.toJSON (107::Int)]])
+                                                     ,"line" .= J.toJSON (107+lineOffset)]])
        check jsons (J.object ["type" .= J.String "test-end"
-                             ,"test" .= J.object ["flatName" .= J.String "Foo.A:a"]])
+                             ,"test" .= J.object ["flatName" .= J.String "Foo.A:a_FAIL"]])
                    (J.object ["test" .= J.object ["location" .= J.object ["file" .= J.String "Foo/A.hs"
                                                                          ,"line" .= J.toJSON (10::Int)]]
                              ,"location" .= J.object ["file" .= J.String "./Foo/A.hs"
                                                      ,"line" .= J.toJSON (11::Int)]])
        check jsons (J.object ["type" .= J.String "test-end"
-                             ,"test" .= J.object ["flatName" .= J.String "Main:subAssert"]])
+                             ,"test" .= J.object ["flatName" .= J.String "Main:subAssert_FAIL"]])
                    (J.object ["callers" .= J.toJSON [J.object ["message" .= J.Null
                                                               ,"location" .= J.object ["file" .= J.String "TestHTF.hs"
-                                                                                      ,"line" .= J.toJSON (95::Int)]]
+                                                                                      ,"line" .= J.toJSON (95+lineOffset)]]
                                                     ,J.object ["message" .= J.String "I'm another sub"
                                                               ,"location" .= J.object ["file" .= J.String "TestHTF.hs"
-                                                                                      ,"line" .= J.toJSON (97::Int)]]]])
+                                                                                      ,"line" .= J.toJSON (97+lineOffset)]]]])
     where
+      lineOffset :: Int
+      lineOffset = 9
+      checkStatus tuple@(pass, fail, error, pending, timedOut) json =
+          {-
+            {"location":null
+            ,"test":{"path":["Main","tests/bbt/should_pass/stdin_ok.x"],"sort":"blackbox-test","flatName":"Main:tests/bbt/should_pass/stdin_ok.x"}
+            ,"callers":[]
+            ,"result":"pass"
+            ,"timedOut":false
+            ,"type":"test-end"
+            ,"message":""
+            ,"wallTime":11}
+           -}
+          case json of
+            J.Object objJson | Just (J.Object testObj) <- M.lookup "test" objJson
+                             , Just (J.String flatName) <- M.lookup "flatName" testObj
+                             , Just (J.String "test-end") <- M.lookup "type" objJson
+                             , Just (J.String result) <- M.lookup "result" objJson
+                             , Just (J.Bool to) <- M.lookup "timedOut" objJson ->
+                let shortName =
+                        let t = T.tail (T.dropWhile (/= ':') flatName)
+                        in if "tests/" `T.isPrefixOf` t
+                           then T.drop (T.length "tests/") t
+                           else t
+                    newTimedOut = if to then shortName : timedOut else timedOut
+                in case () of
+                     _| result == "pass" -> (shortName : pass, fail, error, pending, newTimedOut)
+                     _| result == "fail" -> (pass, shortName : fail, error, pending, newTimedOut)
+                     _| result == "error" -> (pass, fail, shortName : error, pending, newTimedOut)
+                     _| result == "pending" -> (pass, fail, error, shortName : pending, newTimedOut)
+            _ -> tuple
+      checkAsSet what expList givenList =
+          let expSet = Set.fromList expList
+              givenSet = Set.fromList givenList
+          in if expSet == givenSet
+             then return ()
+             else do let unexpected = givenSet `Set.difference` expSet
+                         notGiven = expSet `Set.difference` givenSet
+                     fail ("Mismatch for " ++ what ++ ":" ++
+                           "\nExpected: " ++ show expList ++
+                           "\nGiven: " ++ show givenList ++
+                           "\nUnexpected elements: " ++ show unexpected ++
+                           "\nElements expected but not present: " ++ show notGiven)
       check jsons pred assert =
           case filter (\j -> matches j pred) jsons of
             [json] ->
@@ -224,6 +349,16 @@ checkOutput output =
                                   [] -> error "invalid json output from HTF"
                                   (x:xs) -> (start `BSL.append` x : xs)
 
+runRealBlackBoxTests =
+    do b <- doesDirectoryExist "tests/bbt"
+       let dirPrefix = if b then "tests" else ""
+       bbts <- blackBoxTests (dirPrefix </> "real-bbt") ("/bin/bash") ".sh"
+                 (defaultBBTArgs { bbtArgs_verbose = False })
+       ecode <- runTest bbts
+       case ecode of
+         ExitFailure _ -> fail ("real blackbox tests failed!")
+         _ -> return ()
+
 main =
     do args <- getArgs
        b <- doesDirectoryExist "tests/bbt"
@@ -232,10 +367,18 @@ main =
                  (defaultBBTArgs { bbtArgs_verbose = False })
        let tests = [addToTestSuite htf_thisModulesTests bbts] ++ htf_importedTests
        when ("--help" `elem` args || "-h" `elem` args) $
-            do hPutStrLn stderr ("USGAGE: dist/build/test/test [--direct]")
+            do hPutStrLn stderr ("USAGE: dist/build/test/test [--direct]")
                ecode <- runTestWithArgs ["--help"] ([] :: [Test])
                exitWith ecode
        case args of
+         "FailFast.hs":rest -> failFastMain rest
+         "MaxCurTime.hs":rest -> maxCurTimeMain rest
+         "MaxPrevTime.hs":rest -> maxPrevTimeMain rest
+         "PrevFactor.hs":rest -> prevFactorMain rest
+         "SortByPrevTime.hs":rest -> sortByPrevTimeMain rest
+         "UniqTests1.hs":rest -> uniqTests1Main rest
+         "UniqTests2.hs":rest -> uniqTests2Main rest
+         x:_ | ".hs" `List.isSuffixOf` x -> fail ("Unkown real-bbt test: " ++ x)
          "--direct":rest ->
              do ecode <- runTestWithArgs rest tests
                 case ecode of
@@ -251,5 +394,6 @@ main =
                        _ -> fail ("unexpected exit code: " ++ show ecode)
                      `onException` (do s <- readFile outFile
                                        hPutStrLn stderr s)
+                runRealBlackBoxTests
                 ecode <- system (dirPrefix </> "compile-errors/run-tests.sh")
                 exitWith ecode

@@ -54,9 +54,9 @@ reportTestResult t =
 
 -- | Invokes 'tr_reportGlobalResults' on all test reporters registered.
 reportGlobalResults :: ReportGlobalResults
-reportGlobalResults t l1 l2 l3 l4 =
+reportGlobalResults arg =
     do reps <- asks tc_reporters
-       mapM_ (\r -> tr_reportGlobalResults r t l1 l2 l3 l4) reps
+       mapM_ (\r -> tr_reportGlobalResults r arg) reps
 
 data IsParallel = Parallel | NonParallel
 
@@ -188,30 +188,50 @@ reportAllTestsH l =
     reportStringTR Info (render (renderTestNames l))
 
 reportGlobalResultsH :: ReportGlobalResults
-reportGlobalResultsH t passedL pendingL failedL errorL =
-    do let passed = length passedL
-           pending = length pendingL
-           failed = length failedL
-           error = length errorL
+reportGlobalResultsH arg =
+    do let passed = length (rgra_passed arg)
+           pending = length (rgra_pending arg)
+           failed = length (rgra_failed arg)
+           error = length (rgra_errors arg)
+           timedOut = length (rgra_timedOut arg)
+           filtered = length (rgra_filtered arg)
            total = passed + failed + error + pending
        let pendings = colorize pendingColor "* Pending:"
            failures = colorize warningColor "* Failures:"
            errors = colorize warningColor "* Errors:"
-       reportTR Info ("* Tests:    " +++ showC total +++ "\n" +++
-                      "* Passed:   " +++ showC passed +++ "\n" +++
-                      pendings +++ "  " +++ showC pending +++ "\n" +++
-                      failures +++ " " +++ showC failed +++ "\n" +++
-                      errors +++ "   " +++ showC error)
+       reportTR Info ("* Tests:     " +++ showC total +++ "\n" +++
+                      "* Passed:    " +++ showC passed +++ "\n" +++
+                      pendings +++ "   " +++ showC pending +++ "\n" +++
+                      failures +++ "  " +++ showC failed +++ "\n" +++
+                      errors +++ "    " +++ showC error +++ "\n" +++
+                      "* Timed out: " +++ showC timedOut +++ "\n" +++
+                      "* Filtered:  " +++ showC filtered)
+       when (timedOut > 0) $
+            if timedOut < 10
+            then
+                reportTR Info
+                    ("\n" +++ noColor "* Timed out:" +++ "\n" +++ renderTestNames' (reverse (rgra_timedOut arg)))
+            else
+                reportTR Info
+                  ("\n" +++ noColor "* Timed out: (" +++ showC timedOut +++ noColor ", too many to list)")
+       when (filtered > 0) $
+            if filtered < 10
+            then
+                reportTR Info
+                  ("\n" +++ noColor "* Filtered:" +++ "\n" +++ renderTestNames' (reverse (rgra_filtered arg)))
+            else
+                reportTR Info
+                  ("\n" +++ noColor "* Filtered: (" +++ showC filtered +++ noColor ", too many to list)")
        when (pending > 0) $
           reportTR Info
-              ("\n" +++ pendings +++ "\n" +++ renderTestNames' (reverse pendingL))
+              ("\n" +++ pendings +++ "\n" +++ renderTestNames' (reverse (rgra_pending arg)))
        when (failed > 0) $
           reportTR Info
-              ("\n" +++ failures +++ "\n" +++ renderTestNames' (reverse failedL))
+              ("\n" +++ failures +++ "\n" +++ renderTestNames' (reverse (rgra_failed arg)))
        when (error > 0) $
           reportTR Info
-              ("\n" +++ errors +++ "\n" +++ renderTestNames' (reverse errorL))
-       reportStringTR Info ("\nTotal execution time: " ++ show t ++ "ms")
+              ("\n" +++ errors +++ "\n" +++ renderTestNames' (reverse (rgra_errors arg)))
+       reportStringTR Info ("\nTotal execution time: " ++ show (rgra_timeMs arg) ++ "ms")
     where
       showC x = noColor (show x)
       renderTestNames' rrs =
@@ -257,13 +277,13 @@ reportAllTestsM l =
     in reportJsonTR json
 
 reportGlobalResultsM :: ReportGlobalResults
-reportGlobalResultsM t pass pending failed errors =
-    let json = mkTestResultsObj t (length pass) (length pending) (length failed) (length errors)
+reportGlobalResultsM arg =
+    let json = mkTestResultsObj arg
     in reportJsonTR json
 
 reportGlobalResultsXml :: ReportGlobalResults
-reportGlobalResultsXml t pass pending failed errors =
-    do let xml = mkGlobalResultsXml t pass pending failed errors
+reportGlobalResultsXml arg =
+    do let xml = mkGlobalResultsXml arg
        tc <- ask
        case tc_outputXml tc of
          Just fname -> liftIO $ withFile fname WriteMode $ \h -> BSL.hPut h xml
