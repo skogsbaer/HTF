@@ -106,8 +106,6 @@ Extra-Source-Files:
   tests/Foo/test.h
   tests/Tutorial.hs
   tests/run-bbt.sh
-  tests/test-HTF.cabal
-  tests/run-tests.sh
   tests/compile-errors/Foo.h
   tests/compile-errors/run-tests.sh
   tests/compile-errors/Test1.hs
