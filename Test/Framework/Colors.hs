@@ -26,12 +26,13 @@ module Test.Framework.Colors (
   , emptyColorString, (+++), unlinesColorString, colorStringFind, ensureNewlineColorString
   , colorize, colorizeText, colorize', colorizeText'
   , noColor, noColorText, noColor', noColorText'
-  , renderColorString
+  , renderColorString, maxLength
 
 ) where
 
 import qualified Data.Text as T
 import Data.String
+import Data.Maybe
 import Control.Monad
 
 firstDiffColor = Color Magenta False
@@ -88,6 +89,12 @@ instance IsString ColorString where
 
 emptyColorString :: ColorString
 emptyColorString = noColor ""
+
+maxLength :: ColorString -> Int
+maxLength (ColorString prims) =
+    let ml (PrimColorString _ t mt) =
+            max (T.length t) (fromMaybe 0 (fmap T.length mt))
+    in sum $ map ml prims
 
 unlinesColorString :: [ColorString] -> ColorString
 unlinesColorString l =
