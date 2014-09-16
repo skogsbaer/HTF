@@ -161,6 +161,16 @@ parse originalFileName input =
           Module moduleName (map transformImport imports)
                             (mapMaybe transformDecl decls)
                             (mapMaybe transformComment comments)
+#if MIN_VERSION_haskell_src_exts(1,16,0) 
+      transformImport (Syn.ImportDecl loc (Syn.ModuleName s)
+                                      qualified _ _ _ alias _) =
+          let alias' = case alias of
+                         Nothing -> Nothing
+                         Just (Syn.ModuleName s) -> Just s
+          in ImportDecl s qualified alias' (transformLoc loc)
+      transformDecl (Syn.PatBind loc (Syn.PVar name) _ _) =
+          Just $ Decl (transformLoc loc) (transformName name)
+#else
       transformImport (Syn.ImportDecl loc (Syn.ModuleName s)
                                       qualified _ _ alias _) =
           let alias' = case alias of
@@ -169,6 +179,7 @@ parse originalFileName input =
           in ImportDecl s qualified alias' (transformLoc loc)
       transformDecl (Syn.PatBind loc (Syn.PVar name) _ _ _) =
           Just $ Decl (transformLoc loc) (transformName name)
+#endif
       transformDecl (Syn.FunBind (Syn.Match loc name _ _ _ _ : _)) =
           Just $ Decl (transformLoc loc) (transformName name)
       transformDecl _ = Nothing
