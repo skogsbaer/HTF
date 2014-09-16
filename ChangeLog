@@ -1,4 +1,8 @@
-* 0.12.0
+* 0.12.1.0 (2014-09-16)
+  - support for haskell-src-exts version 1.16
+  - Functor and Applicative instances for AssertBool
+
+* 0.12.0.0 (2014-07-14)
   - support for several new commandline options:
       --history=FILE              Path to the history file. Default: ./.HTF/<ProgramName>.history
       --fail-fast                 Fail and abort test run as soon as the first test fails.
