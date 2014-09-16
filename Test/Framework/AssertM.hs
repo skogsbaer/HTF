@@ -12,6 +12,8 @@ module Test.Framework.AssertM (
 
 import Data.Maybe
 import qualified Data.Text as T
+import Control.Applicative (Applicative(..))
+import Control.Monad       (liftM, ap)
 
 import Test.Framework.TestInterface
 import Test.Framework.Location
@@ -41,6 +43,13 @@ data AssertBool a
     -- | Assertion fails with the given stack trace. In the stack trace, the outermost stackframe comes first.
     | AssertFailed [AssertStackElem]
       deriving (Eq, Ord, Show, Read)
+
+instance Functor AssertBool where
+    fmap = liftM
+
+instance Applicative AssertBool where
+    pure  = return
+    (<*>) = ap
 
 instance Monad AssertBool where
     return = AssertOk
