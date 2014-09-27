@@ -196,9 +196,9 @@ reportGlobalResultsH arg =
            timedOut = length (rgra_timedOut arg)
            filtered = length (rgra_filtered arg)
            total = passed + failed + error + pending
-       let pendings = colorize pendingColor "* Pending:"
-           failures = colorize warningColor "* Failures:"
-           errors = colorize warningColor "* Errors:"
+       let pendings = (if pending > 0 then colorize pendingColor else noColor) "* Pending:"
+           failures = (if failed > 0 then colorize warningColor else noColor) "* Failures:"
+           errors = (if error > 0 then colorize warningColor else noColor) "* Errors:"
        reportTR Info ("* Tests:     " +++ showC total +++ "\n" +++
                       "* Passed:    " +++ showC passed +++ "\n" +++
                       pendings +++ "   " +++ showC pending +++ "\n" +++
