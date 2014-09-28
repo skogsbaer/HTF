@@ -177,6 +177,7 @@ failedTests =
 -- $ find . -name '*.hs' | xargs egrep -w -o -h "[a-zA-Z0-9_']+_FAIL" | sed 's/test_//g; s/prop_//g' | sort -u
     ["1_FAIL"
     ,"a_FAIL"
+    ,"h_FAIL"
     ,"assertElem_FAIL"
     ,"assertEmpty_FAIL"
     ,"assertEqualNoShow_FAIL"
@@ -260,6 +261,12 @@ checkOutput output =
                              ,"location" .= J.object ["file" .= J.String "./Foo/A.hs"
                                                      ,"line" .= J.toJSON (11::Int)]])
        check jsons (J.object ["type" .= J.String "test-end"
+                             ,"test" .= J.object ["flatName" .= J.String "Foo.A:h_FAIL"]])
+                   (J.object ["test" .= J.object ["location" .= J.object ["file" .= J.String "Foo/test.h"
+                                                                         ,"line" .= J.toJSON (8::Int)]]
+                             ,"location" .= J.object ["file" .= J.String "./Foo/test.h"
+                                                     ,"line" .= J.toJSON (9::Int)]])
+       check jsons (J.object ["type" .= J.String "test-end"
                              ,"test" .= J.object ["flatName" .= J.String "Main:subAssert_FAIL"]])
                    (J.object ["callers" .= J.toJSON [J.object ["message" .= J.Null
                                                               ,"location" .= J.object ["file" .= J.String "TestHTF.hs"
@@ -315,7 +322,7 @@ checkOutput output =
           case filter (\j -> matches j pred) jsons of
             [json] ->
                 if not (matches json assert)
-                   then error ("Predicate " ++ show pred ++ " match JSON " ++ show json ++ ", but assertion " ++
+                   then error ("Predicate\n" ++ show pred ++ " match JSON\n" ++ show json ++ ", but assertion\n" ++
                                show assert ++ " not satisfied")
                    else return ()
             l -> error ("not exactly one JSON matches predicate " ++ show pred ++ " but " ++ show l)

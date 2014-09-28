@@ -2,7 +2,15 @@
 
 cd "$(dirname $0)"
 
-FLAGS="-hide-all-packages -package base -package-conf ../../dist/package.conf.inplace -package HTF --make"
+FLAGS="-hide-all-packages -package base -package-db ../../dist/package.conf.inplace -package HTF --make"
+SANDBOX_FILE="../../cabal.sandbox.config"
+
+if [ -e "$SANDBOX_FILE"  ]
+then
+    pkg_db=$(gawk -F': ' '/package-db/ {print $2}' "$SANDBOX_FILE")
+    FLAGS="$FLAGS -package-conf $pkg_db"
+fi
+
 lineno=7
 
 function check()

@@ -198,7 +198,7 @@ optionDescriptions =
 
 {- |
 
-Parse commandline arguments into 'CmdlineOptions'. Here's a synopsis
+Parse commandline arguments into 'CmdlineOptions'. Here is a synopsis
 of the format of the commandline arguments:
 
 > USAGE: COMMAND [OPTION ...] PATTERN ...

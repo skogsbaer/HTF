@@ -1,5 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE PackageImports #-}
 
 --
 -- Copyright (c) 2009-2014 Stefan Wehr - http://www.stefanwehr.de
@@ -19,20 +21,24 @@
 -- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
 --
 
-module Test.Framework.Preprocessor ( transform, progName ) where
+module Test.Framework.Preprocessor (
+
+    transform, progName, preprocessorTests
+
+) where
 
 import Control.Monad
-import qualified Data.Text as T
-import Data.Char ( toLower, isSpace, isDigit )
-import Data.Maybe ( mapMaybe )
-import qualified Data.List as List
-import System.IO ( hPutStrLn, stderr )
+import Data.Char ( isDigit, isSpace )
+import "haskell-lexer" Language.Haskell.Lexer
 import Language.Preprocessor.Cpphs ( runCpphs,
                                      CpphsOptions(..),
                                      BoolOptions(..),
                                      defaultCpphsOptions)
+import System.IO ( hPutStrLn, stderr )
+import Test.HUnit hiding (State)
+import Control.Monad.State.Strict
+import qualified Data.List as List
 
-import Test.Framework.HaskellParser
 import Test.Framework.Location
 
 _DEBUG_ :: Bool
@@ -112,158 +118,329 @@ assertDefines hunitBackwardsCompat prefix =
       expansion a suffix = "(" ++ prefix ++ a ++ suffix ++ " (" ++
                            prefix ++ "makeLoc __FILE__ __LINE__))"
 
-warn :: String -> IO ()
-warn s =
-    hPutStrLn stderr $ progName ++ " warning: " ++ s
-
-note :: String -> IO ()
-note s =
-    when _DEBUG_ $ hPutStrLn stderr $ progName ++ " note: " ++ s
-
 data ModuleInfo = ModuleInfo { mi_htfPrefix  :: String
                              , mi_htfImports :: [ImportDecl]
                              , mi_defs       :: [Definition]
                              , mi_moduleName :: String }
-                  deriving (Show)
+                  deriving (Show, Eq)
+
+data ImportDecl = ImportDecl { imp_moduleName :: Name
+                             , imp_qualified :: Bool
+                             , imp_alias :: Maybe Name
+                             , imp_loc :: Location }
+                  deriving (Show, Eq)
 
 data Definition = TestDef String Location String
                 | PropDef String Location String
                   deriving (Eq, Show)
 
-data ImportOrPragma = IsImport ImportDecl | IsPragma Pragma
-                  deriving (Show)
+type Name = String
 
-analyse :: FilePath -> String
-        -> IO (ParseResult ModuleInfo)
-analyse originalFileName inputString =
-    do parseResult <- parse originalFileName inputString
-       case parseResult of
-         ParseOK (Module moduleName imports decls pragmas) ->
-             do -- putStrLn $ show decls
-                let defs = mapMaybe defFromDecl decls
-                    htfImports = findHtfImports imports pragmas
-                htfPrefix <-
-                  case mapMaybe prefixFromImport imports of
-                    (s:_) -> return s
-                    [] -> do warn ("No import found for " ++ htfModule ++
-                                   " in " ++ originalFileName)
-                             return (htfModule ++ ".")
-                return $ ParseOK (ModuleInfo htfPrefix htfImports defs moduleName)
-         ParseError loc err -> return (ParseError loc err)
-    where
-      prefixFromImport :: ImportDecl -> Maybe String
-      prefixFromImport (ImportDecl s qualified alias _)
-          | s == htfModule =
-              if qualified
-                  then case alias of
-                         Just s' -> Just $ s' ++ "."
-                         Nothing -> Just $ s ++ "."
-                  else Just ""
-      prefixFromImport _ = Nothing
-      defFromDecl :: Decl -> Maybe Definition
-      defFromDecl (Decl loc name) = defFromNameAndLoc name loc
-      defFromNameAndLoc :: Name -> Location -> Maybe Definition
-      defFromNameAndLoc name loc =
-          case name of
-            ('t':'e':'s':'t':'_':rest) | not (null rest) ->
-                Just (TestDef rest loc name)
-            ('p':'r':'o':'p':'_':rest) | not (null rest) ->
-                Just (PropDef rest loc name)
-            _ -> Nothing
-      findHtfImports allImports allPragmas =
-          let importPragmas = filter (\p -> pr_name p == "HTF_TESTS") allPragmas
-              importsAndPragmas = List.sortBy cmpByLine (map IsImport allImports ++
-                                                         map IsPragma importPragmas)
-              loop (IsImport imp : IsPragma prag : rest) =
-                  if lineNumber (imp_loc imp) == lineNumber (pr_loc prag)
-                     then imp : loop rest
-                     else loop rest
-              loop (_ : rest) = loop rest
-              loop [] = []
-          in loop importsAndPragmas
-      cmpByLine x y = getLine x `compare` getLine y
-      getLine (IsImport imp) = (lineNumber (imp_loc imp))
-      getLine (IsPragma prag) = (lineNumber (pr_loc prag))
+type PMA a = State ModuleInfo a
 
-breakOn :: T.Text -> T.Text -> Maybe (T.Text, T.Text)
-breakOn t1 t2 =
-    let (pref, suf) = T.breakOn t1 t2
-    in if pref == t2
-       then Nothing
-       else Just (pref, T.drop (T.length t1) suf)
+modify' :: (a -> a) -> State a ()
+modify' f =
+    do x <- get
+       let !newX = f x
+       put newX
 
-poorMensAnalyse :: FilePath -> String -> IO ModuleInfo
-poorMensAnalyse originalFileName inputString =
-    let (modName, defs, impDecls) = doAna (zip [1..] (lines inputString)) ("", [], [])
-    in return $ ModuleInfo "Test.Framework." impDecls defs modName
+setModName :: String -> PMA ()
+setModName name =
+    modify' $ \mi -> mi { mi_moduleName = name }
+
+addTestDef :: String -> String -> Location -> PMA ()
+addTestDef name fullName loc =
+    modify' $ \mi -> mi { mi_defs = (TestDef name loc fullName) : mi_defs mi }
+
+addPropDef :: String -> String -> Location -> PMA ()
+addPropDef name fullName loc =
+    modify' $ \mi -> mi { mi_defs = (PropDef name loc fullName) : mi_defs mi }
+
+addHtfImport :: ImportDecl -> PMA ()
+addHtfImport decl =
+    modify' $ \mi -> mi { mi_htfImports = decl : mi_htfImports mi }
+
+setTestFrameworkImport :: String -> PMA ()
+setTestFrameworkImport name =
+    modify' $ \mi -> mi { mi_htfPrefix = name }
+
+poorManAnalyzeTokens :: [LocToken] -> ModuleInfo
+poorManAnalyzeTokens toks =
+    -- show toks `trace`
+    let revRes =
+            execState (loop toks) $
+                      ModuleInfo { mi_htfPrefix = htfModule ++ "."
+                                 , mi_htfImports = []
+                                 , mi_defs = []
+                                 , mi_moduleName = "Main" }
+    in ModuleInfo { mi_htfPrefix = mi_htfPrefix revRes
+                  , mi_htfImports = reverse (mi_htfImports revRes)
+                  , mi_defs = reverse $ List.nubBy defEqByName (mi_defs revRes)
+                  , mi_moduleName = mi_moduleName revRes
+                  }
     where
       defEqByName (TestDef n1 _ _) (TestDef n2 _ _) = n1 == n2
       defEqByName (PropDef n1 _ _) (PropDef n2 _ _) = n1 == n2
       defEqByName _ _ = False
-      doAna [] (modName, revDefs, impDecls) = (modName, reverse (List.nubBy defEqByName revDefs), reverse impDecls)
-      doAna ((lineNo, line) : restLines) (modName, defs, impDecls) =
-          case line of
-            'm':'o':'d':'u':'l':'e':rest ->
-                if null modName
-                then doAna restLines (takeWhile (not . isSpace) (dropWhile isSpace rest),
-                                      defs, impDecls)
-                else doAna restLines (modName, defs, impDecls)
-            't':'e':'s':'t':'_':rest ->
-                let testName = takeWhile (not . isSpace) rest
-                    def = TestDef testName loc ("test_" ++ testName)
-                in doAna restLines (modName, def : defs, impDecls)
-            'p':'r':'o':'p':'_':rest ->
-                let testName = takeWhile (not . isSpace) rest
-                    def = PropDef testName loc ("prop_" ++ testName)
-                in doAna restLines (modName, def : defs, impDecls)
-            'i':'m':'p':'o':'r':'t':rest ->
-                case breakOn importPragma (T.pack rest) of
-                  Just (pref, suf) ->
-                      case poorMensParseImportLine loc (pref `T.append` suf) of
-                        Just impDecl -> doAna restLines (modName, defs, impDecl : impDecls)
-                        Nothing -> doAna restLines (modName, defs, impDecls)
-                  Nothing -> doAna restLines (modName, defs, impDecls)
-            _ -> doAna restLines (modName, defs, impDecls)
-          where
-            loc = makeLoc originalFileName lineNo
-            importPragma = T.pack "{-@ HTF_TESTS @-}"
+      loop toks =
+        case toks of
+          (Reservedid, (_, "module")) : rest ->
+              case rest of
+                (Conid, (_, name)):rest2 ->
+                    do setModName name
+                       loop rest2
+                (Qconid, (_, name)):rest2 ->
+                    do setModName name
+                       loop rest2
+                _ -> loop rest
+          (Varid, (loc, name)) : rest
+              | isStartOfLine loc ->
+                  case name of
+                    't':'e':'s':'t':'_':shortName ->
+                        do addTestDef shortName name (locToLocation loc)
+                           loop rest
+                    'p':'r':'o':'p':'_':shortName ->
+                        do addPropDef shortName name (locToLocation loc)
+                           loop rest
+                    _ -> loop rest
+              | otherwise -> loop rest
+          (Special, (loc, "import_HTF_TESTS")) : rest ->
+              case parseImport loc rest of
+                Just (imp, rest2) ->
+                    do addHtfImport imp
+                       loop rest2
+                Nothing -> loop rest
+          (Reservedid, (loc, "import")) : rest ->
+              do case parseImport loc rest of
+                   Nothing -> loop rest
+                   Just (imp, rest2) ->
+                       do when (imp_moduleName imp == htfModule) $
+                            let prefix = case (imp_alias imp, imp_qualified imp) of
+                                           (Just alias, True) -> alias
+                                           (Nothing, True) -> imp_moduleName imp
+                                           _ -> ""
+                            in setTestFrameworkImport
+                                   (if null prefix then prefix else prefix ++ ".")
+                          loop rest2
+          _ : rest -> loop rest
+          [] -> return ()
+      parseImport loc toks =
+          do let (qualified, toks2) =
+                  case toks of
+                    (Varid, (_, "qualified")):rest -> (True, rest)
+                    _ -> (False, toks)
+             (name, toks3) <-
+                  case toks2 of
+                    (Conid, (_, name)):rest -> return (name, rest)
+                    (Qconid, (_, name)):rest -> return (name, rest)
+                    _ -> fail "no import"
+             let (mAlias, toks4) =
+                   case toks3 of
+                     (Varid, (_, "as")):(Conid, (_, alias)):rest -> (Just alias, rest)
+                     _ -> (Nothing, toks3)
+                 decl = ImportDecl { imp_moduleName = name
+                                   , imp_qualified = qualified
+                                   , imp_alias = mAlias
+                                   , imp_loc = locToLocation loc }
+             return (decl, toks4)
+      locToLocation loc =
+          makeLoc (l_file loc) (l_line loc)
+      isStartOfLine loc =
+          l_column loc == 1
 
-poorMensParseImportLine :: Location -> T.Text -> Maybe ImportDecl
-poorMensParseImportLine loc t =
-    let (q, rest) =
-            case breakOn "qualified" t of
-              Nothing -> (False, T.strip t)
-              Just (_, rest) -> (True, T.strip rest)
-        modName = T.takeWhile (not . isSpace) rest
-        afterModName = T.strip $ T.drop (T.length modName) rest
-    in case breakOn "as" afterModName of
-         Nothing -> Just $ ImportDecl (T.unpack modName) q Nothing loc
-         Just (_, suf) ->
-             let strippedSuf = T.strip suf
-                 alias = if T.null strippedSuf then Nothing else Just (T.unpack strippedSuf)
-             in Just $ ImportDecl (T.unpack modName) q alias loc
+cleanupTokens :: [PosToken] -> [PosToken]
+cleanupTokens toks =
+    -- Remove whitespace tokens, remove comments, but replace
+    -- 'import {-@ HTF_TESTS @-}' with a single
+    -- token Special with value "import_HTF_TESTS"
+    case toks of
+      (Whitespace, _):rest -> cleanupTokens rest
+      (NestedComment, (loc, "{-@ HTF_TESTS @-}")) : rest ->
+          (Special, (loc, "import_HTF_TESTS")) :
+          cleanupTokens rest
+      tok:rest -> tok : cleanupTokens rest
+      [] -> []
 
-transform :: Bool -> FilePath -> String -> IO String
-transform hunitBackwardsCompat originalFileName input =
-    do analyseResult <- analyse originalFileName input
-       case analyseResult of
-         ParseError loc err ->
-             do poorInfo <- poorMensAnalyse originalFileName input
-                note ("Parsing of " ++ originalFileName ++ " failed at line "
-                      ++ show (lineNumber loc) ++ ": " ++ err ++
-                      "\nFalling back to poor man's parser. This parser may " ++
-                      "return incomplete results. The result returned was: " ++
-                      "\nPrefix: " ++ mi_htfPrefix poorInfo ++
-                      "\nModule name: " ++ mi_moduleName poorInfo ++
-                      "\nDefinitions: " ++ show (mi_defs poorInfo) ++
-                      "\nHTF imports: " ++ show (mi_htfImports poorInfo))
-                preprocess poorInfo input
-         ParseOK info ->
-             preprocess info input
+cleanupInputString :: String -> String
+cleanupInputString s =
+    case s of
+      '\'':'\\':rest ->         -- escaped character literal
+        case span (/= '\'') rest of
+          (esc,'\'':rest) ->
+              "'\\" ++ esc ++ "'" ++ cleanupInputString rest
+          _ -> s                -- should not happen
+      '\'':c:'\'':rest ->   -- regular character literal
+        '\'':c:'\'':cleanupInputString rest
+      c:'\'':'\'':rest
+          | isSpace c ->         -- TH type quote
+              cleanupInputString rest
+      c:'\'':rest                -- TH name quote
+          | isSpace c ->
+              cleanupInputString rest
+      c:rest -> c : cleanupInputString rest
+      [] -> []
+
+type LocToken =  (Token,(Loc,String))
+
+data Loc
+    = Loc
+      { l_file :: FilePath
+      , l_line :: Int
+      , l_column :: Int
+      }
+    deriving (Eq, Show)
+
+-- token stream should not contain whitespace
+fixPositions :: FilePath -> [PosToken] -> [LocToken]
+fixPositions originalFileName = loop Nothing
+    where
+      loop mPragma toks =
+          case toks of
+            [] -> []
+            (Varsym, (pos, "#")) : (Varid, (_, "line")) : (IntLit, (_, lineNo)) : (StringLit,(_, fileName)) : rest
+                | column pos == 1 ->
+                    map (\(tt, (pos, x)) -> (tt, (fixPos Nothing pos, x))) (take 4 toks) ++
+                    loop (Just (line pos, fileName, read lineNo)) rest
+            (tt, (pos, x)) : rest ->
+                (tt, (fixPos mPragma pos, x)) : loop mPragma rest
+      fixPos mPragma pos =
+          case mPragma of
+            Nothing ->
+                Loc { l_column = column pos
+                    , l_file = originalFileName
+                    , l_line = line pos
+                    }
+            Just (lineActivated, fileName, lineNo) ->
+                let offset = line pos - lineActivated - 1
+                in Loc { l_column = column pos
+                       , l_file = fileName
+                       , l_line = lineNo + offset
+                       }
+
+fixPositionsTest :: IO ()
+fixPositionsTest =
+    let toks = concatMap (\(f, i) -> f i)
+                   (zip [tok, linePragma "bar" 10, tok, tok, linePragma "foo" 99, tok] [1..])
+        fixedToks = fixPositions origFileName toks
+        expectedToks = concat $
+                       [tok' origFileName 1
+                       ,linePragma' "bar" 10 2
+                       ,tok' "bar" 10
+                       ,tok' "bar" 11
+                       ,linePragma' "foo" 99 5
+                       ,tok' "foo" 99]
+    in assertEqual (show expectedToks ++ "\n\n  /=  \n\n" ++ show toks) expectedToks fixedToks
+    where
+      origFileName = "spam"
+      tok line = [(Varid, (Pos 0 line 1, "_"))]
+      linePragma fname line lineHere =
+          let pos = Pos 0 lineHere 1
+          in [(Varsym, (pos, "#"))
+             ,(Varid, (pos, "line"))
+             ,(IntLit, (pos, show line))
+             ,(StringLit, (pos, fname))]
+      tok' fname line =
+          let loc = Loc fname line 1
+          in [(Varid, (loc, "_"))]
+      linePragma' fname line lineHere =
+          let loc = Loc origFileName lineHere 1
+          in [(Varsym, (loc, "#"))
+             ,(Varid, (loc, "line"))
+             ,(IntLit, (loc, show line))
+             ,(StringLit,(loc, fname))]
+
+analyze :: FilePath -> String -> ModuleInfo
+analyze originalFileName input =
+    poorManAnalyzeTokens (fixPositions originalFileName (cleanupTokens (lexerPass0 (cleanupInputString input))))
+
+analyzeTests =
+    [(unlines ["module FOO where"
+              ,"import Test.Framework"
+              ,"import {-@ HTF_TESTS @-} qualified Foo as Bar"
+              ,"import {-@ HTF_TESTS @-} qualified Foo.X as Egg"
+              ,"import {-@ HTF_TESTS @-} Foo.Y as Spam"
+              ,"import {-@ HTF_TESTS @-} Foo.Z"
+              ,"import {-@ HTF_TESTS @-} Baz"
+              ,"deriveSafeCopy 1 'base ''T"
+              ,"$(deriveSafeCopy 2 'extension ''T)"
+              ,"test_blub test_foo = 1"
+              ,"test_blah test_foo = 1"
+              ,"prop_abc prop_foo = 2"
+              ,"prop_xyz = True"]
+     ,ModuleInfo { mi_htfPrefix = ""
+                 , mi_htfImports =
+                     [ImportDecl { imp_moduleName = "Foo"
+                                 , imp_qualified = True
+                                 , imp_alias = Just "Bar"
+                                 , imp_loc = makeLoc "<input>" 3}
+                     ,ImportDecl { imp_moduleName = "Foo.X"
+                                 , imp_qualified = True
+                                 , imp_alias = Just "Egg"
+                                 , imp_loc = makeLoc "<input>" 4}
+                     ,ImportDecl { imp_moduleName = "Foo.Y"
+                                 , imp_qualified = False
+                                 , imp_alias = Just "Spam"
+                                 , imp_loc = makeLoc "<input>" 5}
+                     ,ImportDecl { imp_moduleName = "Foo.Z"
+                                 , imp_qualified = False
+                                 , imp_alias = Nothing
+                                 , imp_loc = makeLoc "<input>" 6}
+                     ,ImportDecl { imp_moduleName = "Baz"
+                                 , imp_qualified = False
+                                 , imp_alias = Nothing
+                                 , imp_loc = makeLoc "<input>" 7}]
+                 , mi_moduleName = "FOO"
+                 , mi_defs = [TestDef "blub" (makeLoc "<input>" 10) "test_blub"
+                             ,TestDef "blah" (makeLoc "<input>" 11) "test_blah"
+                             ,PropDef "abc" (makeLoc "<input>" 12) "prop_abc"
+                             ,PropDef "xyz" (makeLoc "<input>" 13) "prop_xyz"]
+                 })
+    ,(unlines ["module Foo.Bar where"
+              ,"import Test.Framework as Blub"
+              ,"prop_xyz = True"]
+     ,ModuleInfo { mi_htfPrefix = ""
+                 , mi_htfImports = []
+                 , mi_moduleName = "Foo.Bar"
+                 , mi_defs = [PropDef "xyz" (makeLoc "<input>" 3) "prop_xyz"]
+                 })
+    ,(unlines ["module Foo.Bar where"
+              ,"import qualified Test.Framework as Blub"
+              ,"prop_xyz = True"]
+     ,ModuleInfo { mi_htfPrefix = "Blub."
+                 , mi_htfImports = []
+                 , mi_moduleName = "Foo.Bar"
+                 , mi_defs = [PropDef "xyz" (makeLoc "<input>" 3) "prop_xyz"]
+                 })
+    ,(unlines ["module Foo.Bar where"
+              ,"import qualified Test.Framework"
+              ,"prop_xyz = True"]
+     ,ModuleInfo { mi_htfPrefix = "Test.Framework."
+                 , mi_htfImports = []
+                 , mi_moduleName = "Foo.Bar"
+                 , mi_defs = [PropDef "xyz" (makeLoc "<input>" 3) "prop_xyz"]
+                 })]
+
+testAnalyze =
+    do mapM_ runTest (zip [1..] analyzeTests)
+    where
+      runTest (i, (src, mi)) =
+          let givenMi = analyze "<input>" src
+          in if givenMi == mi
+             then return ()
+             else assertFailure ("Error in test " ++ show i ++
+                                 ", expected:\n" ++ show mi ++
+                                 "\nGiven:\n" ++ show givenMi ++
+                                 "\nSrc:\n" ++ src)
+
+transform :: Bool -> Bool -> FilePath -> String -> IO String
+transform hunitBackwardsCompat debug originalFileName input =
+    let info = analyze originalFileName input
+    in preprocess info input
     where
       preprocess :: ModuleInfo -> String -> IO String
       preprocess info input =
-          do preProcessedInput <- runCpphs (cpphsOptions info) originalFileName
+          do when debug $ hPutStrLn stderr ("Module info:\n" ++ show info)
+             preProcessedInput <- runCpphs (cpphsOptions info) originalFileName
                                            fixedInput
              return $ preProcessedInput ++ "\n\n" ++ additionalCode info ++ "\n"
           where
@@ -328,3 +505,26 @@ transform hunitBackwardsCompat originalFileName input =
             (False, _) -> name
             (True, Just alias) -> alias ++ "." ++ name
             (True, _) -> imp_moduleName imp ++ "." ++ name
+
+-- Returns for lines of the form '# <number> "<filename>"'
+-- (see http://gcc.gnu.org/onlinedocs/cpp/Preprocessor-Output.html#Preprocessor-Output)
+-- the value 'Just <number> "<filename>"'
+parseCppLineInfoOut :: String -> Maybe (String, String)
+parseCppLineInfoOut line =
+    case line of
+      '#':' ':c:rest
+        | isDigit c ->
+            case List.span isDigit rest of
+              (restDigits, ' ' : '"' : rest) ->
+                  case dropWhile (/= '"') (reverse rest) of
+                    '"' : fileNameRev ->
+                        let line = (c:restDigits)
+                            file = "\"" ++ reverse fileNameRev ++ "\""
+                        in Just (line, file)
+                    _ -> Nothing
+              _ -> Nothing
+      _ -> Nothing
+
+preprocessorTests =
+    [("testAnalyze", testAnalyze)
+    ,("fixPositionsTest", fixPositionsTest)]

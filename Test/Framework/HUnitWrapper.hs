@@ -114,8 +114,6 @@ import Control.Exception
 import qualified Control.Exception.Lifted as ExL
 import Control.Monad.Trans.Control
 import Control.Monad.Trans
-import qualified Language.Haskell.Exts.Pretty as HE
-import qualified Language.Haskell.Exts.Parser as HE
 import qualified Test.HUnit.Lang as HU
 
 import Data.List ( (\\) )
@@ -127,6 +125,7 @@ import Test.Framework.Diff
 import Test.Framework.Colors
 import Test.Framework.Pretty
 import Test.Framework.AssertM
+import Test.Framework.PrettyHaskell
 
 -- WARNING: do not forget to add a preprocessor macro for new assertions!!
 
@@ -259,7 +258,7 @@ equalityFailedMessage exp act =
                       Nothing -> ""
           in noColor' (f True) (f False)
       (expP, actP, stringEq) =
-          case (pp exp, pp act) of
+          case (prettyHaskell' exp, prettyHaskell' act) of
             (Nothing, _) -> (exp, act, exp == act)
             (_, Nothing) -> (exp, act, exp == act)
             (Just expP, Just actP)
@@ -268,19 +267,10 @@ equalityFailedMessage exp act =
                        then (exp, act, exp == act)
                        else (expP, actP, True)
                 | otherwise -> (expP, actP, False)
-      pp s =
-          case HE.parseExp s of
-            HE.ParseOk x -> Just $ HE.prettyPrint x
-            HE.ParseFailed{} -> Nothing
 
 notEqualityFailedMessage :: String -> String
 notEqualityFailedMessage exp =
-    (": Objects are equal\n" ++ pp exp)
-    where
-      pp s =
-          case HE.parseExp s of
-            HE.ParseOk x -> HE.prettyPrint x
-            HE.ParseFailed{} -> s
+    (": Objects are equal\n" ++ prettyHaskell exp)
 
 _assertEqual_ :: (Eq a, Show a, AssertM m)
                  => String -> Location -> String -> a -> a -> m ()

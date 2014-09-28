@@ -18,10 +18,12 @@
 --
 
 import Test.Framework.History
+import Test.Framework.Preprocessor
+import Test.Framework.PrettyHaskell
 import System.Exit
 import Test.HUnit
 
-allTests = historyTests
+allTests = historyTests ++ preprocessorTests ++ prettyHaskellTests
 
 main :: IO ()
 main =
