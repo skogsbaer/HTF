@@ -36,11 +36,14 @@ import Control.Monad
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet as Set
 import qualified Data.Aeson as J
+import qualified Data.Aeson.Encode.Pretty as J
 import Data.Aeson ( (.=) )
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.Lazy.Char8 as BSLC
 import Data.Maybe
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+import qualified Data.Text.Encoding.Error as T
 import qualified Data.List as List
 import qualified Text.Regex as R
 import {-@ HTF_TESTS @-} qualified TestHTFHunitBackwardsCompatible
@@ -143,7 +146,7 @@ prop_ok'_OK = withQCArgs (\a -> a { maxSuccess = 1}) $
                                (xs::[Int]) == (reverse (reverse xs))
 
 prop_fail'_FAIL =
-    withQCArgs (\a -> a { replay = read "Just (1292732529 652912053,3)" }) prop
+    prop
     where prop xs = xs == (reverse xs)
               where types = xs::[Int]
 
@@ -276,7 +279,7 @@ checkOutput output =
                                                                                       ,"line" .= J.toJSON (97+lineOffset)]]]])
     where
       lineOffset :: Int
-      lineOffset = 9
+      lineOffset = 12
       checkStatus tuple@(pass, fail, error, pending, timedOut) json =
           {-
             {"location":null
@@ -322,8 +325,8 @@ checkOutput output =
           case filter (\j -> matches j pred) jsons of
             [json] ->
                 if not (matches json assert)
-                   then error ("Predicate\n" ++ show pred ++ " match JSON\n" ++ show json ++ ", but assertion\n" ++
-                               show assert ++ " not satisfied")
+                   then error ("Predicate\n" ++ ppJ pred ++ " match JSON\n" ++ ppJ json ++ ", but assertion\n" ++
+                               ppJ assert ++ " not satisfied")
                    else return ()
             l -> error ("not exactly one JSON matches predicate " ++ show pred ++ " but " ++ show l)
       matches :: J.Value -> J.Value -> Bool
@@ -355,6 +358,11 @@ checkOutput output =
                            else case splitJson rest of
                                   [] -> error "invalid json output from HTF"
                                   (x:xs) -> (start `BSL.append` x : xs)
+      ppJ json =
+          T.unpack $
+          T.decodeUtf8With T.lenientDecode $
+          BSL.toStrict $
+          J.encodePretty' (J.Config 2 J.compare) json
 
 runRealBlackBoxTests =
     do b <- doesDirectoryExist "tests/bbt"

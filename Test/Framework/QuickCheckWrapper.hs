@@ -32,7 +32,7 @@ module Test.Framework.QuickCheckWrapper (
 
   -- * Arguments for evaluating properties
   defaultArgs, getCurrentArgs, setDefaultArgs,
-  withQCArgs, WithQCArgs,
+  withQCArgs, WithQCArgs, setReplayFromString,
 
   -- * Pending properties
   qcPending,
@@ -58,10 +58,11 @@ import Data.Char
 import qualified Data.List as List
 import System.IO.Unsafe (unsafePerformIO)
 import Data.IORef
+import System.Random
 
 import Test.QuickCheck
-import Test.QuickCheck.Property hiding (reason)
 import Test.Framework.TestInterface
+import Test.Framework.Utils
 
 _DEBUG_ :: Bool
 _DEBUG_ = False
@@ -205,3 +206,22 @@ ioProperty = morallyDubiousIOProperty
 assertionAsProperty :: IO () -> Property
 assertionAsProperty action =
     ioProperty $ action >> return True
+
+-- | Sets the 'replay' parameter of the 'Args' datatype by parsing the given string.
+setReplayFromString :: Args -> String -> Args
+setReplayFromString args str =
+#if !MIN_VERSION_QuickCheck(2,7,0)
+    case readM str of
+      Just x -> args { replay = x }
+      Nothing -> error ("Could not parse replay parameter from string " ++ show str)
+#else
+    -- Starting with QC 2.7 the type of the replay field changed from
+    -- 'Maybe (StdGen, Int)' to 'Maybe (QCGen, Int'
+    case readM str of
+      Just x -> args { replay = x }
+      Nothing ->
+          case readM str of
+            Just (_ :: Maybe (StdGen, Int)) ->
+                error ("Your replay parameter has been produced with QuickCheck <= 2.6. It cannot be used with QuickCheck >= 2.7")
+            Nothing -> error ("Could not parse replay parameter from string " ++ show str)
+#endif

@@ -81,8 +81,8 @@ Description:
       the imported tests. See "Test.Framework.Tutorial" for details.
 
 Tested-With:
-                  GHC==7.4.2,
-                  GHC==7.6.2
+                  GHC==7.6.2,
+                  GHC==7.8.2
 Build-Type:       Simple
 Cabal-Version:    >= 1.10
 Extra-Source-Files:
@@ -157,7 +157,7 @@ Library
                     base == 4.*,
                     base64-bytestring,
                     bytestring >= 0.9,
-                    containers >= 0.4.2.1,
+                    containers >= 0.5,
                     cpphs >= 1.12,
                     directory >= 1.0,
                     haskell-lexer,
@@ -221,6 +221,7 @@ Test-Suite TestHTF
   Type:              exitcode-stdio-1.0
   Build-depends:     HTF,
                      aeson >= 0.6,
+                     aeson-pretty,
                      base == 4.*,
                      bytestring >= 0.9,
                      directory >= 1.0,
@@ -231,8 +232,8 @@ Test-Suite TestHTF
                      temporary >= 1.1,
                      text >= 0.11,
                      unordered-containers >= 0.2
-  Ghc-Options: -keep-tmp-files
   Default-language:  Haskell2010
+  Ghc-Options: -keep-tmp-files -tmpdir ./tmp
   Other-Modules:
     Foo.A, Foo.B, TestHTFHunitBackwardsCompatible
 

@@ -3,3 +3,8 @@ tests/dist/
 /.dist-buildwrapper
 /.project
 TAGS
+.HTF
+.cabal-sandbox
+cabal.sandbox.config
+sample/cabal.sandbox.config
+HSFILES_*

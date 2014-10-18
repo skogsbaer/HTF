@@ -138,31 +138,25 @@ type Name = String
 
 type PMA a = State ModuleInfo a
 
-modify' :: (a -> a) -> State a ()
-modify' f =
-    do x <- get
-       let !newX = f x
-       put newX
-
 setModName :: String -> PMA ()
 setModName name =
-    modify' $ \mi -> mi { mi_moduleName = name }
+    modify $ \mi -> mi { mi_moduleName = name }
 
 addTestDef :: String -> String -> Location -> PMA ()
 addTestDef name fullName loc =
-    modify' $ \mi -> mi { mi_defs = (TestDef name loc fullName) : mi_defs mi }
+    modify $ \mi -> mi { mi_defs = (TestDef name loc fullName) : mi_defs mi }
 
 addPropDef :: String -> String -> Location -> PMA ()
 addPropDef name fullName loc =
-    modify' $ \mi -> mi { mi_defs = (PropDef name loc fullName) : mi_defs mi }
+    modify $ \mi -> mi { mi_defs = (PropDef name loc fullName) : mi_defs mi }
 
 addHtfImport :: ImportDecl -> PMA ()
 addHtfImport decl =
-    modify' $ \mi -> mi { mi_htfImports = decl : mi_htfImports mi }
+    modify $ \mi -> mi { mi_htfImports = decl : mi_htfImports mi }
 
 setTestFrameworkImport :: String -> PMA ()
 setTestFrameworkImport name =
-    modify' $ \mi -> mi { mi_htfPrefix = name }
+    modify $ \mi -> mi { mi_htfPrefix = name }
 
 poorManAnalyzeTokens :: [LocToken] -> ModuleInfo
 poorManAnalyzeTokens toks =
@@ -434,27 +428,26 @@ testAnalyze =
 
 transform :: Bool -> Bool -> FilePath -> String -> IO String
 transform hunitBackwardsCompat debug originalFileName input =
-    let info = analyze originalFileName input
-    in preprocess info input
+    let info = analyze originalFileName fixedInput
+    in preprocess info
     where
-      preprocess :: ModuleInfo -> String -> IO String
-      preprocess info input =
+      preprocess :: ModuleInfo -> IO String
+      preprocess info =
           do when debug $ hPutStrLn stderr ("Module info:\n" ++ show info)
              preProcessedInput <- runCpphs (cpphsOptions info) originalFileName
                                            fixedInput
              return $ preProcessedInput ++ "\n\n" ++ additionalCode info ++ "\n"
+      -- fixedInput serves two purposes:
+      -- 1. add a trailing \n
+      -- 2. turn lines of the form '# <number> "<filename>"' into line directives '#line <number> <filename>'
+      -- (see http://gcc.gnu.org/onlinedocs/cpp/Preprocessor-Output.html#Preprocessor-Output).
+      fixedInput :: String
+      fixedInput = (unlines . map fixLine . lines) input
           where
-              -- fixedInput serves two purposes:
-              -- 1. add a trailing \n
-              -- 2. turn lines of the form '# <number> "<filename>"' into line directives '#line <number> <filename>'
-              -- (see http://gcc.gnu.org/onlinedocs/cpp/Preprocessor-Output.html#Preprocessor-Output).
-              fixedInput :: String
-              fixedInput = (unlines . map fixLine . lines) input
-                  where
-                    fixLine s =
-                        case parseCppLineInfoOut s of
-                          Just (line, fileName) -> "#line " ++ line ++ " " ++ fileName
-                          _ -> s
+            fixLine s =
+                case parseCppLineInfoOut s of
+                  Just (line, fileName) -> "#line " ++ line ++ " " ++ fileName
+                  _ -> s
       cpphsOptions :: ModuleInfo -> CpphsOptions
       cpphsOptions info =
           defaultCpphsOptions { defines =
