@@ -1,3 +1,7 @@
+* 0.12.2.0 (2014-10-18)
+  - drop dependency on haskell-src-exts (took too long to compile)
+  - only color error counts if they are > 0 (thanks to Matthias Fischmann)
+
 * 0.12.1.0 (2014-09-16)
   - support for haskell-src-exts version 1.16
   - Functor and Applicative instances for AssertBool
