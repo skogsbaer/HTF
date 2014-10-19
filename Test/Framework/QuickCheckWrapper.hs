@@ -58,9 +58,14 @@ import Data.Char
 import qualified Data.List as List
 import System.IO.Unsafe (unsafePerformIO)
 import Data.IORef
+#if MIN_VERSION_QuickCheck(2,7,0)
 import System.Random
+#endif
 
 import Test.QuickCheck
+#if !MIN_VERSION_QuickCheck(2,7,0)
+import Test.QuickCheck.Property (morallyDubiousIOProperty)
+#endif
 import Test.Framework.TestInterface
 import Test.Framework.Utils
 
