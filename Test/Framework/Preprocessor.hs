@@ -27,8 +27,9 @@ module Test.Framework.Preprocessor (
 
 ) where
 
+-- import Debug.Trace
 import Control.Monad
-import Data.Char ( isDigit, isSpace )
+import Data.Char
 import "haskell-lexer" Language.Haskell.Lexer
 import Language.Preprocessor.Cpphs ( runCpphs,
                                      CpphsOptions(..),
@@ -38,6 +39,7 @@ import System.IO ( hPutStrLn, stderr )
 import Test.HUnit hiding (State)
 import Control.Monad.State.Strict
 import qualified Data.List as List
+import Data.Maybe
 
 import Test.Framework.Location
 
@@ -72,8 +74,8 @@ importedTestListName = "htf_importedTests"
 
 nameDefines :: ModuleInfo -> [(String, String)]
 nameDefines info =
-    [(thisModulesTestsName, thisModulesTestsFullName (mi_moduleName info)),
-     (importedTestListName, importedTestListFullName (mi_moduleName info))]
+    [(thisModulesTestsName, thisModulesTestsFullName (mi_moduleNameWithDefault info)),
+     (importedTestListName, importedTestListFullName (mi_moduleNameWithDefault info))]
 
 allAsserts :: [String]
 allAsserts =
@@ -121,8 +123,11 @@ assertDefines hunitBackwardsCompat prefix =
 data ModuleInfo = ModuleInfo { mi_htfPrefix  :: String
                              , mi_htfImports :: [ImportDecl]
                              , mi_defs       :: [Definition]
-                             , mi_moduleName :: String }
+                             , mi_moduleName :: Maybe String }
                   deriving (Show, Eq)
+
+mi_moduleNameWithDefault :: ModuleInfo -> String
+mi_moduleNameWithDefault = fromMaybe "Main" . mi_moduleName
 
 data ImportDecl = ImportDecl { imp_moduleName :: Name
                              , imp_qualified :: Bool
@@ -140,7 +145,8 @@ type PMA a = State ModuleInfo a
 
 setModName :: String -> PMA ()
 setModName name =
-    modify $ \mi -> mi { mi_moduleName = name }
+    do oldName <- gets mi_moduleName
+       when (isNothing oldName) $ modify $ \mi -> mi { mi_moduleName = Just name }
 
 addTestDef :: String -> String -> Location -> PMA ()
 addTestDef name fullName loc =
@@ -166,7 +172,7 @@ poorManAnalyzeTokens toks =
                       ModuleInfo { mi_htfPrefix = htfModule ++ "."
                                  , mi_htfImports = []
                                  , mi_defs = []
-                                 , mi_moduleName = "Main" }
+                                 , mi_moduleName = Nothing }
     in ModuleInfo { mi_htfPrefix = mi_htfPrefix revRes
                   , mi_htfImports = reverse (mi_htfImports revRes)
                   , mi_defs = reverse $ List.nubBy defEqByName (mi_defs revRes)
@@ -255,24 +261,71 @@ cleanupTokens toks =
       tok:rest -> tok : cleanupTokens rest
       [] -> []
 
+-- char         -> ' (graphic<' | \> | space | escape<\&>) '
+-- graphic      -> small | large | symbol | digit | special | : | " | '
+-- escape       -> \ ( charesc | ascii | decimal | o octal | x hexadecimal )
+-- charesc      -> a | b | f | n | r | t | v | \ | " | ' | &
+-- ascii        -> ^cntrl | NUL | SOH | STX | ETX | EOT | ENQ | ACK
+--               | BEL | BS | HT | LF | VT | FF | CR | SO | SI | DLE
+--               | DC1 | DC2 | DC3 | DC4 | NAK | SYN | ETB | CAN
+--               | EM | SUB | ESC | FS | GS | RS | US | SP | DEL
+-- cntrl        -> ascLarge | @ | [ | \ | ] | ^ | _
+-- decimal      -> digit{digit}
+-- octal        -> octit{octit}
+-- hexadecimal  -> hexit{hexit}
+-- octit        -> 0 | 1 | ... | 7
+-- hexit        -> digit | A | ... | F | a | ... | f
+-- special      -> ( | ) | , | ; | [ | ] | `| { | }
+-- Purpose of cleanupInputString: filter out template Haskell quotes
 cleanupInputString :: String -> String
 cleanupInputString s =
     case s of
-      '\'':'\\':rest ->         -- escaped character literal
-        case span (/= '\'') rest of
-          (esc,'\'':rest) ->
-              "'\\" ++ esc ++ "'" ++ cleanupInputString rest
-          _ -> s                -- should not happen
-      '\'':c:'\'':rest ->   -- regular character literal
-        '\'':c:'\'':cleanupInputString rest
-      c:'\'':'\'':rest
-          | isSpace c ->         -- TH type quote
-              cleanupInputString rest
-      c:'\'':rest                -- TH name quote
-          | isSpace c ->
-              cleanupInputString rest
+      '\'':rest ->
+          case characterLitRest rest of
+            Just (restLit, rest') ->
+                '\'':restLit ++ cleanupInputString rest'
+            Nothing ->
+                '\'':cleanupInputString rest
+      c:'\'':'\'':x:rest
+          | isSpace c && isUpper x ->         -- TH type quote
+              c:x:cleanupInputString rest
+      c:'\'':x:rest                -- TH name quote
+          | isSpace c && isNothing (characterLitRest (x:rest)) && isLower x ->
+              c:x:cleanupInputString rest
+      c:rest
+         | not (isSpace c) ->
+             case span (== '\'') rest of
+               (quotes, rest') -> c : quotes ++ cleanupInputString rest'
       c:rest -> c : cleanupInputString rest
       [] -> []
+    where
+      characterLitRest s = -- expects that before the s there is a '
+          case s of
+            '\\':'\'':'\'':rest -> Just ("\\''", rest)  -- '\''
+            c:'\'':rest -> Just (c:"'", rest)           -- regular character lit
+            '\\':rest ->
+                case span (/= '\'') rest of
+                  (esc,'\'':rest) ->
+                      Just (('\\':esc) ++ "'", rest)
+                  _ -> Just (s, "")      -- should not happen
+            _ -> Nothing
+
+cleanupInputStringTest =
+    do flip mapM_ untouched $ \s ->
+           let cleanedUp = cleanupInputString s
+           in if s /= cleanedUp
+              then assertFailure ("Cleanup of " ++ show s ++ " is wrong: " ++ show cleanedUp ++
+                                  ", expected that input and output are the same")
+              else return ()
+       flip mapM_ touched $ \(input, output) ->
+           let cleanedUp = cleanupInputString input
+           in if output /= cleanedUp
+              then assertFailure ("Cleanup of " ++ show input ++ " is wrong: " ++ show cleanedUp
+                                  ++ ", expected " ++ show output)
+              else return ()
+    where
+      untouched = [" '0'", " '\\''", " ' '", " '\o761'", " '\BEL'", " '\^@' ", "' '", "fixed' ' '"]
+      touched = [(" 'foo abc", " foo abc"), (" ''T ", " T ")]
 
 type LocToken =  (Token,(Loc,String))
 
@@ -383,7 +436,7 @@ analyzeTests =
                                  , imp_qualified = False
                                  , imp_alias = Nothing
                                  , imp_loc = makeLoc "<input>" 7}]
-                 , mi_moduleName = "FOO"
+                 , mi_moduleName = Just "FOO"
                  , mi_defs = [TestDef "blub" (makeLoc "<input>" 10) "test_blub"
                              ,TestDef "blah" (makeLoc "<input>" 11) "test_blah"
                              ,PropDef "abc" (makeLoc "<input>" 12) "prop_abc"
@@ -394,7 +447,7 @@ analyzeTests =
               ,"prop_xyz = True"]
      ,ModuleInfo { mi_htfPrefix = ""
                  , mi_htfImports = []
-                 , mi_moduleName = "Foo.Bar"
+                 , mi_moduleName = Just "Foo.Bar"
                  , mi_defs = [PropDef "xyz" (makeLoc "<input>" 3) "prop_xyz"]
                  })
     ,(unlines ["module Foo.Bar where"
@@ -402,7 +455,7 @@ analyzeTests =
               ,"prop_xyz = True"]
      ,ModuleInfo { mi_htfPrefix = "Blub."
                  , mi_htfImports = []
-                 , mi_moduleName = "Foo.Bar"
+                 , mi_moduleName = Just "Foo.Bar"
                  , mi_defs = [PropDef "xyz" (makeLoc "<input>" 3) "prop_xyz"]
                  })
     ,(unlines ["module Foo.Bar where"
@@ -410,7 +463,7 @@ analyzeTests =
               ,"prop_xyz = True"]
      ,ModuleInfo { mi_htfPrefix = "Test.Framework."
                  , mi_htfImports = []
-                 , mi_moduleName = "Foo.Bar"
+                 , mi_moduleName = Just "Foo.Bar"
                  , mi_defs = [PropDef "xyz" (makeLoc "<input>" 3) "prop_xyz"]
                  })]
 
@@ -458,11 +511,11 @@ transform hunitBackwardsCompat debug originalFileName input =
                               }
       additionalCode :: ModuleInfo -> String
       additionalCode info =
-          thisModulesTestsFullName (mi_moduleName info) ++ " :: " ++
+          thisModulesTestsFullName (mi_moduleNameWithDefault info) ++ " :: " ++
             mi_htfPrefix info ++ "TestSuite\n" ++
-          thisModulesTestsFullName (mi_moduleName info) ++ " = " ++
+          thisModulesTestsFullName (mi_moduleNameWithDefault info) ++ " = " ++
             mi_htfPrefix info ++ "makeTestSuite" ++
-          " " ++ show (mi_moduleName info) ++
+          " " ++ show (mi_moduleNameWithDefault info) ++
           " [\n" ++ List.intercalate ",\n"
                           (map (codeForDef (mi_htfPrefix info)) (mi_defs info))
           ++ "\n  ]\n" ++ importedTestListCode info
@@ -484,9 +537,9 @@ transform hunitBackwardsCompat debug originalFileName input =
           let l = mi_htfImports info
           in case l of
                [] -> ""
-               _ -> (importedTestListFullName (mi_moduleName info)
+               _ -> (importedTestListFullName (mi_moduleNameWithDefault info)
                      ++ " :: [" ++ mi_htfPrefix info ++ "TestSuite]\n" ++
-                     importedTestListFullName (mi_moduleName info)
+                     importedTestListFullName (mi_moduleNameWithDefault info)
                      ++ " = [\n    " ++
                      List.intercalate ",\n     " (map htfTestsInModule l) ++
                      "\n  ]\n")
@@ -520,4 +573,5 @@ parseCppLineInfoOut line =
 
 preprocessorTests =
     [("testAnalyze", testAnalyze)
-    ,("fixPositionsTest", fixPositionsTest)]
+    ,("fixPositionsTest", fixPositionsTest)
+    ,("cleanupInputStringTest", cleanupInputStringTest)]
