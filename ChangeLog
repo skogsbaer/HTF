@@ -1,3 +1,8 @@
+* 0.12.2.2 (2014-10-22)
+  - fixed lexing bug (some source files were not parsed properly)
+  - fixed bug where wrong module name was generated
+  - fixed source distribution (not all files were included)
+
 * 0.12.2.1 (2014-10-19)
   - fixed compile error with QuickCheck == 2.6
 
