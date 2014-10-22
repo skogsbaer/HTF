@@ -35,7 +35,7 @@ usage :: IO ()
 usage =
     hPutStrLn stderr
       ("Preprocessor for the Haskell Test Framework\n\n" ++
-       "Usage: " ++ progName ++ " [--hunit|--debug] [FILE1 [FILE2 [FILE3]]]\n\n" ++
+       "Usage: " ++ progName ++ " [--hunit|--debug|--version] [FILE1 [FILE2 [FILE3]]]\n\n" ++
        "* If no argument is given, input is read from stdin and\n" ++
        "  output is written to stdout.\n" ++
        "* If only FILE1 is given, input is read from this file\n" ++
