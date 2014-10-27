@@ -280,15 +280,18 @@ cleanupTokens toks =
 cleanupInputString :: String -> String
 cleanupInputString s =
     case s of
+      c:'\'':'\'':x:rest
+          | isSpace c && isUpper x ->         -- TH type quote
+              c:x:cleanupInputString rest
+      c:'\'':'\'':d:rest
+          | not (isAlphaNum c) || not (isAlphaNum d)
+              -> c:'\'':'x':'\'':d:rest
       '\'':rest ->
           case characterLitRest rest of
             Just (restLit, rest') ->
                 '\'':restLit ++ cleanupInputString rest'
             Nothing ->
                 '\'':cleanupInputString rest
-      c:'\'':'\'':x:rest
-          | isSpace c && isUpper x ->         -- TH type quote
-              c:x:cleanupInputString rest
       c:'\'':x:rest                -- TH name quote
           | isSpace c && isNothing (characterLitRest (x:rest)) && isLower x ->
               c:x:cleanupInputString rest
