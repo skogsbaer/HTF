@@ -23,6 +23,10 @@ module Test.Framework.Diff (
 
 ) where
 
+#ifndef MIN_VERSION_base
+#define MIN_VERSION_base(a,b,c) 1
+#endif
+
 #if !MIN_VERSION_base(4,6,0)
 import Prelude hiding (catch)
 #endif

@@ -106,7 +106,10 @@ module Test.Framework.HUnitWrapper (
   gsubAssert_, gsubAssertVerbose_,
 
   -- * HUnit re-exports
-  HU.HUnitFailure
+  HU.HUnitFailure,
+
+  -- * Tests (for internal use)
+  hunitWrapperTests
 
 ) where
 
@@ -115,6 +118,7 @@ import qualified Control.Exception.Lifted as ExL
 import Control.Monad.Trans.Control
 import Control.Monad.Trans
 import qualified Test.HUnit.Lang as HU
+import qualified Test.HUnit.Base as HU
 
 import Data.List ( (\\) )
 import System.IO.Unsafe (unsafePerformIO)
@@ -126,6 +130,8 @@ import Test.Framework.Colors
 import Test.Framework.Pretty
 import Test.Framework.AssertM
 import Test.Framework.PrettyHaskell
+
+import qualified Data.Text as T
 
 -- WARNING: do not forget to add a preprocessor macro for new assertions!!
 
@@ -234,16 +240,16 @@ CreateAssertions(assertBool, Bool)
 -- Equality Assertions
 --
 
-equalityFailedMessage :: String -> String -> ColorString
-equalityFailedMessage exp act =
-    let !diff = unsafePerformIO (diffWithSensibleConfig expP actP)
+equalityFailedMessage' :: String -> String -> ColorString
+equalityFailedMessage' exp act =
+    let !diff = unsafePerformIO (diffWithSensibleConfig exp act)
         expected_ = colorize firstDiffColor "* expected:"
         but_got_ = colorize secondDiffColor "* but got:"
         diff_ = colorize diffColor "* diff:"
-    in ("\n" +++ expected_ +++ " " +++ noColor (withNewline expP) +++
-        "\n" +++ but_got_ +++ "  " +++ noColor (withNewline actP) +++
+    in ("\n" +++ expected_ +++ " " +++ noColor (withNewline exp) +++
+        "\n" +++ but_got_ +++ "  " +++ noColor (withNewline act) +++
         "\n" +++ diff_ +++ "     " +++ newlineBeforeDiff diff +++ diff +++
-        (if stringEq
+        (if (exp == act)
          then "\nWARNING: strings are equal but actual values differ!"
          else ""))
     where
@@ -257,26 +263,33 @@ equalityFailedMessage exp act =
                       Just _ -> "\n"
                       Nothing -> ""
           in noColor' (f True) (f False)
-      (expP, actP, stringEq) =
+
+equalityFailedMessage :: (Show a) => a -> a -> ColorString
+equalityFailedMessage exp act =
+    equalityFailedMessage' expP actP
+    where
+      (expP, actP) =
           case (prettyHaskell' exp, prettyHaskell' act) of
-            (Nothing, _) -> (exp, act, exp == act)
-            (_, Nothing) -> (exp, act, exp == act)
+            (Nothing, _) -> (show exp, show act)
+            (_, Nothing) -> (show exp, show act)
             (Just expP, Just actP)
                 | expP == actP ->
-                    if exp /= act
-                       then (exp, act, exp == act)
-                       else (expP, actP, True)
-                | otherwise -> (expP, actP, False)
+                    (show exp, show act)
+                | otherwise -> (expP, actP)
 
-notEqualityFailedMessage :: String -> String
+notEqualityFailedMessage :: Show a => a -> String
 notEqualityFailedMessage exp =
-    (": Objects are equal\n" ++ prettyHaskell exp)
+    notEqualityFailedMessage' (prettyHaskell exp)
+
+notEqualityFailedMessage' :: String -> String
+notEqualityFailedMessage' exp =
+    (": Objects are equal\n" ++ exp)
 
 _assertEqual_ :: (Eq a, Show a, AssertM m)
                  => String -> Location -> String -> a -> a -> m ()
 _assertEqual_ name loc s expected actual =
     if expected /= actual
-       then do let x = equalityFailedMessage (show expected) (show actual)
+       then do let x = equalityFailedMessage expected actual
                genericAssertFailure__ loc (mkColorMsg name s $
                                            noColor ("failed at " ++ showLoc loc) +++ x)
        else return ()
@@ -290,7 +303,7 @@ _assertNotEqual_ :: (Eq a, Show a, AssertM m)
                  => String -> Location -> String -> a -> a -> m ()
 _assertNotEqual_ name loc s expected actual =
     if expected == actual
-       then do let x = notEqualityFailedMessage (show expected)
+       then do let x = notEqualityFailedMessage expected
                genericAssertFailure__ loc (mkMsg name s $ "failed at " ++ showLoc loc ++ x)
        else return ()
 
@@ -303,7 +316,7 @@ _assertEqualPretty_ :: (Eq a, Pretty a, AssertM m)
                        => String -> Location -> String -> a -> a -> m ()
 _assertEqualPretty_ name loc s expected actual =
     if expected /= actual
-       then do let x = equalityFailedMessage (showPretty expected) (showPretty actual)
+       then do let x = equalityFailedMessage' (showPretty expected) (showPretty actual)
                genericAssertFailure__ loc (mkColorMsg name s
                                            (noColor ("failed at " ++ showLoc loc) +++ x))
        else return ()
@@ -317,7 +330,7 @@ _assertNotEqualPretty_ :: (Eq a, Pretty a, AssertM m)
                        => String -> Location -> String -> a -> a -> m ()
 _assertNotEqualPretty_ name loc s expected actual =
     if expected == actual
-       then do let x = notEqualityFailedMessage (showPretty expected)
+       then do let x = notEqualityFailedMessage' (showPretty expected)
                genericAssertFailure__ loc (mkMsg name s $ "failed at " ++ showLoc loc ++ x)
        else return ()
 DocAssertion(assertNotEqualPretty, Fail if the two values of type @a@ are equal.
@@ -360,7 +373,7 @@ _assertListsEqualAsSets_ name loc s expected actual =
         na = length actual
         in case () of
             _| ne /= na ->
-                 do let x = equalityFailedMessage (show expected) (show actual)
+                 do let x = equalityFailedMessage expected actual
                     genericAssertFailure__ loc (mkColorMsg name s
                                                 (noColor
                                                  ("failed at " ++ showLoc loc
@@ -369,7 +382,7 @@ _assertListsEqualAsSets_ name loc s expected actual =
                                                   (if maxLength x < 5000
                                                    then x else emptyColorString)))
              | not (unorderedEq expected actual) ->
-                 do let x = equalityFailedMessage (show expected) (show actual)
+                 do let x = equalityFailedMessage expected actual
                     genericAssertFailure__ loc (mkColorMsg "assertSetEqual" s
                                                 (noColor ("failed at " ++ showLoc loc) +++ x))
              | otherwise -> return ()
@@ -576,3 +589,23 @@ subAssertVerbose_ loc msg ass = subAssertHTF loc (Just msg) ass
 -- | Generic variant of 'subAssertVerbose_'.
 gsubAssertVerbose_ :: AssertM m => Location -> String -> m a -> m a
 gsubAssertVerbose_ loc msg ass = genericSubAssert loc (Just msg) ass
+
+testEqualityFailedMessage1 :: IO ()
+testEqualityFailedMessage1 =
+    let msg = T.unpack $ renderColorString (equalityFailedMessage [1,2,3] [1,2,3,4]) False
+    in HU.assertEqual "error" msg exp
+    where
+      exp = "\n* expected: [1, 2, 3]\n* but got:  [1, 2, 3, 4]\n* " ++
+            "diff:     \nC <...[1, 2, 3...>C \nS , 4\nC ]<......>C "
+
+testEqualityFailedMessage2 :: IO ()
+testEqualityFailedMessage2 =
+    let msg = T.unpack $ renderColorString (equalityFailedMessage [1,2,3] [1,2,3]) False
+    in HU.assertEqual "error" msg exp
+    where
+      exp = "\n* expected: [1,2,3]\n* but got:  [1,2,3]\n* " ++
+            "diff:     \nWARNING: strings are equal but actual values differ!"
+
+hunitWrapperTests =
+    [("testEqualityFailedMessage1", testEqualityFailedMessage1)
+    ,("testEqualityFailedMessage2", testEqualityFailedMessage2)]
