@@ -147,21 +147,32 @@ qcAssertion qc =
                   Right (Failure { usedSize=size, usedSeed=gen, output=msg, reason=reason }) ->
                       case () of
                         _| pendingPrefix `List.isPrefixOf` reason ->
-                             let pendingMsg = let s = drop (length pendingPrefix) reason
-                                              in take (length s - length pendingSuffix) s
+                             let pendingMsg = getPayload pendingPrefix pendingSuffix reason
                              in quickCheckTestPending pendingMsg
-                          | otherwise ->
-                              let replay = "Replay argument: " ++ (show (show (Just (gen, size))))
-                                  out = adjustOutput msg
-                              in quickCheckTestFail (Just (out ++ "\n" ++ replay))
+                         | failurePrefix `List.isPrefixOf` reason
+                         , Just result <- readM (getPayload failurePrefix failureSuffix reason)
+                            -> failHTF result
+                         | otherwise ->
+                             let replay = "Replay argument: " ++ (show (show (Just (gen, size))))
+                                 out = adjustOutput msg
+                             in quickCheckTestFail (Just (out ++ "\n" ++ replay))
                   Right (GaveUp { output=msg }) ->
                       quickCheckTestFail (Just (adjustOutput msg))
                   Right (NoExpectedFailure { output=msg }) ->
                       quickCheckTestFail (Just (adjustOutput msg))
+#if MIN_VERSION_QuickCheck(2,8,0)
+                  Right (InsufficientCoverage { output=msg }) ->
+                      quickCheckTestFail (Just (adjustOutput msg))
+#endif
                 return ()
     where
       pendingPrefix = "Exception: 'QCPendingException \""
       pendingSuffix = "\"'"
+      failurePrefix = "Exception: 'HTFFailure "
+      failureSuffix = "'"
+      getPayload pref suf reason =
+          let s = drop (length pref) reason
+          in take (length s - length suf) s
       adjustOutput s = trimTrailing $
           case s of
             '+':'+':'+':' ':'O':'K':',':' ':'p':rest -> 'P':rest
@@ -221,7 +232,7 @@ setReplayFromString args str =
       Nothing -> error ("Could not parse replay parameter from string " ++ show str)
 #else
     -- Starting with QC 2.7 the type of the replay field changed from
-    -- 'Maybe (StdGen, Int)' to 'Maybe (QCGen, Int'
+    -- 'Maybe (StdGen, Int)' to 'Maybe (QCGen, Int)'
     case readM str of
       Just x -> args { replay = x }
       Nothing ->
