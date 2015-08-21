@@ -141,10 +141,12 @@ Executable htfpp
                     mtl >= 1.1,
                     old-time >= 1.0,
                     random >= 1.0,
-                    text
+                    text,
+                    HTF
   Other-Modules:
+    Paths_HTF
+    Test.Framework.Location
     Test.Framework.Preprocessor
-    Test.Framework.HaskellParser
   Default-language:  Haskell2010
 
 Library

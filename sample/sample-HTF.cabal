@@ -13,12 +13,12 @@ cabal-version:       >=1.10
 executable sample
   main-is:           Main.hs
   other-modules:     MyPkg.A MyPkg.B
-  build-depends:     base, HTF == 0.12.*
+  build-depends:     base, HTF == 0.13.*
   default-language:  Haskell2010
 
 test-suite sample-tests
   type:              exitcode-stdio-1.0
   main-is:           TestMain.hs
   other-modules:     MyPkg.A MyPkg.B
-  build-depends:     base, HTF == 0.12.*
+  build-depends:     base, HTF == 0.13.*
   default-language:  Haskell2010
