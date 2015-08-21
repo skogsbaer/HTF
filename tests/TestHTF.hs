@@ -1,5 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# OPTIONS_GHC -F -pgmF ./dist/build/htfpp/htfpp #-}
 --
 -- Copyright (c) 2005,2010   Stefan Wehr - http://www.stefanwehr.de
@@ -57,6 +62,7 @@ import UniqTests1
 import UniqTests2
 import PrevFactor
 import SortByPrevTime
+import Quasi
 
 import Tutorial hiding (main)
 
@@ -70,6 +76,19 @@ stringGap = "hello world!"
 
 handleExc :: a -> SomeException -> a
 handleExc x _ = x
+
+-- 世界不是英文的 Test for #47
+
+-- Test for #48
+data HVect (ts :: [*]) where
+  HNil :: HVect '[]
+  HCons :: t -> HVect ts -> HVect (t ': ts)
+
+fun :: HVect '[Int, Int] -> String
+fun = undefined
+
+-- Test for #45
+foobar = [q|INSERT INTO a (name) VALUES ('')|]
 
 test_assertFailure_FAIL = assertFailure "I'm a failure"
 
@@ -279,7 +298,7 @@ checkOutput output =
                                                                                       ,"line" .= J.toJSON (97+lineOffset)]]]])
     where
       lineOffset :: Int
-      lineOffset = 12
+      lineOffset = 31
       checkStatus tuple@(pass, fail, error, pending, timedOut) json =
           {-
             {"location":null

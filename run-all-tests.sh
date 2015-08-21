@@ -2,6 +2,11 @@
 
 SANDBOX_FILE="cabal.sandbox.config"
 SANDBOX_DIR=".cabal-sandbox"
+CABAL=$HOME/bin/cabal-with-cpphs
+
+if [ ! -x "$CABAL" ]; then
+    CABAL=cabal
+fi
 
 set -e
 if [ -e "$SANDBOX_FILE"  ]
@@ -13,12 +18,12 @@ else
     ghc-pkg unregister HTF || true
 fi
 
-cabal configure --enable-tests || exit 1
-cabal build || exit 1
-cabal test || exit 1
-cabal install || exit 1
+$CABAL configure --enable-tests || exit 1
+$CABAL build || exit 1
+$CABAL test || exit 1
+$CABAL install || exit 1
 
-cd sample
+cd sample || exit 1
 
 if [ "$have_sandbox" == "yes" ]
 then
@@ -26,6 +31,6 @@ then
     cabal sandbox init --sandbox ../"$SANDBOX_DIR"
 fi
 
-cabal configure --enable-tests || exit 1
-cabal build || exit 1
-cabal test || exit 1
+$CABAL configure --enable-tests || exit 1
+$CABAL build || exit 1
+$CABAL test || exit 1

@@ -8,3 +8,5 @@ TAGS
 cabal.sandbox.config
 sample/cabal.sandbox.config
 HSFILES_*
+.haskell-project
+.stack-work

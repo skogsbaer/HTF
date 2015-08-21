@@ -42,6 +42,7 @@ module Test.Framework.TestManager (
   makeAnonTestSuite,
   addToTestSuite, testSuiteAsTest,
 
+  flattenTest
 ) where
 
 import Control.Monad.RWS

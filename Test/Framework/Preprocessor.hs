@@ -30,11 +30,18 @@ module Test.Framework.Preprocessor (
 -- import Debug.Trace
 import Control.Monad
 import Data.Char
-import "haskell-lexer" Language.Haskell.Lexer
-import Language.Preprocessor.Cpphs ( runCpphs,
+import Language.Preprocessor.Cpphs ( runCpphsPass1,
+                                     runCpphsPass2,
                                      CpphsOptions(..),
                                      BoolOptions(..),
-                                     defaultCpphsOptions)
+                                     defaultCpphsOptions,
+                                     WordStyle(..),
+                                     Posn,
+                                     filename,
+                                     lineno,
+                                     newfile,
+                                     tokenise
+                                   )
 import System.IO ( hPutStrLn, stderr )
 import Test.HUnit hiding (State, Location)
 import Control.Monad.State.Strict
@@ -164,10 +171,60 @@ setTestFrameworkImport :: String -> PMA ()
 setTestFrameworkImport name =
     modify $ \mi -> mi { mi_htfPrefix = name }
 
-poorManAnalyzeTokens :: [LocToken] -> ModuleInfo
-poorManAnalyzeTokens toks =
-    -- show toks `trace`
-    let revRes =
+data Tok
+    = TokModule
+    | TokQname Location String
+    | TokName Location Bool String
+    | TokHtfImport Location
+    | TokImport Location
+
+transWordStyles :: [WordStyle] -> [Tok]
+transWordStyles styles = loop styles True
+    where
+      loop styles startOfLine =
+        case styles of
+          [] -> []
+          Ident pos name : rest ->
+              case name of
+                "module" -> TokModule : loop rest False
+                "import" ->
+                    case dropWhite rest of
+                      Other "{-@ HTF_TESTS @-}" : rest2 ->
+                          TokHtfImport (posToLocation pos) : loop rest2 False
+                      _ ->
+                          TokImport (posToLocation pos) : loop rest False
+                _ ->
+                    case parseQname rest of
+                      ([], rest2) ->
+                          TokName (posToLocation pos) startOfLine name : loop rest2 False
+                      (nameParts, rest2) ->
+                          TokQname (posToLocation pos) (List.intercalate "." (name:nameParts)) : loop rest2 False
+          Other str : rest ->
+              let startOfLine =
+                      case reverse str of
+                        '\n':_ -> True
+                        _ -> False
+              in loop rest startOfLine
+          Cmd _ : rest -> loop rest False
+      dropWhite styles =
+          case styles of
+            Other str : rest ->
+                case dropWhile isSpace str of
+                  [] -> dropWhite rest
+                  str' -> Other str' : rest
+            _ -> styles
+      parseQname styles =
+          case styles of
+            Other "." : Ident _ name : rest ->
+                let (restParts, rest2) = parseQname rest
+                in (name:restParts, rest2)
+            _ -> ([], styles)
+      posToLocation pos = makeLoc (filename pos) (lineno pos)
+
+poorManAnalyzeTokens :: [WordStyle] -> ModuleInfo
+poorManAnalyzeTokens styles =
+    let toks = transWordStyles styles
+        revRes =
             execState (loop toks) $
                       ModuleInfo { mi_htfPrefix = htfModule ++ "."
                                  , mi_htfImports = []
@@ -184,33 +241,30 @@ poorManAnalyzeTokens toks =
       defEqByName _ _ = False
       loop toks =
         case toks of
-          (Reservedid, (_, "module")) : rest ->
-              case rest of
-                (Conid, (_, name)):rest2 ->
-                    do setModName name
-                       loop rest2
-                (Qconid, (_, name)):rest2 ->
-                    do setModName name
-                       loop rest2
-                _ -> loop rest
-          (Varid, (loc, name)) : rest
-              | isStartOfLine loc ->
+          TokModule : TokQname _ name : rest ->
+              do setModName name
+                 loop rest
+          TokModule : TokName _ _ name : rest ->
+              do setModName name
+                 loop rest
+          TokName loc startOfLine name : rest
+              | startOfLine ->
                   case name of
                     't':'e':'s':'t':'_':shortName ->
-                        do addTestDef shortName name (locToLocation loc)
+                        do addTestDef shortName name loc
                            loop rest
                     'p':'r':'o':'p':'_':shortName ->
-                        do addPropDef shortName name (locToLocation loc)
+                        do addPropDef shortName name loc
                            loop rest
                     _ -> loop rest
               | otherwise -> loop rest
-          (Special, (loc, "import_HTF_TESTS")) : rest ->
+          TokHtfImport loc : rest ->
               case parseImport loc rest of
                 Just (imp, rest2) ->
                     do addHtfImport imp
                        loop rest2
                 Nothing -> loop rest
-          (Reservedid, (loc, "import")) : rest ->
+          TokImport loc : rest ->
               do case parseImport loc rest of
                    Nothing -> loop rest
                    Just (imp, rest2) ->
@@ -227,181 +281,30 @@ poorManAnalyzeTokens toks =
       parseImport loc toks =
           do let (qualified, toks2) =
                   case toks of
-                    (Varid, (_, "qualified")):rest -> (True, rest)
+                    TokName _ _ "qualified" : rest -> (True, rest)
                     _ -> (False, toks)
              (name, toks3) <-
                   case toks2 of
-                    (Conid, (_, name)):rest -> return (name, rest)
-                    (Qconid, (_, name)):rest -> return (name, rest)
+                    TokName _ _ name : rest -> return (name, rest)
+                    TokQname _ name : rest -> return (name, rest)
                     _ -> fail "no import"
              let (mAlias, toks4) =
                    case toks3 of
-                     (Varid, (_, "as")):(Conid, (_, alias)):rest -> (Just alias, rest)
+                     TokName _ _ "as" : TokName _ _ alias : rest -> (Just alias, rest)
                      _ -> (Nothing, toks3)
                  decl = ImportDecl { imp_moduleName = name
                                    , imp_qualified = qualified
                                    , imp_alias = mAlias
-                                   , imp_loc = locToLocation loc }
+                                   , imp_loc = loc }
              return (decl, toks4)
-      locToLocation loc =
-          makeLoc (l_file loc) (l_line loc)
-      isStartOfLine loc =
-          l_column loc == 1
 
-cleanupTokens :: [PosToken] -> [PosToken]
-cleanupTokens toks =
-    -- Remove whitespace tokens, remove comments, but replace
-    -- 'import {-@ HTF_TESTS @-}' with a single
-    -- token Special with value "import_HTF_TESTS"
-    case toks of
-      (Whitespace, _):rest -> cleanupTokens rest
-      (NestedComment, (loc, "{-@ HTF_TESTS @-}")) : rest ->
-          (Special, (loc, "import_HTF_TESTS")) :
-          cleanupTokens rest
-      tok:rest -> tok : cleanupTokens rest
-      [] -> []
-
--- char         -> ' (graphic<' | \> | space | escape<\&>) '
--- graphic      -> small | large | symbol | digit | special | : | " | '
--- escape       -> \ ( charesc | ascii | decimal | o octal | x hexadecimal )
--- charesc      -> a | b | f | n | r | t | v | \ | " | ' | &
--- ascii        -> ^cntrl | NUL | SOH | STX | ETX | EOT | ENQ | ACK
---               | BEL | BS | HT | LF | VT | FF | CR | SO | SI | DLE
---               | DC1 | DC2 | DC3 | DC4 | NAK | SYN | ETB | CAN
---               | EM | SUB | ESC | FS | GS | RS | US | SP | DEL
--- cntrl        -> ascLarge | @ | [ | \ | ] | ^ | _
--- decimal      -> digit{digit}
--- octal        -> octit{octit}
--- hexadecimal  -> hexit{hexit}
--- octit        -> 0 | 1 | ... | 7
--- hexit        -> digit | A | ... | F | a | ... | f
--- special      -> ( | ) | , | ; | [ | ] | `| { | }
--- Purpose of cleanupInputString: filter out template Haskell quotes
-cleanupInputString :: String -> String
-cleanupInputString s =
-    case s of
-      c:'\'':'\'':x:rest
-          | isSpace c && isUpper x ->         -- TH type quote
-              c:x:cleanupInputString rest
-      c:'\'':'\'':d:rest
-          | not (isAlphaNum c) || not (isAlphaNum d)
-              -> c:'\'':'x':'\'':d:rest
-      '\'':rest ->
-          case characterLitRest rest of
-            Just (restLit, rest') ->
-                '\'':restLit ++ cleanupInputString rest'
-            Nothing ->
-                '\'':cleanupInputString rest
-      c:'\'':x:rest                -- TH name quote
-          | isSpace c && isNothing (characterLitRest (x:rest)) && isLower x ->
-              c:x:cleanupInputString rest
-      c:rest
-         | not (isSpace c) ->
-             case span (== '\'') rest of
-               (quotes, rest') -> c : quotes ++ cleanupInputString rest'
-      c:rest -> c : cleanupInputString rest
-      [] -> []
-    where
-      characterLitRest s = -- expects that before the s there is a '
-          case s of
-            '\\':'\'':'\'':rest -> Just ("\\''", rest)  -- '\''
-            c:'\'':rest -> Just (c:"'", rest)           -- regular character lit
-            '\\':rest ->
-                case span (/= '\'') rest of
-                  (esc,'\'':rest) ->
-                      Just (('\\':esc) ++ "'", rest)
-                  _ -> Just (s, "")      -- should not happen
-            _ -> Nothing
-
-cleanupInputStringTest =
-    do flip mapM_ untouched $ \s ->
-           let cleanedUp = cleanupInputString s
-           in if s /= cleanedUp
-              then assertFailure ("Cleanup of " ++ show s ++ " is wrong: " ++ show cleanedUp ++
-                                  ", expected that input and output are the same")
-              else return ()
-       flip mapM_ touched $ \(input, output) ->
-           let cleanedUp = cleanupInputString input
-           in if output /= cleanedUp
-              then assertFailure ("Cleanup of " ++ show input ++ " is wrong: " ++ show cleanedUp
-                                  ++ ", expected " ++ show output)
-              else return ()
-    where
-      untouched = [" '0'", " '\\''", " ' '", " '\o761'", " '\BEL'", " '\^@' ", "' '", "fixed' ' '"]
-      touched = [(" 'foo abc", " foo abc"), (" ''T ", " T ")]
-
-type LocToken =  (Token,(Loc,String))
-
-data Loc
-    = Loc
-      { l_file :: FilePath
-      , l_line :: Int
-      , l_column :: Int
-      }
-    deriving (Eq, Show)
-
--- token stream should not contain whitespace
-fixPositions :: FilePath -> [PosToken] -> [LocToken]
-fixPositions originalFileName = loop Nothing
-    where
-      loop mPragma toks =
-          case toks of
-            [] -> []
-            (Varsym, (pos, "#")) : (Varid, (_, "line")) : (IntLit, (_, lineNo)) : (StringLit,(_, fileName)) : rest
-                | column pos == 1 ->
-                    map (\(tt, (pos, x)) -> (tt, (fixPos Nothing pos, x))) (take 4 toks) ++
-                    loop (Just (line pos, fileName, read lineNo)) rest
-            (tt, (pos, x)) : rest ->
-                (tt, (fixPos mPragma pos, x)) : loop mPragma rest
-      fixPos mPragma pos =
-          case mPragma of
-            Nothing ->
-                Loc { l_column = column pos
-                    , l_file = originalFileName
-                    , l_line = line pos
-                    }
-            Just (lineActivated, fileName, lineNo) ->
-                let offset = line pos - lineActivated - 1
-                in Loc { l_column = column pos
-                       , l_file = fileName
-                       , l_line = lineNo + offset
-                       }
-
-fixPositionsTest :: IO ()
-fixPositionsTest =
-    let toks = concatMap (\(f, i) -> f i)
-                   (zip [tok, linePragma "bar" 10, tok, tok, linePragma "foo" 99, tok] [1..])
-        fixedToks = fixPositions origFileName toks
-        expectedToks = concat $
-                       [tok' origFileName 1
-                       ,linePragma' "bar" 10 2
-                       ,tok' "bar" 10
-                       ,tok' "bar" 11
-                       ,linePragma' "foo" 99 5
-                       ,tok' "foo" 99]
-    in assertEqual (show expectedToks ++ "\n\n  /=  \n\n" ++ show toks) expectedToks fixedToks
-    where
-      origFileName = "spam"
-      tok line = [(Varid, (Pos 0 line 1, "_"))]
-      linePragma fname line lineHere =
-          let pos = Pos 0 lineHere 1
-          in [(Varsym, (pos, "#"))
-             ,(Varid, (pos, "line"))
-             ,(IntLit, (pos, show line))
-             ,(StringLit, (pos, fname))]
-      tok' fname line =
-          let loc = Loc fname line 1
-          in [(Varid, (loc, "_"))]
-      linePragma' fname line lineHere =
-          let loc = Loc origFileName lineHere 1
-          in [(Varsym, (loc, "#"))
-             ,(Varid, (loc, "line"))
-             ,(IntLit, (loc, show line))
-             ,(StringLit,(loc, fname))]
-
-analyze :: FilePath -> String -> ModuleInfo
+analyze :: FilePath -> String -> IO (ModuleInfo, [WordStyle], [(Posn,String)])
 analyze originalFileName input =
-    poorManAnalyzeTokens (fixPositions originalFileName (cleanupTokens (lexerPass0 (cleanupInputString input))))
+    do xs <- runCpphsPass1 cpphsOptions originalFileName input
+       let bopts = boolopts cpphsOptions
+           toks = tokenise (stripEol bopts) (stripC89 bopts) (ansi bopts) (lang bopts) ((newfile "preDefined",""):xs)
+           mi = poorManAnalyzeTokens toks
+       return (mi, toks, xs)
 
 analyzeTests =
     [(unlines ["module FOO where"
@@ -414,7 +317,7 @@ analyzeTests =
               ,"deriveSafeCopy 1 'base ''T"
               ,"$(deriveSafeCopy 2 'extension ''T)"
               ,"test_blub test_foo = 1"
-              ,"test_blah test_foo = 1"
+              ,"test_blah test_foo = '\''"
               ,"prop_abc prop_foo = 2"
               ,"prop_xyz = True"]
      ,ModuleInfo { mi_htfPrefix = ""
@@ -474,24 +377,32 @@ testAnalyze =
     do mapM_ runTest (zip [1..] analyzeTests)
     where
       runTest (i, (src, mi)) =
-          let givenMi = analyze "<input>" src
-          in if givenMi == mi
+          do (givenMi, _, _) <- analyze "<input>" src
+             if givenMi == mi
              then return ()
              else assertFailure ("Error in test " ++ show i ++
                                  ", expected:\n" ++ show mi ++
                                  "\nGiven:\n" ++ show givenMi ++
                                  "\nSrc:\n" ++ src)
 
+cpphsOptions :: CpphsOptions
+cpphsOptions =
+    defaultCpphsOptions {
+      boolopts = (boolopts defaultCpphsOptions) { lang = True } -- lex as haskell
+    }
+
 transform :: Bool -> Bool -> FilePath -> String -> IO String
 transform hunitBackwardsCompat debug originalFileName input =
-    let info = analyze originalFileName fixedInput
-    in preprocess info
+    do (info, toks, pass1) <- analyze originalFileName fixedInput
+       preprocess info toks pass1
     where
-      preprocess :: ModuleInfo -> IO String
-      preprocess info =
-          do when debug $ hPutStrLn stderr ("Module info:\n" ++ show info)
-             preProcessedInput <- runCpphs (cpphsOptions info) originalFileName
-                                           fixedInput
+      preprocess info toks pass1 =
+          do when debug $
+                  do hPutStrLn stderr ("Tokens: " ++ show toks)
+                     hPutStrLn stderr ("Module info:\n" ++ show info)
+             let opts = mkOptionsForModule info
+             preProcessedInput <-
+                 runCpphsPass2 (boolopts opts) (defines opts) originalFileName pass1
              return $ preProcessedInput ++ "\n\n" ++ additionalCode info ++ "\n"
       -- fixedInput serves two purposes:
       -- 1. add a trailing \n
@@ -504,8 +415,8 @@ transform hunitBackwardsCompat debug originalFileName input =
                 case parseCppLineInfoOut s of
                   Just (line, fileName) -> "#line " ++ line ++ " " ++ fileName
                   _ -> s
-      cpphsOptions :: ModuleInfo -> CpphsOptions
-      cpphsOptions info =
+      mkOptionsForModule :: ModuleInfo -> CpphsOptions
+      mkOptionsForModule info =
           defaultCpphsOptions { defines =
                                     defines defaultCpphsOptions ++
                                     assertDefines hunitBackwardsCompat (mi_htfPrefix info) ++
@@ -575,6 +486,4 @@ parseCppLineInfoOut line =
       _ -> Nothing
 
 preprocessorTests =
-    [("testAnalyze", testAnalyze)
-    ,("fixPositionsTest", fixPositionsTest)
-    ,("cleanupInputStringTest", cleanupInputStringTest)]
+    [("testAnalyze", testAnalyze)]
