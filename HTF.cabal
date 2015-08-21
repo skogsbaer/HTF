@@ -1,8 +1,8 @@
 Name:             HTF
-Version:          0.12.2.5
+Version:          0.13.1.0
 License:          LGPL
 License-File:     LICENSE
-Copyright:        (c) 2005-2014 Stefan Wehr
+Copyright:        (c) 2005-2015 Stefan Wehr
 Author:           Stefan Wehr <wehr@factisresearch.com>
 Maintainer:       Stefan Wehr <wehr@factisresearch.com>
 Stability:        Beta
