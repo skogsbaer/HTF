@@ -37,7 +37,7 @@ module Test.Framework (
   module Test.Framework.AssertM,
 
   -- * Organizing tests
-  TM.makeTestSuite, TM.TestSuite, TM.htfMain, TM.htfMainWithArgs, Loc.makeLoc
+  TM.makeTestSuite, TM.TestSuite, TM.htfMain, TM.htfMainWithArgs, Loc.makeLoc, TM.runTest
 
 ) where
 
