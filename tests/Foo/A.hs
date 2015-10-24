@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -F -pgmF ./dist/build/htfpp/htfpp #-}
+{-# OPTIONS_GHC -F -pgmF ./scripts/local-htfpp #-}
 {-# LANGUAGE CPP #-}
 
 module Foo.A where

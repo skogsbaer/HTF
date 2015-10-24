@@ -184,7 +184,7 @@ debug s = if _DEBUG_ then liftIO $ putStrLn s else return ()
 
 runTestParallel :: Int -> Int -> IO ()
 runTestParallel nEntries n =
-    do putStrLn ("Running test " ++ show n)
+    do debug ("Running test " ++ show n)
        boxes <- mapM (\i -> do mvar <- newEmptyNamedMVar ("testbox" ++ show i)
                                return (mvar, i))
                       [1..nEntries]
@@ -193,7 +193,7 @@ runTestParallel nEntries n =
        debug ("Checking boxes in test " ++ show n)
        --runSequentially entries
        mapM_ assertBox boxes
-       putStrLn ("Test " ++ show n ++ " successful")
+       debug ("Test " ++ show n ++ " successful")
     where
       mkEntry (mvar, i) =
           let pre = myThreadId

@@ -236,7 +236,8 @@ Test-Suite TestHTF
   Default-language:  Haskell2010
   Other-Modules:
     Foo.A, Foo.B, TestHTFHunitBackwardsCompatible, FailFast, MaxCurTime,
-    MaxPrevTime, PrevFactor, SortByPrevTime, UniqTests1, UniqTests2, Quasi
+    MaxPrevTime, PrevFactor, SortByPrevTime, UniqTests1, UniqTests2, Quasi,
+    Tutorial
 
 Test-Suite TestThreadPools
   Main-is:           ThreadPoolTest.hs

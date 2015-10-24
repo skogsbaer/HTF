@@ -1,5 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
-{-# OPTIONS_GHC -F -pgmF dist/build/htfpp/htfpp #-}
+{-# OPTIONS_GHC -F -pgmF scripts/local-htfpp #-}
 module UniqTests2 (uniqTests2Main) where
 
 import Test.Framework

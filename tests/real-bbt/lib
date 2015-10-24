@@ -7,6 +7,9 @@ ECODE="undefined"
 trap "rm -f $OUT $ERR" EXIT
 
 BASEDIR=$(cd $(dirname ${BASH_SOURCE[0]}) > /dev/null && pwd -P)
+TOPDIR="$BASEDIR/../.."
+DIST_DIR=$(stack path --dist-dir)
+
 rm -rf $BASEDIR/.HTF
 
 function do_fail()
@@ -25,7 +28,7 @@ function run_test()
 {
     rm -f "$OUT" "$ERR"
     echo "Running test $@"
-    $BASEDIR/../../dist/build/TestHTF/TestHTF "$@" > "$OUT" 2> "$ERR"
+    $TOPDIR/$DIST_DIR/build/TestHTF/TestHTF "$@" > "$OUT" 2> "$ERR"
     ECODE=$?
 }
 

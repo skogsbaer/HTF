@@ -5,7 +5,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE QuasiQuotes #-}
-{-# OPTIONS_GHC -F -pgmF ./dist/build/htfpp/htfpp #-}
+{-# OPTIONS_GHC -F -pgmF ./scripts/local-htfpp #-}
 --
 -- Copyright (c) 2005,2010   Stefan Wehr - http://www.stefanwehr.de
 --
@@ -401,7 +401,7 @@ main =
                  (defaultBBTArgs { bbtArgs_verbose = False })
        let tests = [addToTestSuite htf_thisModulesTests bbts] ++ htf_importedTests
        when ("--help" `elem` args || "-h" `elem` args) $
-            do hPutStrLn stderr ("USAGE: dist/build/test/test [--direct]")
+            do hPutStrLn stderr ("USAGE: PROG [--direct]")
                ecode <- runTestWithArgs ["--help"] ([] :: [Test])
                exitWith ecode
        case args of

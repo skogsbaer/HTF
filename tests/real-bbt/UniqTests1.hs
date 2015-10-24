@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -F -pgmF dist/build/htfpp/htfpp #-}
+{-# OPTIONS_GHC -F -pgmF scripts/local-htfpp #-}
 module UniqTests1 (uniqTests1Main) where
 
 import Test.Framework

@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP #-}
-{-# OPTIONS_GHC -F -pgmF ../../dist/build/htfpp/htfpp #-}
+{-# OPTIONS_GHC -F -pgmF ../../scripts/local-htfpp #-}
 
 import Test.Framework
 #include "Foo.h"

@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -F -pgmF dist/build/htfpp/htfpp #-}
+{-# OPTIONS_GHC -F -pgmF scripts/local-htfpp #-}
 module PrevFactor (prevFactorMain) where
 
 import Test.Framework

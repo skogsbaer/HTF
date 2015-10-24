@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -F -pgmF ./dist/build/htfpp/htfpp #-}
+{-# OPTIONS_GHC -F -pgmF ./scripts/local-htfpp #-}
 module Tutorial where
 
 import System.Environment ( getArgs )

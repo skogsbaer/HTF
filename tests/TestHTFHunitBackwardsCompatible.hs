@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -F -pgmF ./dist/build/htfpp/htfpp -optF --hunit #-}
+{-# OPTIONS_GHC -F -pgmF ./scripts/local-htfpp -optF --hunit #-}
 module TestHTFHunitBackwardsCompatible where
 
 import Test.Framework
