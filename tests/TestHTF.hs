@@ -421,7 +421,7 @@ main =
          _ ->
              do withSystemTempFile "HTF-out" $ \outFile h ->
                   do hClose h
-                     ecode <- runTestWithArgs ["-j4", "--deterministic",
+                     ecode <- runTestWithArgs ["-j4", "--shuffle=false",
                                                "--json", "--output-file=" ++ outFile] tests
                      case ecode of
                        ExitFailure _ -> checkOutput outFile
