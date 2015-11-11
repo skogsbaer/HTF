@@ -6,7 +6,7 @@ lineno=7
 function check()
 {
     test="$1"
-    stack exec ghc -- "$test" 2>&1 | grep "$test":$lineno
+    stack exec ghc -- -hide-package test-framework "$test" 2>&1 | grep "$test":$lineno
     grep_ecode=${PIPESTATUS[1]}
     if [ "$grep_ecode" != "0" ]
     then
