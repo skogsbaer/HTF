@@ -11,7 +11,7 @@ function check()
     if [ "$grep_ecode" != "0" ]
     then
         echo "Compile error for $test did not occur in line $lineno, exit code of grep: ${grep_ecode}"
-        ghc $FLAGS "$test"
+        stack exec ghc -- -hide-package test-framework "$test"
         exit 1
     fi
 }
