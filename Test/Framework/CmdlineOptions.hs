@@ -140,9 +140,9 @@ optionDescriptions =
     , Option ['j']     ["threads"]
              (OptArg (\ms o -> parseThreads ms >>= \i -> Right $ o { opts_threads = Just i }) "N")
              ("Run N tests in parallel, default N=" ++ show processorCount ++ ".")
-    , Option []        ["deterministic"]
-             (NoArg (\o -> Right $ o { opts_shuffle = False }))
-             "Do not shuffle tests when executing them in parallel."
+    , Option []        ["shuffle"]
+             (ReqArg (\s o -> parseBool s >>= \b -> Right $ o { opts_shuffle = b }) "BOOL")
+             "Shuffle test order. Default: false"
     , Option ['o']     ["output-file"]
              (ReqArg (\s o -> Right $ o { opts_outputFile = Just s }) "FILE")
              "Name of output file."
@@ -213,7 +213,7 @@ of the format of the commandline arguments:
 >   -n PATTERN  --not=PATTERN               Tests to exclude.
 >   -l          --list                      List all matching tests.
 >   -j[N]       --threads[=N]               Run N tests in parallel, default N=1.
->               --deterministic             Do not shuffle tests when executing them in parallel.
+>               --shuffle=BOOL              Shuffle test order. Default: false
 >   -o FILE     --output-file=FILE          Name of output file.
 >               --json                      Output results in machine-readable JSON format (incremental).
 >               --xml=FILE                  Output results in junit-style XML format.
@@ -235,6 +235,10 @@ parseTestArgs args =
     case getOpt Permute optionDescriptions args of
       (optTrans, tests, []) ->
           do opts <- foldM (\o f -> f o) defaultCmdlineOptions optTrans
+             when (opts_shuffle opts && opts_sortByPrevTime opts) $
+                 Left ("Options --shuffle=true and --sort-by-prev-time are in conflict. " ++
+                       "Can only use one of both.\n\n" ++
+                       usageInfo usageHeader optionDescriptions)
              case (opts_outputFile opts, opts_split opts) of
                (Nothing, True) -> Left ("Option --split requires -o or --output-file\n\n" ++
                                         usageInfo usageHeader optionDescriptions)
