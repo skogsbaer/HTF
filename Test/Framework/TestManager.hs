@@ -282,31 +282,31 @@ mkFlatTestRunner tc ft = (pre, action, post)
                  Fail -> DoStop
                  Error -> DoStop
 
-runAllFlatTests :: TestConfig -> [FlatTest] -> TR ()
-runAllFlatTests tc tests' =
-    do reportGlobalStart tests
-       tc <- ask
+runAllFlatTests :: [FlatTest] -> TR ()
+runAllFlatTests tests' =
+    do tc <- ask
+       tests <- orderTests tc tests'
+       reportGlobalStart tests
        case tc_threads tc of
          Nothing ->
              let entries = map (mkFlatTestRunner tc) tests
              in tp_run sequentialThreadPool entries
          Just i ->
              let (ptests, stests) = List.partition (\t -> to_parallel (wto_options (ft_payload t))) tests
-                 pentries' = map (mkFlatTestRunner tc) ptests
+                 pentries = map (mkFlatTestRunner tc) ptests
                  sentries = map (mkFlatTestRunner tc) stests
              in do tp <- parallelThreadPool i
-                   pentries <- if tc_shuffle tc
-                               then liftIO (shuffleIO pentries')
-                               else return pentries'
                    tp_run tp pentries
                    tp_run sequentialThreadPool sentries
     where
-      tests = sortTests tests'
-      sortTests ts =
-          if not (tc_sortByPrevTime tc)
-          then ts
-          else map snd $ List.sortBy compareTests (map (\t -> (historyKey t, t)) ts)
-      compareTests (t1, _) (t2, _) =
+      orderTests tc ts
+          | tc_sortByPrevTime tc = return $ sortByPrevTime tc ts
+          | tc_shuffle tc = shuffleTests ts
+          | otherwise = return ts
+      shuffleTests = liftIO . shuffleIO
+      sortByPrevTime tc ts =
+              map snd $ List.sortBy (compareTests tc) (map (\t -> (historyKey t, t)) ts)
+      compareTests tc (t1, _) (t2, _) =
           case (max (fmap htr_timeMs (findHistoricSuccessfulTestResult t1 (tc_history tc)))
                     (fmap htr_timeMs (findHistoricTestResult t1 (tc_history tc)))
                ,max (fmap htr_timeMs (findHistoricSuccessfulTestResult t2 (tc_history tc)))
@@ -407,7 +407,7 @@ runTestWithConfig' tc t =
         startTime <- getCurrentTime
         ((_, s, _), time) <-
             measure $
-            runRWST (runAllFlatTests tc activeTests) tc initTestState
+            runRWST (runAllFlatTests activeTests) tc initTestState
         let results = reverse (ts_results s)
             passed = filter (\ft -> (rr_result . ft_payload) ft == Pass) results
             pending = filter (\ft -> (rr_result . ft_payload) ft == Pending) results
