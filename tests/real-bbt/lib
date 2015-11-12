@@ -14,20 +14,20 @@ rm -rf $BASEDIR/.HTF
 
 function do_fail()
 {
-    echo "FAIL: $@"
-    echo
-    echo "stdout:"
-    cat "$OUT"
-    echo
-    echo "stderr:"
-    cat "$ERR"
+    echo "FAIL: $@" 2>&1
+    echo 2>&1
+    echo "stdout:" 2>&1
+    cat "$OUT" 2>&1
+    echo 2>&1
+    echo "stderr:" 2>&1
+    cat "$ERR" 2>&1
     exit 1
 }
 
 function run_test()
 {
     rm -f "$OUT" "$ERR"
-    echo "Running test $@"
+    echo "Running test $@" 2>&1
     bin=$TOPDIR/$DIST_DIR/build/TestHTF/TestHTF
     if [ ! -x "$bin" ]; then
         echo "Binary $bin does not exist or is not executable" >&2
@@ -37,13 +37,10 @@ function run_test()
         ls -l $TOPDIR >&2
         ECODE=1
     else
-        echo "Running $bin with arguments $@"
+        echo "Running $bin with arguments $@" 2>&1
         $bin "$@" > "$OUT" 2> "$ERR"
-        cat $OUT
-        cat $ERR
         ECODE=$?
     fi
-    exit 1
 }
 
 function check_success()
@@ -54,6 +51,8 @@ function check_success()
     elif [ "$ECODE" != "0" ]
     then
         do_fail "Expected zero exit code, given $ECODE"
+    else
+        echo "check_success succeeded with ECODE=$ECODE" 2>&1
     fi
 }
 
@@ -65,6 +64,8 @@ function check_fail()
     elif [ "$ECODE" == "0" ]
     then
         do_fail "Expected non-zero exit code, given $ECODE"
+    else
+        echo "check_fail succeeded with ECODE=$ECODE" 2>&1
     fi
 }
 
@@ -79,6 +80,8 @@ function check_timeout()
     if [ "$n" != "$exp" ]
     then
         do_fail "Expected $exp timeouts, found $n"
+    else
+        echo "Got $n timeouts as expected" 2>&1
     fi
 }
 
@@ -106,4 +109,5 @@ function check_counts()
     test $errors -eq $5 || do_fail "$errors error tests, expected $5"
     test $timeout -eq $6 || do_fail "$errors timed-out tests, expected $6"
     test $filtered -eq $7 || do_fail "$errors timed-out tests, expected $7"
+    echo "check_counts succeeded" 2>&1
 }
