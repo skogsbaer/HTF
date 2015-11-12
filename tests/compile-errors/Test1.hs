@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -F -pgmF ../../scripts/local-htfpp #-}
 
-import Test.Framework
+import "HTF" Test.Framework
 #include "Foo.h"
 
 foo :: Int -> Int

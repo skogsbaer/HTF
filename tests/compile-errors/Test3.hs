@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -F -pgmF ../../scripts/local-htfpp #-}
 
-import Test.Framework
+import "HTF" Test.Framework
 
 -- error must be in line 7
 test_foo :: Int
