@@ -387,7 +387,7 @@ runRealBlackBoxTests =
     do b <- doesDirectoryExist "tests/bbt"
        let dirPrefix = if b then "tests" else ""
        bbts <- blackBoxTests (dirPrefix </> "real-bbt") ("/bin/bash") ".sh"
-                 (defaultBBTArgs { bbtArgs_verbose = False })
+                 (defaultBBTArgs { bbtArgs_verbose = True })
        ecode <- runTest bbts
        case ecode of
          ExitFailure _ -> fail ("real blackbox tests failed!")

@@ -30,16 +30,18 @@ function run_test()
     echo "Running test $@"
     bin=$TOPDIR/$DIST_DIR/build/TestHTF/TestHTF
     if [ ! -x "$bin" ]; then
-        echo "Binary $bin does not exist or is not executable"
-        ls -l $TOPDIR/$DIST_DIR/build/TestHTF
-        ls -l $TOPDIR/$DIST_DIR/build
-        ls -l $TOPDIR/$DIST_DIR
-        ls -l $TOPDIR
+        echo "Binary $bin does not exist or is not executable" >&2
+        ls -l $TOPDIR/$DIST_DIR/build/TestHTF >&2
+        ls -l $TOPDIR/$DIST_DIR/build >&2
+        ls -l $TOPDIR/$DIST_DIR >&2
+        ls -l $TOPDIR >&2
         ECODE=1
     else
-        $TOPDIR/$DIST_DIR/build/TestHTF/TestHTF "$@" > "$OUT" 2> "$ERR"
+        echo "Running $bin with arguments $@"
+        $bin "$@" > "$OUT" 2> "$ERR"
         ECODE=$?
     fi
+    exit 1
 }
 
 function check_success()
