@@ -9,8 +9,8 @@
 ## Summary
 
 The Haskell Test Framework (HTF for short) lets you define unit tests
-(http://hunit.sourceforge.net), QuickCheck properties
-(http://www.cs.chalmers.se/~rjmh/QuickCheck/), and black box tests in an
+(http://hackage.haskell.org/package/HUnit), QuickCheck properties
+(https://hackage.haskell.org/package/QuickCheck), and black box tests in an
 easy and convenient way. HTF uses a custom preprocessor that collects
 test definitions automatically. Furthermore, the preprocessor allows
 HTF to report failing test cases with exact file name and line number
