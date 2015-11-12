@@ -13,11 +13,11 @@ addons:
 # The different configurations we want to test. You could also do things like
 # change flags or use --stack-yaml to point to a different file.
 env:
-- CPM_TRAVIS_STACK_ARGS=""
-- CPM_TRAVIS_STACK_ARGS="--resolver lts-2"
-- CPM_TRAVIS_STACK_ARGS="--resolver lts-3"
-- CPM_TRAVIS_STACK_ARGS="--resolver lts"
-- CPM_TRAVIS_STACK_ARGS="--resolver nightly"
+- HTF_TRAVIS_STACK_ARGS=""
+- HTF_TRAVIS_STACK_ARGS="--resolver lts-2"
+- HTF_TRAVIS_STACK_ARGS="--resolver lts-3"
+- HTF_TRAVIS_STACK_ARGS="--resolver lts"
+- HTF_TRAVIS_STACK_ARGS="--resolver nightly"
 
 before_install:
 # Download and unpack the stack executable
@@ -28,7 +28,7 @@ before_install:
 # This line does all of the work: installs GHC if necessary, build the library,
 # executables, and test suites, and runs the test suites. --no-terminal works
 # around some quirks in Travis's terminal implementation.
-script: stack $CPM_TRAVIS_STACK_ARGS --no-terminal --install-ghc test --haddock
+script: stack $HTF_TRAVIS_STACK_ARGS --no-terminal --install-ghc test --haddock
 
 # Caching so the next build will be fast too.
 cache:

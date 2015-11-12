@@ -8,7 +8,7 @@ trap "rm -f $OUT $ERR" EXIT
 
 BASEDIR=$(cd $(dirname ${BASH_SOURCE[0]}) > /dev/null && pwd -P)
 TOPDIR="$BASEDIR/../.."
-DIST_DIR=$(stack $CPM_TRAVIS_STACK_ARGS path --dist-dir 2> /dev/null)
+DIST_DIR=$(stack $HTF_TRAVIS_STACK_ARGS path --dist-dir 2> /dev/null)
 
 rm -rf $BASEDIR/.HTF
 

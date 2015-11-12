@@ -8,7 +8,7 @@ function check()
     test="$1"
     command -v grep >/dev/null 2>&1 || \
         { echo >&2 "Test $0 requires ``grep'' but it's not installed.  Aborting."; exit 1; }
-    compile_cmd="stack $CPM_TRAVIS_STACK_ARGS ghc -- -XPackageImports $test"
+    compile_cmd="stack $HTF_TRAVIS_STACK_ARGS ghc -- -XPackageImports $test"
     $compile_cmd 2>&1 | grep "$test":$lineno
     grep_ecode=${PIPESTATUS[1]}
     if [ "$grep_ecode" != "0" ]
