@@ -1,5 +1,8 @@
 # HTF - The Haskell Test Framework
 
+[![Build Status](https://travis-ci.org/skogsbaer/HTF.svg?branch=master)](https://travis-ci.org/skogsbaer/HTF)
+[![Hackage](https://img.shields.io/hackage/v/HTF.svg)](http://hackage.haskell.org/package/HTF)
+
 * Documentation:     http://hackage.haskell.org/package/HTF
 * Source Repository: https://github.com/skogsbaer/HTF/
 * Issue tracker:     https://github.com/skogsbaer/HTF/issues?state=open
