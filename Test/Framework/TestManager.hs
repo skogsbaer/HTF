@@ -37,6 +37,7 @@ module Test.Framework.TestManager (
 
   -- * Organzing tests
   TestableHTF,
+  WrappableHTF(..),
 
   makeQuickCheckTest, makeUnitTest, makeBlackBoxTest, makeTestSuite,
   makeAnonTestSuite,
@@ -100,6 +101,18 @@ testSuiteAsTest = CompoundTest
 addToTestSuite :: TestSuite -> [Test] -> TestSuite
 addToTestSuite (TestSuite id ts) ts' = TestSuite id (ts ++ ts')
 addToTestSuite (AnonTestSuite ts) ts' = AnonTestSuite (ts ++ ts')
+
+class WrappableHTF t where
+    wrap :: (Assertion -> Assertion) -> t -> t
+
+instance WrappableHTF TestSuite where
+    wrap wrapper (TestSuite tid tests) = TestSuite tid $ map (wrap wrapper) tests
+    wrap wrapper (AnonTestSuite tests) = AnonTestSuite $ map (wrap wrapper) tests
+
+instance WrappableHTF Test where
+    wrap wrapper (BaseTest ts tid loc topt assertion) =
+        BaseTest ts tid loc topt (wrapper assertion)
+    wrap wrapper (CompoundTest suite) = CompoundTest $ wrap wrapper suite
 
 -- | A type class for things that can be run as tests.
 -- Mainly used internally.
