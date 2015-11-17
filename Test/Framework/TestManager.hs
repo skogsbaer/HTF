@@ -43,7 +43,10 @@ module Test.Framework.TestManager (
   makeAnonTestSuite,
   addToTestSuite, testSuiteAsTest,
 
-  flattenTest
+  flattenTest,
+
+  -- * Tests (for internal use)
+  wrappableTests
 ) where
 
 import Control.Monad.RWS
@@ -69,6 +72,7 @@ import Test.Framework.Colors
 import Test.Framework.ThreadPool
 import Test.Framework.History
 
+import qualified Test.HUnit as HU
 -- | Construct a test where the given 'Assertion' checks a quick check property.
 -- Mainly used internally by the htfpp preprocessor.
 makeQuickCheckTest :: TestID -> Location -> Assertion -> Test
@@ -471,3 +475,14 @@ htfMainWithArgs :: TestableHTF t => [String] -> t -> IO ()
 htfMainWithArgs args tests =
     do ecode <- runTestWithArgs args tests
        exitWith ecode
+
+testWrapCanCauseFailure :: IO ()
+testWrapCanCauseFailure =
+    do HU.assertEqual "plain unit test passes" ExitSuccess =<< runTest unitTest
+       HU.assertEqual "wrapped unit test fails" (ExitFailure 2) =<< runTest wrappedUnitTest
+    where
+      unitTest = BaseTest UnitTest "unitTest" Nothing defaultTestOptions (return ())
+      wrappedUnitTest = wrap wrapper unitTest
+      wrapper test = HU.assertFailure "Fail" >> test
+
+wrappableTests = [("testWrapCanCauseFailure", testWrapCanCauseFailure)]
