@@ -106,6 +106,14 @@ addToTestSuite :: TestSuite -> [Test] -> TestSuite
 addToTestSuite (TestSuite id ts) ts' = TestSuite id (ts ++ ts')
 addToTestSuite (AnonTestSuite ts) ts' = AnonTestSuite (ts ++ ts')
 
+-- | Kind of specialised 'Functor' type class for tests, which allows you to
+-- modify the 'Assertion's of the 'WrappableHTF'-thing without changing any
+-- test code.
+--
+-- E.g. if you want to add timeouts to all tests of a module, you could write:
+--
+-- > addTimeout test = timeout 100 test >>= assertJustVerbose "Timeout exceeded"
+-- > testsWithTimeouts = wrap addTimeout htf_thisModulesTests
 class WrappableHTF t where
     wrap :: (Assertion -> Assertion) -> t -> t
 
