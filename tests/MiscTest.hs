@@ -21,10 +21,11 @@ import Test.Framework.History
 import Test.Framework.Preprocessor
 import Test.Framework.PrettyHaskell
 import Test.Framework.HUnitWrapper
+import Test.Framework.TestManager
 import System.Exit
 import Test.HUnit
 
-allTests = historyTests ++ preprocessorTests ++ prettyHaskellTests ++ hunitWrapperTests
+allTests = historyTests ++ preprocessorTests ++ prettyHaskellTests ++ hunitWrapperTests ++ wrappableTests
 
 main :: IO ()
 main =

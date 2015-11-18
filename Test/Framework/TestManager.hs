@@ -37,12 +37,16 @@ module Test.Framework.TestManager (
 
   -- * Organzing tests
   TestableHTF,
+  WrappableHTF(..),
 
   makeQuickCheckTest, makeUnitTest, makeBlackBoxTest, makeTestSuite,
   makeAnonTestSuite,
   addToTestSuite, testSuiteAsTest,
 
-  flattenTest
+  flattenTest,
+
+  -- * Tests (for internal use)
+  wrappableTests
 ) where
 
 import Control.Monad.RWS
@@ -68,6 +72,7 @@ import Test.Framework.Colors
 import Test.Framework.ThreadPool
 import Test.Framework.History
 
+import qualified Test.HUnit as HU
 -- | Construct a test where the given 'Assertion' checks a quick check property.
 -- Mainly used internally by the htfpp preprocessor.
 makeQuickCheckTest :: TestID -> Location -> Assertion -> Test
@@ -100,6 +105,26 @@ testSuiteAsTest = CompoundTest
 addToTestSuite :: TestSuite -> [Test] -> TestSuite
 addToTestSuite (TestSuite id ts) ts' = TestSuite id (ts ++ ts')
 addToTestSuite (AnonTestSuite ts) ts' = AnonTestSuite (ts ++ ts')
+
+-- | Kind of specialised 'Functor' type class for tests, which allows you to
+-- modify the 'Assertion's of the 'WrappableHTF'-thing without changing any
+-- test code.
+--
+-- E.g. if you want to add timeouts to all tests of a module, you could write:
+--
+-- > addTimeout test = timeout 100 test >>= assertJustVerbose "Timeout exceeded"
+-- > testsWithTimeouts = wrap addTimeout htf_thisModulesTests
+class WrappableHTF t where
+    wrap :: (Assertion -> Assertion) -> t -> t
+
+instance WrappableHTF TestSuite where
+    wrap wrapper (TestSuite tid tests) = TestSuite tid $ map (wrap wrapper) tests
+    wrap wrapper (AnonTestSuite tests) = AnonTestSuite $ map (wrap wrapper) tests
+
+instance WrappableHTF Test where
+    wrap wrapper (BaseTest ts tid loc topt assertion) =
+        BaseTest ts tid loc topt (wrapper assertion)
+    wrap wrapper (CompoundTest suite) = CompoundTest $ wrap wrapper suite
 
 -- | A type class for things that can be run as tests.
 -- Mainly used internally.
@@ -458,3 +483,14 @@ htfMainWithArgs :: TestableHTF t => [String] -> t -> IO ()
 htfMainWithArgs args tests =
     do ecode <- runTestWithArgs args tests
        exitWith ecode
+
+testWrapCanCauseFailure :: IO ()
+testWrapCanCauseFailure =
+    do HU.assertEqual "plain unit test passes" ExitSuccess =<< runTest unitTest
+       HU.assertEqual "wrapped unit test fails" (ExitFailure 2) =<< runTest wrappedUnitTest
+    where
+      unitTest = BaseTest UnitTest "unitTest" Nothing defaultTestOptions (return ())
+      wrappedUnitTest = wrap wrapper unitTest
+      wrapper test = HU.assertFailure "Fail" >> test
+
+wrappableTests = [("testWrapCanCauseFailure", testWrapCanCauseFailure)]
