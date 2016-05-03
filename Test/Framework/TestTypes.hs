@@ -205,6 +205,7 @@ data TestConfig
       , tc_timeoutIsSuccess :: Bool     -- ^ Do not regard timeout as an error
       , tc_maxSingleTestTime :: Maybe Milliseconds -- ^ Maximum time in milliseconds a single test is allowed to run
       , tc_prevFactor :: Maybe Double   -- ^ Maximum factor a single test is allowed to run slower than its previous execution
+      , tc_repeat :: Int -- ^ Number of times to repeat a test before reporting it as a success.
       }
 
 instance Show TestConfig where
