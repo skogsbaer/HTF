@@ -14,8 +14,9 @@ addons:
 # change flags or use --stack-yaml to point to a different file.
 env:
 - HTF_TRAVIS_STACK_ARGS=""
-- HTF_TRAVIS_STACK_ARGS="--resolver lts-2"
 - HTF_TRAVIS_STACK_ARGS="--resolver lts-3"
+- HTF_TRAVIS_STACK_ARGS="--resolver lts-4"
+- HTF_TRAVIS_STACK_ARGS="--resolver lts-5"
 - HTF_TRAVIS_STACK_ARGS="--resolver lts"
 - HTF_TRAVIS_STACK_ARGS="--resolver nightly"
 
