@@ -205,7 +205,7 @@ data TestConfig
       , tc_timeoutIsSuccess :: Bool     -- ^ Do not regard timeout as an error
       , tc_maxSingleTestTime :: Maybe Milliseconds -- ^ Maximum time in milliseconds a single test is allowed to run
       , tc_prevFactor :: Maybe Double   -- ^ Maximum factor a single test is allowed to run slower than its previous execution
-      , tc_repeat :: Int -- ^ Number of times to repeat a test before reporting it as a success.
+      , tc_repeat :: Int                -- ^ Number of times to repeat tests selected on the command line before reporting them as a success.
       }
 
 instance Show TestConfig where
@@ -227,6 +227,7 @@ instance Show TestConfig where
         showString ", tc_timeoutIsSuccess=" . showsPrec 1 (tc_timeoutIsSuccess tc) .
         showString ", tc_maxSingleTestTime=" . showsPrec 1 (tc_maxSingleTestTime tc) .
         showString ", tc_prevFactor=" . showsPrec 1 (tc_prevFactor tc) .
+        showString ", tc_repeat=" . showPrec 1 (tc_repeat tc) .
         showString " }"
 
 -- | A 'TestReporter' provides hooks to customize the output of HTF.

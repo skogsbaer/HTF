@@ -91,7 +91,7 @@ data CmdlineOptions = CmdlineOptions {
     , opts_maxCurTimeMs :: Maybe Milliseconds  -- ^ Abort tests that run more than the given milliseconds.
     , opts_prevFactor :: Maybe Double -- ^ Warn if a test runs more than N times slower than in a previous run.
     , opts_timeoutIsSuccess :: Bool -- ^ Do not regard test timeout as an error.
-    , opts_repeat :: Int -- ^ Number of times to repeat a test before reporting it as a success.
+    , opts_repeat :: Int                 -- ^ Number of times to repeat tests selected on the command line before reporting them as a success.
     }
 
 {- |
@@ -186,7 +186,7 @@ optionDescriptions =
     , Option []        ["repeat"]
              (ReqArg (\s o -> parseRead "--repeat" s >>= \(i::Int) ->
                               Right $ o { opts_repeat = i}) "NUMBER")
-             "Execute all tests NUMBER times"
+             "Execute the tests selected on the command line NUMBER times."
     , Option ['h']     ["help"]
              (NoArg (\o -> Right $ o { opts_help = True }))
              "Display this message."
