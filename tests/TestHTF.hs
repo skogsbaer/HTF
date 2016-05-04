@@ -299,7 +299,7 @@ checkOutput output =
                                                                                       ,"line" .= J.toJSON (97+lineOffset)]]]])
     where
       lineOffset :: Int
-      lineOffset = 31
+      lineOffset = 32
       checkStatus tuple@(pass, fail, error, pending, timedOut) json =
           {-
             {"location":null
