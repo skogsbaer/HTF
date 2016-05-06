@@ -1,7 +1,8 @@
 #!/bin/bash
 
+HERE=$(cd $(dirname ${BASH_SOURCE[0]}) > /dev/null && pwd -P)
 d=$(stack path --dist-dir)
-bin="$d/build/htfpp/htfpp"
+bin="$HERE/$d/build/htfpp/htfpp"
 
 if [ ! -x "$bin" ]; then
     echo "No executable found at $bin" >&2
