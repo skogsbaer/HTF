@@ -1,3 +1,10 @@
 #!/bin/bash
 
-stack exec htfpp -- "$@"
+d=$(stack path --dist-dir)
+bin="$d/build/htfpp/htfpp"
+
+if [ ! -x "$bin" ]; then
+    echo "No executable found at $bin" >&2
+    exit 1
+fi
+"$bin" "$@"
