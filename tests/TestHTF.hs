@@ -61,6 +61,7 @@ import MaxPrevTime
 import UniqTests1
 import UniqTests2
 import PrevFactor
+import Repeat
 import SortByPrevTime
 import Quasi
 
@@ -298,7 +299,7 @@ checkOutput output =
                                                                                       ,"line" .= J.toJSON (97+lineOffset)]]]])
     where
       lineOffset :: Int
-      lineOffset = 31
+      lineOffset = 32
       checkStatus tuple@(pass, fail, error, pending, timedOut) json =
           {-
             {"location":null
@@ -409,6 +410,7 @@ main =
          "MaxCurTime.hs":rest -> maxCurTimeMain rest
          "MaxPrevTime.hs":rest -> maxPrevTimeMain rest
          "PrevFactor.hs":rest -> prevFactorMain rest
+         "Repeat.hs":rest -> repeatMain rest
          "SortByPrevTime.hs":rest -> sortByPrevTimeMain rest
          "UniqTests1.hs":rest -> uniqTests1Main rest
          "UniqTests2.hs":rest -> uniqTests2Main rest

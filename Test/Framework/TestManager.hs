@@ -244,16 +244,28 @@ mkFlatTestRunner tc ft = (pre, action, post)
       pre = reportTestStart ft
       action _ =
           let run = performTestHTF (wto_payload (ft_payload ft))
-          in case maxRunTime tc ft of
-               Nothing ->
-                   do (res, time) <- measure run
-                      return (PrimTestResultNoTimeout res, time)
-               Just maxMs ->
-                    do mx <- timeout (1000 * maxMs) $ measure run
-                       case mx of
-                         Nothing -> return (PrimTestResultTimeout, maxMs)
-                         Just (res, time) ->
-                             return (PrimTestResultNoTimeout res, time)
+              runWithTimeout =
+                  case maxRunTime tc ft of
+                    Nothing ->
+                        do (res, time) <- measure run
+                           return (PrimTestResultNoTimeout res, time)
+                    Just maxMs ->
+                         do mx <- timeout (1000 * maxMs) $ measure run
+                            case mx of
+                              Nothing -> return (PrimTestResultTimeout, maxMs)
+                              Just (res, time) ->
+                                  return (PrimTestResultNoTimeout res, time)
+              isPass primTestRes =
+                  case primTestRes of
+                    PrimTestResultNoTimeout fullTestRes ->
+                        ftr_result fullTestRes == Just Pass
+                    PrimTestResultTimeout -> False
+              iterRunWithTimeout i =
+                  do (primTestRes, time) <- runWithTimeout
+                     if isPass primTestRes && i >= 2
+                       then iterRunWithTimeout (i-1)
+                       else return (primTestRes, time)
+          in iterRunWithTimeout (tc_repeat tc)
       post excOrResult =
           let (testResult, time) =
                  case excOrResult of

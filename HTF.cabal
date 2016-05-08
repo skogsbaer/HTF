@@ -237,7 +237,7 @@ Test-Suite TestHTF
   Other-Modules:
     Foo.A, Foo.B, TestHTFHunitBackwardsCompatible, FailFast, MaxCurTime,
     MaxPrevTime, PrevFactor, SortByPrevTime, UniqTests1, UniqTests2, Quasi,
-    Tutorial
+    Tutorial, Repeat
 
 Test-Suite TestThreadPools
   Main-is:           ThreadPoolTest.hs

@@ -89,8 +89,9 @@ data CmdlineOptions = CmdlineOptions {
     , opts_sortByPrevTime :: Bool       -- ^ Sort tests by their previous run times (ascending). Default: 'False'
     , opts_maxPrevTimeMs :: Maybe Milliseconds -- ^ Ignore tests with a runtime greater than given in a previous test run.
     , opts_maxCurTimeMs :: Maybe Milliseconds  -- ^ Abort tests that run more than the given milliseconds.
-    , opts_prevFactor :: Maybe Double -- ^ Warn if a test runs more than N times slower than in a previosu run.
+    , opts_prevFactor :: Maybe Double -- ^ Warn if a test runs more than N times slower than in a previous run.
     , opts_timeoutIsSuccess :: Bool -- ^ Do not regard test timeout as an error.
+    , opts_repeat :: Int                 -- ^ Number of times to repeat tests selected on the command line before reporting them as a success.
     }
 
 {- |
@@ -117,6 +118,7 @@ defaultCmdlineOptions = CmdlineOptions {
     , opts_maxCurTimeMs = Nothing
     , opts_prevFactor = Nothing
     , opts_timeoutIsSuccess = False
+    , opts_repeat = 1
     }
 
 processorCount :: Int
@@ -181,6 +183,10 @@ optionDescriptions =
     , Option []        ["timeout-is-success"]
              (NoArg (\o -> Right $ o { opts_timeoutIsSuccess = True }))
              "Do not regard a test timeout as an error."
+    , Option []        ["repeat"]
+             (ReqArg (\s o -> parseRead "--repeat" s >>= \(i::Int) ->
+                              Right $ o { opts_repeat = i}) "NUMBER")
+             "Execute the tests selected on the command line NUMBER times."
     , Option ['h']     ["help"]
              (NoArg (\o -> Right $ o { opts_help = True }))
              "Display this message."
@@ -301,6 +307,7 @@ testConfigFromCmdlineOptions opts =
                            , tc_maxSingleTestTime = opts_maxCurTimeMs opts
                            , tc_prevFactor = opts_prevFactor opts
                            , tc_timeoutIsSuccess = opts_timeoutIsSuccess opts
+                           , tc_repeat = opts_repeat opts
                            }
     where
 #ifdef mingw32_HOST_OS
