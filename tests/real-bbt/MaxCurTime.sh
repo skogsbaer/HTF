@@ -2,6 +2,8 @@
 
 source $(dirname $0)/lib
 
+rm -f .HTF/TestHTF.history
+
 run_test MaxCurTime.hs
 check_success
 check_counts 2 2 0 0 0 0 0

@@ -2,6 +2,8 @@
 
 source $(dirname $0)/lib
 
+rm -f .HTF/TestHTF.history
+
 function get_line_no()
 {
     grep -n '\[TEST\] SortByPrevTime:'"$1" "$OUT" | gawk -F : '{print $1}'

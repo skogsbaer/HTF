@@ -1,8 +1,8 @@
 #!/bin/bash
 
-HERE=$(cd $(dirname ${BASH_SOURCE[0]}) > /dev/null && pwd -P)
-d=$(stack path --dist-dir)
-bin="$HERE/$d/build/htfpp/htfpp"
+TOP=$(cd $(dirname ${BASH_SOURCE[0]})/.. > /dev/null && pwd -P)
+d=$(stack $HTF_TRAVIS_STACK_ARGS path --dist-dir)
+bin="$TOP/$d/build/htfpp/htfpp"
 
 if [ ! -x "$bin" ]; then
     echo "No executable found at $bin" >&2
