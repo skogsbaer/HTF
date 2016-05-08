@@ -227,7 +227,7 @@ instance Show TestConfig where
         showString ", tc_timeoutIsSuccess=" . showsPrec 1 (tc_timeoutIsSuccess tc) .
         showString ", tc_maxSingleTestTime=" . showsPrec 1 (tc_maxSingleTestTime tc) .
         showString ", tc_prevFactor=" . showsPrec 1 (tc_prevFactor tc) .
-        showString ", tc_repeat=" . showPrec 1 (tc_repeat tc) .
+        showString ", tc_repeat=" . showsPrec 1 (tc_repeat tc) .
         showString " }"
 
 -- | A 'TestReporter' provides hooks to customize the output of HTF.
