@@ -1,5 +1,9 @@
-{-# LANGUAGE FlexibleInstances,OverlappingInstances,UndecidableInstances,
-             ExistentialQuantification,DeriveDataTypeable,ScopedTypeVariables,CPP #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE CPP #-}
 
 --
 -- Copyright (c) 2005,2009-2012 Stefan Wehr - http://www.stefanwehr.de
@@ -33,6 +37,7 @@ module Test.Framework.QuickCheckWrapper (
   -- * Arguments for evaluating properties
   defaultArgs, getCurrentArgs, setDefaultArgs,
   withQCArgs, WithQCArgs, setReplayFromString,
+  QCAssertion,
 
   -- * Pending properties
   qcPending,
@@ -195,11 +200,11 @@ class QCAssertion a where
     argsModifier :: a -> (Args -> Args)
     testable :: a -> AnyTestable
 
-instance Testable a => QCAssertion a where
+instance {-# OVERLAPPABLE #-} Testable a => QCAssertion a where
     argsModifier _ = id
     testable = AnyTestable
 
-instance Testable a => QCAssertion (WithQCArgs a) where
+instance {-# OVERLAPPING  #-} Testable a => QCAssertion (WithQCArgs a) where
     argsModifier (WithQCArgs f _) = f
     testable (WithQCArgs _ x) = AnyTestable x
 
