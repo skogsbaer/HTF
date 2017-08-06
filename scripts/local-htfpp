@@ -1,7 +1,6 @@
 #!/bin/bash
 
 TOP=$(cd $(dirname ${BASH_SOURCE[0]})/.. > /dev/null && pwd -P)
-stack $HTF_TRAVIS_STACK_ARGS setup
 d=$(stack $HTF_TRAVIS_STACK_ARGS path --dist-dir)
 bin="$TOP/$d/build/htfpp/htfpp"
 
