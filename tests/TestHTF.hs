@@ -382,7 +382,7 @@ checkOutput output =
           T.unpack $
           T.decodeUtf8With T.lenientDecode $
           BSL.toStrict $
-          J.encodePretty' (J.Config 2 J.compare) json
+          J.encodePretty' J.defConfig json
 
 runRealBlackBoxTests =
     do b <- doesDirectoryExist "tests/bbt"

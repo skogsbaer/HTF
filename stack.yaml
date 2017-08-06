@@ -1,6 +1,6 @@
+resolver: lts-9.0
 flags: {}
 packages:
 - '.'
 - sample/
 extra-deps: []
-resolver: lts-3.13
