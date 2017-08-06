@@ -90,7 +90,7 @@ Build-type:    Simple
 Test-Suite tutorial
   Type:              exitcode-stdio-1.0
   Main-is:           Tutorial.hs
-  Build-depends:     base == 4.*, HTF == 0.10.*
+  Build-depends:     base, HTF
   Default-language:  Haskell2010
 @
 
@@ -207,7 +207,7 @@ For testing real-world programs or libraries, it is often conventient to
 split the tests into several modules. For example, suppose your library contains
 of two modules @MyPkg.A@ and @MyPkg.B@, each containing test functions.
 You can find a slightly extended of this scenario in the samples directory
-of the HTF source tree, see <https://github.com/skogsbaer/HTF/tree/master/sample>.)
+of the HTF source tree, see <https://github.com/skogsbaer/HTF/tree/master/sample>.
 
 File @MyPkg/A.hs@
 
@@ -243,9 +243,9 @@ test_funB2 = assertEqual (funB 0) 0
 
 For module @MyPkg.A@, the @htfpp@ preprocessor collects the modules'
 testcases into a variable @htf_MyPkg_A_thisModulesTests@ and defines a
-preprocessor token @thisModulesTests@ as a shorthand for this variable.
+preprocessor token @htf_thisModulesTests@ as a shorthand for this variable.
 Thus, to expose all HTF tests defined in @MyPkg.A@, we only
-need to put @thisModulesTests@ into the export list. The same holds
+need to put @htf_thisModulesTests@ into the export list. The same holds
 analogously for module @MyPkg.B@.
 
 To execute all tests defined in these two modules, you would create
@@ -263,7 +263,6 @@ File @TestMain.hs@
 module Main where
 
 import Test.Framework
-import Test.Framework.BlackBoxTest
 import &#x7b;-&#x40; HTF_TESTS &#x40;-&#x7d; MyPkg.A
 import &#x7b;-&#x40; HTF_TESTS &#x40;-&#x7d; MyPkg.B
 
