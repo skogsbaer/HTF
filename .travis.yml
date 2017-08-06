@@ -13,8 +13,8 @@ addons:
 # The different configurations we want to test. You could also do things like
 # change flags or use --stack-yaml to point to a different file.
 env:
-- HTF_TRAVIS_STACK_ARGS="--stack-yaml stack.yaml"
-- HTF_TRAVIS_STACK_ARGS="--stack-yaml stack-nightly.yaml"
+- HTF_TRAVIS_STACK_ARGS="--stack-yaml ${TRAVIS_BUILD_DIR}/stack.yaml"
+- HTF_TRAVIS_STACK_ARGS="--stack-yaml ${TRAVIS_BUILD_DIR}/stack-nightly.yaml"
 
 before_install:
 # Download and unpack the stack executable
