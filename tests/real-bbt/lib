@@ -40,6 +40,7 @@ function run_test()
         echo "Running $bin with arguments $@" 2>&1
         $bin "$@" > "$OUT" 2> "$ERR"
         ECODE=$?
+        echo "Test $@ finished with exit code $ECODE" 2>&1
     fi
 }
 
