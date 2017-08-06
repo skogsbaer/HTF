@@ -37,7 +37,6 @@ Extra-Source-Files:
   TODO.org
   ChangeLog
   tests/bbt/should_fail/BBTArgs
-  -- tests/bbt/should_fail/*.in
   tests/bbt/should_fail/*.err
   tests/bbt/should_fail/*.out
   tests/bbt/should_fail/*.x
@@ -72,8 +71,9 @@ Extra-Source-Files:
   sample/bbt-dir/should-fail/z.num
   sample/bbt-dir/should-pass/x.num
   sample/bbt-dir/should-pass/x.out
-  run-all-tests-for-all-compilers.sh
-  run-all-tests.sh
+  scripts/local-htfpp
+  scripts/run-sample
+
 Source-Repository head
   Type:           git
   Location:       http://github.com/skogsbaer/HTF.git
