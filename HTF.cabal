@@ -1,5 +1,5 @@
 Name:             HTF
-Version:          0.13.2.0
+Version:          0.13.2.1
 License:          LGPL
 License-File:     LICENSE
 Copyright:        (c) 2005-2015 Stefan Wehr
@@ -30,59 +30,6 @@ Description:
     blog article (<http://factisresearch.blogspot.de/2011/10/new-version-of-htf-with-diffs-colors.html>)
     demonstrating HTF's coloring, pretty-printing and diff functionality.
 
-    .
-
-    /HEADS UP, backwards incomatibility with prior versions:/
-
-    .
-
-    In version 0.10.0.0, the following changes could break code compiled against version 0.9.*:
-
-    .
-
-    * "Test.Framework" now longer exports all of "Test.Framework.TestManager" and
-      "Test.Framework.BlackBoxTest". For modules that only define tests, no changes
-      should be necessary. However, you likely need to adjust your test runner
-      module by importing "Test.Framework.TestManager" and possibly "Test.Framework.BlackBoxTest".
-
-    .
-
-    * Some reorganization in "Test.Framework.TestManager" and related modules, introduction
-      of "Test.Framework.TestTypes". Usually, your code should not be affected
-      by these changes.
-
-    .
-    Starting with version 0.9.0.0, HTF uses a new strategy
-    for collecting the testcases defined in your project
-    (see "Test.Framework.Tutorial" for a description of this strategy).
-    If you used version 0.8.* or earlier of HTF, this /will break your build!/
-    However, it's rather easy to bring you project in line with the new HTF
-    version. Here are the steps that will most likely resolve
-    your backwards incompatibility problems:
-
-    .
-
-    * If a module exports the @allHTFTests@ symbol, this export must
-      be changed to @htf_thisModulesTests@.
-
-    .
-
-    * If an import declaration of some module hides the @allHTFTests@
-      symbol, you can simply remove the hiding clause for @allHTFTests@.
-
-    .
-
-    * If a module collects and executes tests from several other modules,
-      the collecting module has to be changed as follows: add
-      @&#x7b;-&#x23; OPTIONS_GHC -F -pgmF htfpp &#x23;-&#x7d;@ to the top
-      of the collecting module, import
-      the other modules with the @&#x7b;-&#x40; HTF_TESTS &#x40;-&#x7d;@
-      annotation, use the symbol @htf_importedTests@ for referencing
-      the imported tests. See "Test.Framework.Tutorial" for details.
-
-Tested-With:
-                  GHC==7.6.2,
-                  GHC==7.8.2
 Build-Type:       Simple
 Cabal-Version:    >= 1.10
 Extra-Source-Files:
