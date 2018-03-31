@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
+{-# LANGUAGE CPP, FlexibleInstances, TypeSynonymInstances #-}
 
 {- |
 
@@ -19,7 +19,12 @@ module Test.Framework.Pretty (
 
 where
 
+#if MIN_VERSION_base(4,11,0)
+-- Text.PrettyPrint exports (<>) conflicting with newer Prelude.
+import Text.PrettyPrint hiding ((<>))
+#else
 import Text.PrettyPrint
+#endif
 
 -- | A type class for pretty-printable things.
 -- Minimal complete definition: @pretty@.
