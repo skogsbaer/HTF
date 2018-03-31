@@ -1,0 +1,6 @@
+resolver: lts-11.2
+flags: {}
+packages:
+- '.'
+- sample/
+extra-deps: []

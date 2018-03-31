@@ -1,0 +1,7 @@
+resolver: nightly-2018-03-31
+flags: {}
+packages:
+- '.'
+- sample/
+extra-deps:
+- haskell-src-1.0.3.0
