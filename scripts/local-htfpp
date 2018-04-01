@@ -7,7 +7,7 @@ find=find
 if [ "$(uname)" == "Darwin" ]; then
     find=gfind
 fi
-stack $HTF_TRAVIS_STACK_ARGS build
+stack $HTF_TRAVIS_STACK_ARGS build >&2
 bin=$($find "$TOP/$dist" -name htfpp -type f -executable -printf "%T+\t%p\n" | sort -r | head -1 | gawk '{print $2}')
 
 if [ "$DEBUG" == "yes" ]; then
