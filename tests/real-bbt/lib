@@ -31,6 +31,8 @@ function run_test()
     bin=$TOPDIR/$DIST_DIR/build/TestHTF/TestHTF
     if [ ! -x "$bin" ]; then
         echo "Binary $bin does not exist or is not executable" >&2
+        echo "TOPDIR=$TOPDIR" >&2
+        echo "DISTDIR=$DISTDIR" >&2
         ls -l $TOPDIR/$DIST_DIR/build/TestHTF >&2
         ls -l $TOPDIR/$DIST_DIR/build >&2
         ls -l $TOPDIR/$DIST_DIR >&2

@@ -6,6 +6,9 @@ bin="$TOP/$d/build/htfpp/htfpp"
 
 if [ ! -x "$bin" ]; then
     echo "No executable found at $bin" >&2
+    echo "TOP=$TOP" >&2
+    echo "dist=$d" >&2
+    find "$TOP/build" -name htfpp -type f >&2
     exit 1
 fi
 "$bin" "$@"
