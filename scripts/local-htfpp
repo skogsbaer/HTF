@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DEBUG=no
+DEBUG=yes
 TOP=$(cd $(dirname ${BASH_SOURCE[0]})/.. > /dev/null && pwd -P)
 dist=$(stack $HTF_TRAVIS_STACK_ARGS path --dist-dir)
 find=find
@@ -13,7 +13,6 @@ if [ "$DEBUG" == "yes" ]; then
     echo "TOP=$TOP" >&2
     echo "dist=$dist" >&2
     echo "bin=$bin" >&2
-    exit
 fi
 
 if [ ! -z "$bin" ]; then
