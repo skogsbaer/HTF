@@ -1,14 +1,26 @@
 #!/bin/bash
 
+DEBUG=no
 TOP=$(cd $(dirname ${BASH_SOURCE[0]})/.. > /dev/null && pwd -P)
-d=$(stack $HTF_TRAVIS_STACK_ARGS path --dist-dir)
-bin="$TOP/$d/build/htfpp/htfpp"
+dist=$(stack $HTF_TRAVIS_STACK_ARGS path --dist-dir)
+find=find
+if [ "$(uname)" == "Darwin" ]; then
+    find=gfind
+fi
+bin=$($find "$TOP/$dist" -name htfpp -type f -executable -printf "%T+\t%p\n" | sort -r | head -1 | gawk '{print $2}')
 
-if [ ! -x "$bin" ]; then
-    echo "No executable found at $bin" >&2
+if [ "$DEBUG" == "yes" ]; then
     echo "TOP=$TOP" >&2
-    echo "dist=$d" >&2
-    find "$TOP/build" -name htfpp -type f >&2
+    echo "dist=$dist" >&2
+    echo "bin=$bin" >&2
+    exit
+fi
+
+if [ ! -z "$bin" ]; then
+    echo "No executable named htfpp found in $TOP/$dist" >&2
+    echo "TOP=$TOP" >&2
+    echo "dist=$dist" >&2
+    find "$TOP/$dist" -type f >&2
     exit 1
 fi
 "$bin" "$@"
