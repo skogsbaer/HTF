@@ -7,8 +7,13 @@ find=find
 if [ "$(uname)" == "Darwin" ]; then
     find=gfind
 fi
-stack $HTF_TRAVIS_STACK_ARGS build 2> /dev/null > /dev/null
-bin=$($find "$TOP/$dist" -name htfpp -type f -executable -printf "%T+\t%p\n" | sort -r | head -1 | gawk '{print $2}')
+
+function find_bin()
+{
+    bin=$($find "$TOP/$dist" -name htfpp -type f -executable -printf "%T+\t%p\n" | sort -r | head -1 | gawk '{print $2}')
+}
+
+find_bin
 
 if [ "$DEBUG" == "yes" ]; then
     echo "TOP=$TOP" >&2
@@ -17,10 +22,15 @@ if [ "$DEBUG" == "yes" ]; then
 fi
 
 if [ -z "$bin" ]; then
-    echo "No executable named htfpp found in $TOP/$dist" >&2
-    echo "TOP=$TOP" >&2
-    echo "dist=$dist" >&2
-    find "$TOP/$dist" -type f >&2
-    exit 1
+    echo "No executable named htfpp found in $TOP/$dist, trying to build it" >&2
+    stack $HTF_TRAVIS_STACK_ARGS build 2> /dev/null > /dev/null
+    find_bin
+    if [ -z "$bin" ]; then
+        echo "Still no executable named htfpp found in $TOP/$dist (even after trying to build it)" >&2
+        echo "TOP=$TOP" >&2
+        echo "dist=$dist" >&2
+        find "$TOP/$dist" -type f >&2
+        exit 1
+    fi
 fi
 "$bin" "$@"
