@@ -15,7 +15,7 @@ if [ "$DEBUG" == "yes" ]; then
     echo "bin=$bin" >&2
 fi
 
-if [ ! -z "$bin" ]; then
+if [ -z "$bin" ]; then
     echo "No executable named htfpp found in $TOP/$dist" >&2
     echo "TOP=$TOP" >&2
     echo "dist=$dist" >&2
