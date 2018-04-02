@@ -20,7 +20,7 @@
 module Test.Framework.ThreadPool (
 
     ThreadPoolEntry, ThreadPool(..), StopFlag(..), sequentialThreadPool, parallelThreadPool
-  , threadPoolTest, threadPoolTestStop
+  , threadPoolTest
 
 ) where
 
@@ -39,7 +39,9 @@ data StopFlag
 
 type ThreadPoolEntry m a b = ( m a        -- pre-action, must not throw exceptions
                              , a -> IO b  -- action
-                             , Either Ex.SomeException b -> m StopFlag  -- post-action, must not throw exceptions. If the result is DoStop, the thread pool is terminated asap.
+                             , Either Ex.SomeException b -> m StopFlag
+                               -- post-action, must not throw exceptions. If the result is
+                               -- DoStop, the thread pool is terminated asap.
                              )
 
 data ThreadPool m a b
@@ -225,33 +227,3 @@ threadPoolTest (i, j) nEntries =
     mapM (runTestParallel nEntries) [i..j] `Ex.catch`
              (\(e::Ex.BlockedIndefinitelyOnMVar) ->
                   fail ("main-thread blocked " ++ show e))
-
-threadPoolTestStop =
-    do putStrLn ("Running test to see of STOP works")
-       boxesAndEntries <- mapM mkEntry [1..100]
-       let (boxes, entries) = unzip boxesAndEntries
-       runParallel numberOfThreads entries
-       debug ("Checking boxes...")
-       mapM_ checkBox (zip [1..] boxes)
-       putStrLn ("Test for STOP successful")
-    where
-      mkEntry i =
-          do mvar <- newEmptyNamedMVar ("box-" ++ show i)
-             let pre = return ()
-                 action () =
-                     do putNamedMVar mvar ()
-                        return ()
-                 post _exc  = return (if i >= numberOfThreads then DoStop else DoNotStop)
-             return (mvar, (pre, action, post))
-      numberOfThreads = 10
-      checkBox (i, (name, box)) =
-          do isEmpty <- isEmptyMVar box
-             if isEmpty
-             then if i > 20
-                  then return ()
-                  else if i <= 10
-                       then fail ("Box " ++ name ++ " is still empty")
-                       else return ()
-             else if i > 20
-                  then fail ("Box " ++ name ++ " not empty")
-                  else return ()

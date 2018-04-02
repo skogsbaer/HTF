@@ -31,7 +31,6 @@ main =
                           [x] -> return (read x, 100)
                           [x, y] -> return (read x, read y)
                           _ -> usage
-       threadPoolTestStop
        threadPoolTest (1, i) nEntries
        return ()
     where
