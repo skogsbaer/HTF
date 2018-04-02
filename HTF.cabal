@@ -72,6 +72,8 @@ Extra-Source-Files:
   sample/bbt-dir/should-pass/x.num
   sample/bbt-dir/should-pass/x.out
   scripts/local-htfpp
+  scripts/dist.sh
+  scripts/check.sh
   scripts/run-sample
 
 Source-Repository head
