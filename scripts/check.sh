@@ -5,8 +5,16 @@ if [ "$1" == "--help" ]; then
     exit 1
 fi
 
-YAMLS=$(grep '^- HTF_TRAVIS_STACK_ARGS' .travis.yml | sed 's/^.*="--stack-yaml //g; s/"$//g')
+set -e
+
 TOP=$(cd $(dirname ${BASH_SOURCE[0]})/.. > /dev/null && pwd -P)
+TRAVIS="$TOP/.travis.yml"
+if [ ! -e "$TRAVIS" ]; then
+    echo "$TRAVIS does not exist!"
+    exit 1
+fi
+
+YAMLS=$(grep '^- HTF_TRAVIS_STACK_ARGS' "$TRAVIS" | sed 's/^.*="--stack-yaml //g; s/"$//g')
 
 if [ -z "$TRAVIS_BUILD_DIR" ]; then
     export TRAVIS_BUILD_DIR="$TOP"
