@@ -1,9 +1,16 @@
 #!/bin/bash
 
 if [ "$1" == "--help" ]; then
+    echo "USAGE: $0 [--no-check]"
     echo "Creates an dist tarball and checks that it builds."
     exit 1
 fi
+
+no_check=no
+if [ "$1" == "--no-check" ]; then
+    no_check=yes
+fi
+
 version=$(gawk -F: '/^Version:/ { print $2 }' HTF.cabal | sed 's/ //g')
 
 echo "Building version $version"
@@ -19,11 +26,14 @@ echo "Distribution tarball is $tarball"
 tmp=$(mktemp -d)
 tar -C "$tmp" -x -z -f "$tarball" || exit 1
 
-pushd "${tmp}/HTF-${version}" > /dev/null
-echo "Running checks in directory $(pwd)"
-scripts/check.sh || exit 1
-
-popd > /dev/null
+if [ "$no_check" == "yes" ]; then
+    echo "Skipping tests as requested"
+else
+    pushd "${tmp}/HTF-${version}" > /dev/null
+    echo "Running checks in directory $(pwd)"
+    scripts/check.sh || exit 1
+    popd > /dev/null
+fi
 
 git_tag="release/${version}"
 if ! git tag --points-at HEAD | grep -E "^$git_tag$" > /dev/null; then
