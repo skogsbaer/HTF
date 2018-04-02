@@ -14,7 +14,7 @@ addons:
 # change flags or use --stack-yaml to point to a different file.
 env:
 - HTF_TRAVIS_STACK_ARGS="--stack-yaml ${TRAVIS_BUILD_DIR}/stack-ghc-8.4.yaml"
-- HTF_TRAVIS_STACK_ARGS="--stack-yaml ${TRAVIS_BUILD_DIR}/stack-ghc-8.2.yaml"
+- HTF_TRAVIS_STACK_ARGS="--stack-yaml ${TRAVIS_BUILD_DIR}/stack.yaml"
 - HTF_TRAVIS_STACK_ARGS="--stack-yaml ${TRAVIS_BUILD_DIR}/stack-ghc-8.0.yaml"
 - HTF_TRAVIS_STACK_ARGS="--stack-yaml ${TRAVIS_BUILD_DIR}/stack-ghc-7.10.yaml"
 
