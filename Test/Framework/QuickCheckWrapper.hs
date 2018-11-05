@@ -165,7 +165,7 @@ qcAssertion qc =
                       quickCheckTestFail (Just (adjustOutput msg))
                   Right (NoExpectedFailure { output=msg }) ->
                       quickCheckTestFail (Just (adjustOutput msg))
-#if MIN_VERSION_QuickCheck(2,8,0)
+#if MIN_VERSION_QuickCheck(2,8,0) && !MIN_VERSION_QuickCheck(2,12,0)
                   Right (InsufficientCoverage { output=msg }) ->
                       quickCheckTestFail (Just (adjustOutput msg))
 #endif
