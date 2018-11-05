@@ -118,7 +118,6 @@ import qualified Control.Exception.Lifted as ExL
 import Control.Monad.Trans.Control
 import Control.Monad.Trans
 import qualified Test.HUnit.Lang as HU
-import qualified Test.HUnit.Base as HU
 
 import Data.List ( (\\) )
 import System.IO.Unsafe (unsafePerformIO)

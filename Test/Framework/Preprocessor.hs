@@ -43,7 +43,7 @@ import Language.Preprocessor.Cpphs ( runCpphsPass1,
                                      tokenise
                                    )
 import System.IO ( hPutStrLn, stderr )
-import Test.HUnit hiding (State, Location)
+import Test.HUnit hiding (State)
 import Control.Monad.State.Strict
 import qualified Data.List as List
 import Data.Maybe
