@@ -1,5 +1,1 @@
-resolver: lts-11.2
-flags: {}
-packages:
-- '.'
-extra-deps: []
+stack-ghc-8.4.yaml
