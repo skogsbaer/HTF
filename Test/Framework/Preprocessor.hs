@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -cpp -pgmPcpphs -optP --layout -optP --hashes -optP --cpp #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE BangPatterns #-}
@@ -43,7 +44,11 @@ import Language.Preprocessor.Cpphs ( runCpphsPass1,
                                      tokenise
                                    )
 import System.IO ( hPutStrLn, stderr )
+#if MIN_VERSION_HUnit(1,4,0)
+import Test.HUnit hiding (State)
+#else
 import Test.HUnit hiding (State, Location)
+#endif
 import Control.Monad.State.Strict
 import qualified Data.List as List
 import Data.Maybe
