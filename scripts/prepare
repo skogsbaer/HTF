@@ -1,0 +1,6 @@
+#!/bin/bash
+
+TOP=$(cd $(dirname ${BASH_SOURCE[0]})/.. > /dev/null && pwd -P)
+echo "Preparing everything for building ..."
+chmod 755 "$TOP/scripts/local-htfpp"
+echo "Done with preparing!"
