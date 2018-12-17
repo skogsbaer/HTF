@@ -1,5 +1,5 @@
 Name:             HTF
-Version:          0.13.2.4
+Version:          0.13.2.5
 License:          LGPL-2.1
 License-File:     LICENSE
 Copyright:        (c) 2005-2015 Stefan Wehr
@@ -30,7 +30,7 @@ Description:
     blog article (<http://factisresearch.blogspot.de/2011/10/new-version-of-htf-with-diffs-colors.html>)
     demonstrating HTF's coloring, pretty-printing and diff functionality.
 
-Build-Type:       Simple
+Build-Type:       Custom
 Cabal-Version:    >= 1.10
 Extra-Source-Files:
   README.md
@@ -40,7 +40,9 @@ Extra-Source-Files:
   stack.yaml
   stack-ghc-7.10.yaml
   stack-ghc-8.0.yaml
+  stack-ghc-8.2.yaml
   stack-ghc-8.4.yaml
+  stack-ghc-8.6.yaml
   tests/bbt/should_fail/BBTArgs
   tests/bbt/should_fail/*.err
   tests/bbt/should_fail/*.out
@@ -84,6 +86,11 @@ Extra-Source-Files:
 Source-Repository head
   Type:           git
   Location:       http://github.com/skogsbaer/HTF.git
+
+Custom-Setup
+  Setup-Depends:   base == 4.*,
+                   process,
+                   Cabal
 
 Executable htfpp
   Main-Is:          HTFPP.hs
