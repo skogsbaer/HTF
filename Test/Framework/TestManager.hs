@@ -419,6 +419,8 @@ runTestWithOptions' opts t =
             _ -> return ()
       storeHistory file history =
           BS.writeFile file (serializeTestHistory history)
+          `Exc.catch` (\(e::Exc.IOException) ->
+                          hPutStrLn stderr ("Error storing HTF history into file " ++ file ++ ": " ++ show e))
 
 -- | Runs something testable with the given 'TestConfig'.
 -- The result is 'ExitSuccess' if all tests were executed successfully,
