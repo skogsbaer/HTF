@@ -348,8 +348,10 @@ testConfigFromCmdlineOptions opts =
             Just fp -> return fp
             Nothing ->
                 do x <- getProgName
-                   createDirectoryIfMissing False ".HTF"
-                   return (".HTF/" ++ x ++ ".history")
+                   curDir <- getCurrentDirectory
+                   let dir = curDir </> ".HTF"
+                   createDirectoryIfMissing False dir
+                   return $ dir </> (x ++ ".history")
       getHistory fp =
           do b <- doesFileExist fp
              if not b
@@ -358,10 +360,10 @@ testConfigFromCmdlineOptions opts =
                      case deserializeTestHistory bs of
                        Right history -> return history
                        Left err ->
-                           do hPutStrLn stderr ("Error deserializing content of history file " ++ fp ++ ": " ++ err)
+                           do hPutStrLn stderr ("Error deserializing content of HTF history file " ++ fp ++ ": " ++ err)
                               return emptyTestHistory
                   `catch` (\(e::IOException) ->
-                               do hPutStrLn stderr ("Error reading history file " ++ fp ++ ": " ++ show e)
+                               do hPutStrLn stderr ("Error reading HTF history file " ++ fp ++ ": " ++ show e)
                                   return emptyTestHistory)
       mergeFilters f1 f2 t =
           f1 t && f2 t
