@@ -347,7 +347,8 @@ testConfigFromCmdlineOptions opts =
           case opts_historyFile opts of
             Just fp -> return fp
             Nothing ->
-                do x <- getProgName
+                do progName <- getProgName
+                   let x = if progName == "<interactive>" then "interactive" else progName
                    curDir <- getCurrentDirectory
                    let dir = curDir </> ".HTF"
                    createDirectoryIfMissing False dir
