@@ -75,9 +75,9 @@ main =
        when ("--version" `elem` args) $
             do outputVersion
                exitWith ExitSuccess
-       let hunitBackwardsCompat = "--hunit" `elem` args
-           debug = "--debug" `elem` args
-           literateTex = "--literate-tex" `elem` args
+       let transformOpts = TransformOptions { hunitBackwardsCompat = "--hunit" `elem` args
+                                            , debug = "--debug" `elem` args
+                                            , literateTex = "--literate-tex" `elem` args }
            restArgs = flip filter args $ \x -> not $ x `elem` ["--hunit", "--debug", "--literate-tex"]
        (origInputFilename, hIn, hOut) <-
            case restArgs of
@@ -99,7 +99,7 @@ main =
                     usage
                     exitWith (ExitFailure 1)
        input <- hGetContents hIn
-       output <- transform hunitBackwardsCompat debug literateTex rigInputFilename input `catch`
+       output <- transform transformOpts origInputFilename input `catch`
                    (\ (e::SomeException) ->
                         do hPutStrLn stderr (progName ++
                                              ": unexpected exception: " ++

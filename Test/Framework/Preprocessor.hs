@@ -24,7 +24,7 @@
 
 module Test.Framework.Preprocessor (
 
-    transform, progName, preprocessorTests
+    transform, progName, preprocessorTests, TransformOptions(..)
 
 ) where
 
@@ -396,8 +396,12 @@ cpphsOptions =
       boolopts = (boolopts defaultCpphsOptions) { lang = True } -- lex as haskell
     }
 
-transform :: Bool -> Bool -> Bool -> FilePath -> String -> IO String
-transform hunitBackwardsCompat debug literateTex originalFileName input =
+data TransformOptions = TransformOptions { hunitBackwardsCompat :: Bool
+                                         , debug :: Bool
+                                         , literateTex :: Bool }
+
+transform :: TransformOptions -> FilePath -> String -> IO String
+transform (TransformOptions hunitBackwardsCompat debug literateTex) originalFileName input =
     do (info, toks, pass1) <- analyze originalFileName fixedInput
        preprocess info toks pass1
     where
