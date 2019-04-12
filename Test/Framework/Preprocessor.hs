@@ -24,7 +24,7 @@
 
 module Test.Framework.Preprocessor (
 
-    transform, progName, preprocessorTests
+    transform, progName, preprocessorTests, TransformOptions(..)
 
 ) where
 
@@ -396,8 +396,12 @@ cpphsOptions =
       boolopts = (boolopts defaultCpphsOptions) { lang = True } -- lex as haskell
     }
 
-transform :: Bool -> Bool -> FilePath -> String -> IO String
-transform hunitBackwardsCompat debug originalFileName input =
+data TransformOptions = TransformOptions { hunitBackwardsCompat :: Bool
+                                         , debug :: Bool
+                                         , literateTex :: Bool }
+
+transform :: TransformOptions -> FilePath -> String -> IO String
+transform (TransformOptions hunitBackwardsCompat debug literateTex) originalFileName input =
     do (info, toks, pass1) <- analyze originalFileName fixedInput
        preprocess info toks pass1
     where
@@ -408,7 +412,7 @@ transform hunitBackwardsCompat debug originalFileName input =
              let opts = mkOptionsForModule info
              preProcessedInput <-
                  runCpphsPass2 (boolopts opts) (defines opts) originalFileName pass1
-             return $ preProcessedInput ++ "\n\n" ++ additionalCode info ++ "\n"
+             return $ preProcessedInput ++ "\n\n" ++ possiblyWrap literateTex (additionalCode info) ++ "\n"
       -- fixedInput serves two purposes:
       -- 1. add a trailing \n
       -- 2. turn lines of the form '# <number> "<filename>"' into line directives '#line <number> <filename>'
@@ -428,6 +432,8 @@ transform hunitBackwardsCompat debug originalFileName input =
                                     nameDefines info
                               , boolopts = (boolopts defaultCpphsOptions) { lang = True } -- lex as haskell
                               }
+      possiblyWrap :: Bool -> String -> String
+      possiblyWrap b s = if b then "\\begin{code}\n" ++ s ++ "\\end{code}" else s
       additionalCode :: ModuleInfo -> String
       additionalCode info =
           thisModulesTestsFullName (mi_moduleNameWithDefault info) ++ " :: " ++

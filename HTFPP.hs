@@ -35,7 +35,7 @@ usage :: IO ()
 usage =
     hPutStrLn stderr
       ("Preprocessor for the Haskell Test Framework\n\n" ++
-       "Usage: " ++ progName ++ " [--hunit|--debug|--version] [FILE1 [FILE2 [FILE3]]]\n\n" ++
+       "Usage: " ++ progName ++ " [--hunit|--debug|--version|--literate-tex] [FILE1 [FILE2 [FILE3]]]\n\n" ++
        "* If no argument is given, input is read from stdin and\n" ++
        "  output is written to stdout.\n" ++
        "* If only FILE1 is given, input is read from this file\n" ++
@@ -47,7 +47,9 @@ usage =
        "  FILE1 serves as the original input filename.\n\n" ++
        "The `--hunit' flag causes assert-like macros to be expanded in a way\n" ++
        "that is backwards-compatible with the corresponding functions of the\n" ++
-       "HUnit library.")
+       "HUnit library.\n" ++
+       "The `--literate-tex` flag causes the additional generated code to be wrapped\n" ++
+       "in TeX-style literate code blocks.")
 
 outputVersion :: IO ()
 outputVersion =
@@ -73,9 +75,10 @@ main =
        when ("--version" `elem` args) $
             do outputVersion
                exitWith ExitSuccess
-       let hunitBackwardsCompat = "--hunit" `elem` args
-           debug = "--debug" `elem` args
-           restArgs = flip filter args $ \x -> x /= "--hunit" && x /= "--debug"
+       let transformOpts = TransformOptions { hunitBackwardsCompat = "--hunit" `elem` args
+                                            , debug = "--debug" `elem` args
+                                            , literateTex = "--literate-tex" `elem` args }
+           restArgs = flip filter args $ \x -> not $ x `elem` ["--hunit", "--debug", "--literate-tex"]
        (origInputFilename, hIn, hOut) <-
            case restArgs of
              [] ->
@@ -96,7 +99,7 @@ main =
                     usage
                     exitWith (ExitFailure 1)
        input <- hGetContents hIn
-       output <- transform hunitBackwardsCompat debug origInputFilename input `catch`
+       output <- transform transformOpts origInputFilename input `catch`
                    (\ (e::SomeException) ->
                         do hPutStrLn stderr (progName ++
                                              ": unexpected exception: " ++
