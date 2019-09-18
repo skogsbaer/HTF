@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -cpp -pgmPcpphs -optP --layout -optP --hashes -optP --cpp #-}
+{-# OPTIONS_GHC -cpp -pgmPcpphs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
