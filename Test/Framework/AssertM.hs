@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-|
 
 This module defines the 'AssertM' monad, which allows you either to run assertions
@@ -55,7 +56,9 @@ instance Monad AssertBool where
     return = AssertOk
     AssertFailed stack >>= _ = AssertFailed stack
     AssertOk x >>= k = k x
+#if !(MIN_VERSION_base(4,13,0))
     fail msg = AssertFailed [AssertStackElem (Just msg) Nothing]
+#endif
 
 instance AssertM AssertBool where
     genericAssertFailure__ loc s =

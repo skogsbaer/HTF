@@ -53,7 +53,7 @@ sequentialThreadPool = ThreadPool runSequentially
 
 parallelThreadPool :: MonadIO m => Int -> m (ThreadPool m a b)
 parallelThreadPool n =
-    do when (n < 1) $ fail ("invalid number of workers: " ++ show n)
+    do when (n < 1) $ liftIO (fail ("invalid number of workers: " ++ show n))
        return (ThreadPool (runParallel n))
 
 runSequentially :: MonadIO m => [ThreadPoolEntry m a b] -> m ()
@@ -90,7 +90,7 @@ type FromWorker m b = NamedChan (WorkResult m b)
 runParallel :: forall m a b . MonadIO m => Int -> [ThreadPoolEntry m a b] -> m ()
 runParallel _ [] = return ()
 runParallel n entries =
-    do when (n < 1) $ fail ("invalid number of workers: " ++ show n)
+    do when (n < 1) $ liftIO (fail ("invalid number of workers: " ++ show n))
        fromWorker <- liftIO $ newNamedChan "fromWorker"
        let nWorkers = min n (length entries)
        toWorkers <- mapM (\i -> liftIO $ mkWorker i fromWorker) [1..nWorkers]
