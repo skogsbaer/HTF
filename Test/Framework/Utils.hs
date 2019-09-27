@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE PatternGuards #-}
 --
 -- Copyright (c) 2005, 2012   Stefan Wehr - http://www.stefanwehr.de
@@ -119,7 +120,11 @@ mapAccumLM f s (x:xs)    = do (s', y ) <- f s x
                               (s'',ys) <- mapAccumLM f s' xs
                               return (s'',y:ys)
 
+#if !(MIN_VERSION_base(4,13,0))
+readM :: (Monad m, Read a) => String -> m a
+#else
 readM :: (MonadFail m, Read a) => String -> m a
+#endif
 readM s | [x] <- parse = return x
         | otherwise    = fail $ "Failed parse: " ++ show s
     where
