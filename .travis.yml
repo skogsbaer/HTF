@@ -26,7 +26,7 @@ before_install:
 # This line does all of the work: installs GHC if necessary, build the library,
 # executables, and test suites, and runs the test suites. --no-terminal works
 # around some quirks in Travis's terminal implementation.
-script: stack $HTF_TRAVIS_STACK_ARGS --no-terminal --install-ghc test --haddock --cabal-verbose
+script: ${TRAVIS_BUILD_DIR}/scripts/travis-check
 
 # Caching so the next build will be fast too.
 cache:

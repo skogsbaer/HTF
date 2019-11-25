@@ -431,5 +431,3 @@ main =
                      `onException` (do s <- readFile outFile
                                        hPutStrLn stderr s)
                 runRealBlackBoxTests
-                ecode <- system (dirPrefix </> "compile-errors/run-tests.sh")
-                exitWith ecode
