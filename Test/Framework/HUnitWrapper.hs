@@ -134,6 +134,7 @@ import Test.Framework.AssertM
 import Test.Framework.PrettyHaskell
 
 import qualified Data.Text as T
+import qualified Data.List as List
 
 -- WARNING: do not forget to add a preprocessor macro for new assertions!!
 
@@ -248,8 +249,8 @@ equalityFailedMessage' exp act =
         expected_ = colorize firstDiffColor "* expected:"
         but_got_ = colorize secondDiffColor "* but got:"
         diff_ = colorize diffColor "* diff:"
-    in ("\n" +++ expected_ +++ " " +++ noColor (withNewline exp) +++
-        "\n" +++ but_got_ +++ "  " +++ noColor (withNewline act) +++
+    in ("\n" +++ expected_ +++ " " +++ noColor (withNewline (trim exp)) +++
+        "\n" +++ but_got_ +++ "  " +++ noColor (withNewline (trim act)) +++
         "\n" +++ diff_ +++ "     " +++ newlineBeforeDiff diff +++ diff +++
         (if (exp == act)
          then "\nWARNING: strings are equal but actual values differ!"
@@ -265,6 +266,13 @@ equalityFailedMessage' exp act =
                       Just _ -> "\n"
                       Nothing -> ""
           in noColor' (f True) (f False)
+      trim s =
+          case List.splitAt maxLen s of
+            (_, []) -> s
+            (prefix, rest) ->
+                prefix ++ " (removed " ++ show (length rest) ++ " trailing chars)"
+      maxLen = 100000
+
 
 equalityFailedMessage :: (Show a) => a -> a -> ColorString
 equalityFailedMessage exp act =

@@ -88,12 +88,50 @@ defaultDiffConfig = mkDefaultDiffConfig firstDiffColor secondDiffColor skipDiffC
 contextSize :: Int
 contextSize = 10
 
+prepareStringsForDiff :: String -> String -> (String, String, Maybe (String, String))
+prepareStringsForDiff s1 s2 =
+    case (List.splitAt 1024 s1, List.splitAt 1024 s2) of
+      ((start1, rest1@(_:_)), (start2, rest2@(_:_))) -> (start1, start2, Just (rest1, rest2))
+      ((start1, []), (start2, _)) -> (start1, start2, Nothing)
+      ((start1, _), (start2, [])) -> (start1, start2, Nothing)
+
 singleLineDiff :: DiffConfig -> String -> String -> ColorString
-singleLineDiff dc s1 s2
-    | s1 == s2 = emptyColorString
+singleLineDiff dc s1 s2 = loop (0, 0) (s1, s2)
+    where
+      loop :: (Int, Int) -> (String, String) -> ColorString
+      loop (skipped1, skipped2) (s1, s2) =
+          let (start1, start2, cont) = prepareStringsForDiff s1 s2
+          in case singleLineDiff' dc start1 start2 of
+               Just cs ->
+                   let prefix =
+                           if skipped1 == 0 && skipped1 == 0
+                           then emptyColorString
+                           else dc_skip dc
+                                    ("skipped " ++ show skipped1 ++
+                                     " chars from first string, "
+                                    ++ show skipped2 ++ " chars from second string")
+                       suffix =
+                           case cont of
+                             Nothing -> emptyColorString
+                             Just (r1, r2) ->
+                                 dc_skip dc
+                                     ("skipped " ++ show (length r1) ++
+                                      " chars from first string, " ++
+                                      show (length r2) ++ " chars from second string")
+                   in prefix +++ cs +++ suffix
+               Nothing ->
+                   case cont of
+                     Just (r1, r2) ->
+                         loop (skipped1 + length start1, skipped2 + length start2) (r1, r2)
+                     Nothing -> emptyColorString
+
+singleLineDiff' :: DiffConfig -> String -> String -> Maybe ColorString
+singleLineDiff' dc s1 s2
+    | s1 == s2 = Nothing
     | otherwise =
         let groups = D.getGroupedDiff s1 s2
-        in foldr (\(group, pos) string ->
+        in Just $
+           foldr (\(group, pos) string ->
                       (showDiffGroup pos group) +++
                       (if not (isLast pos) then dc_sep dc else emptyColorString) +++
                       string)
@@ -187,7 +225,13 @@ Haskell diff, in case the diff tool is not present
 -}
 multiLineDiffHaskell :: String -> String -> ColorString
 multiLineDiffHaskell left right =
-    noColor $ ppDiff $ D.getGroupedDiff (lines left) (lines right) -- this code is now part of the Diff library (hence the >0.3 in Cabal)
+    if length left > maxLen || length right > maxLen
+    then noColor
+             ("Refusing the compute a multiline diff for strings with more than " ++ show maxLen ++
+              " chars. Please install the 'diff' tool to get a diff ouput.")
+    else noColor $ ppDiff $ D.getGroupedDiff (lines left) (lines right)
+    where
+      maxLen = 10000
 
 main =
     do args <- getArgs
