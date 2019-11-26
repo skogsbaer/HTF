@@ -16,6 +16,8 @@ env:
 - HTF_TRAVIS_STACK_ARGS="--stack-yaml ${TRAVIS_BUILD_DIR}/stack-ghc-8.8.yaml"
 - HTF_TRAVIS_STACK_ARGS="--stack-yaml ${TRAVIS_BUILD_DIR}/stack-ghc-8.6.yaml"
 - HTF_TRAVIS_STACK_ARGS="--stack-yaml ${TRAVIS_BUILD_DIR}/stack-ghc-8.4.yaml"
+- HTF_TRAVIS_STACK_ARGS="--stack-yaml ${TRAVIS_BUILD_DIR}/stack-ghc-8.2.yaml"
+- HTF_TRAVIS_STACK_ARGS="--stack-yaml ${TRAVIS_BUILD_DIR}/stack-ghc-8.0.yaml"
 
 before_install:
 # Download and unpack the stack executable
