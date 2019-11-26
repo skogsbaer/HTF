@@ -1,3 +1,8 @@
+* 0.14.0.0 (2019-11-26)
+  - support for GHC 8.8
+  - fix for performance problem with long strings
+    https://github.com/skogsbaer/HTF/issues/85
+
 * 0.13.2.5 (2018-11-06)
   - fix build problem with quickcheck:
         https://github.com/skogsbaer/HTF/issues/70
