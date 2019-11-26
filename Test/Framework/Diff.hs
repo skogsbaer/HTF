@@ -227,7 +227,7 @@ multiLineDiffHaskell :: String -> String -> ColorString
 multiLineDiffHaskell left right =
     if length left > maxLen || length right > maxLen
     then noColor
-             ("Refusing the compute a multiline diff for strings with more than " ++ show maxLen ++
+             ("Refusing to compute a multiline diff for strings with more than " ++ show maxLen ++
               " chars. Please install the 'diff' tool to get a diff ouput.")
     else noColor $ ppDiff $ D.getGroupedDiff (lines left) (lines right)
     where
