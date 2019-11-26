@@ -1,5 +1,5 @@
 Name:             HTF
-Version:          0.13.2.5
+Version:          0.14.0.0
 License:          LGPL-2.1
 License-File:     LICENSE
 Copyright:        (c) 2005-2015 Stefan Wehr
@@ -38,11 +38,11 @@ Extra-Source-Files:
   ChangeLog
   .travis.yml
   stack.yaml
-  stack-ghc-7.10.yaml
   stack-ghc-8.0.yaml
   stack-ghc-8.2.yaml
   stack-ghc-8.4.yaml
   stack-ghc-8.6.yaml
+  stack-ghc-8.8.yaml
   tests/bbt/should_fail/BBTArgs
   tests/bbt/should_fail/*.err
   tests/bbt/should_fail/*.out
