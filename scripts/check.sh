@@ -21,6 +21,7 @@ if [ -z "$TRAVIS_BUILD_DIR" ]; then
 fi
 
 for yaml in $YAMLS; do
+    echo >&2
     eval yaml="$yaml" # evaluate variables contained in $yaml
     echo >&2 "Checking with $yaml ..."
     export HTF_TRAVIS_STACK_ARGS="--stack-yaml $yaml"
