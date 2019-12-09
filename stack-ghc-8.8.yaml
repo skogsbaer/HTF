@@ -1,7 +1,6 @@
-resolver: nightly-2019-11-05
+resolver: nightly
 flags: {}
 packages:
 - '.'
 extra-deps:
-- git: https://github.com/skogsbaer/haskell-src.git
-  commit: ab0e6f8bf004337792365cdc53dc1068eaf51eda
+- haskell-src-1.0.3.1
