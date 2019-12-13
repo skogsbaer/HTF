@@ -7,7 +7,7 @@
 * Source Repository: https://github.com/skogsbaer/HTF/
 * Issue tracker:     https://github.com/skogsbaer/HTF/issues?state=open
 * Author:            Stefan Wehr (http://www.stefanwehr.de)
-* License: LGPL
+* License:           LGPL
 
 ## Summary
 

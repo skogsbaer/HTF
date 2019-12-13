@@ -1,3 +1,8 @@
+* 0.14.0.2 (2019-11-27)
+  - use haskell-src from hackage
+
+* 0.14.0.1 (2019-11-27)
+  - find cpphs
 * 0.14.0.0 (2019-11-26)
   - support for GHC 8.8
   - fix for performance problem with long strings
