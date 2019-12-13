@@ -1,3 +1,6 @@
+* 0.14.0.3 (2019-11-27)
+  - use haskell-src in version 1.0.3.1 everywhere
+
 * 0.14.0.2 (2019-11-27)
   - use haskell-src from hackage
 
