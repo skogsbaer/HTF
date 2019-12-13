@@ -10,7 +10,11 @@ fi
 
 function find_bin()
 {
-    bin=$($find "$TOP/$dist" -name htfpp -type f -executable -printf "%T+\t%p\n" | sort -r | head -1 | gawk '{print $2}')
+    local d="$TOP/$dist"
+    if [ ! -d "$d" ]; then
+        d="$(dirname $d)"
+    fi
+    bin=$($find "$d" -name htfpp -type f -executable -printf "%T+\t%p\n" | sort -r | head -1 | gawk '{print $2}')
 }
 
 find_bin
