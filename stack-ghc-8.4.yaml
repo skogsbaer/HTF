@@ -3,4 +3,4 @@ flags: {}
 packages:
 - '.'
 extra-deps:
-- haskell-src-1.0.3.0
+- haskell-src-1.0.3.1
