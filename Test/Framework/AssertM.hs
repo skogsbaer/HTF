@@ -13,7 +13,6 @@ module Test.Framework.AssertM (
 
 import Data.Maybe
 import qualified Data.Text as T
-import Control.Applicative (Applicative(..))
 import Control.Monad       (liftM, ap)
 
 import Test.Framework.TestInterface
