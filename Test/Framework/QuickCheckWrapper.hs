@@ -63,9 +63,6 @@ import Data.Char
 import qualified Data.List as List
 import System.IO.Unsafe (unsafePerformIO)
 import Data.IORef
-#if MIN_VERSION_QuickCheck(2,7,0)
-import System.Random
-#endif
 
 import Test.QuickCheck
 #if !MIN_VERSION_QuickCheck(2,7,0)
@@ -241,8 +238,5 @@ setReplayFromString args str =
     case readM str of
       Just x -> args { replay = x }
       Nothing ->
-          case readM str of
-            Just (_ :: Maybe (StdGen, Int)) ->
-                error ("Your replay parameter has been produced with QuickCheck <= 2.6. It cannot be used with QuickCheck >= 2.7")
-            Nothing -> error ("Could not parse replay parameter from string " ++ show str)
+          error ("Could not parse replay parameter from string " ++ show str)
 #endif
