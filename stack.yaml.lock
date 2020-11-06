@@ -5,15 +5,15 @@
 
 packages:
 - completed:
-    hackage: haskell-src-1.0.3.0@sha256:b844cc6370195d57d9c16fe7d4cd9989325f63c034133fe7dc70b6cf13dcd9de,1873
+    hackage: haskell-src-1.0.3.1@sha256:4f17c7a8c3989cbbe5a07facf7ee1080c7688c33fd6e8b8d8c9693a2d96726d2,1680
     pantry-tree:
       size: 621
-      sha256: 72461054484e887e0818d8c802cd7daab29049496a4aee56ddf38cdc51516400
+      sha256: 1ad12f023a5c4c4f3053f15519355166f1a6eb05ec639d7b32f8fcd587e28bea
   original:
-    hackage: haskell-src-1.0.3.0
+    hackage: haskell-src-1.0.3.1
 snapshots:
 - completed:
-    size: 523878
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/14/3.yaml
-    sha256: 470c46c27746a48c7c50f829efc0cf00112787a7804ee4ac7a27754658f6d92c
-  original: lts-14.3
+    size: 532177
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/16/20.yaml
+    sha256: 0e14ba5603f01e8496e8984fd84b545a012ca723f51a098c6c9d3694e404dc6d
+  original: lts-16.20
