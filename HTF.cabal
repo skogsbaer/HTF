@@ -1,5 +1,5 @@
 Name:             HTF
-Version:          0.14.0.4
+Version:          0.14.0.5
 License:          LGPL-2.1
 License-File:     LICENSE
 Copyright:        (c) 2005-2015 Stefan Wehr
@@ -182,6 +182,7 @@ Test-Suite MiscTests
                      base == 4.*,
                      mtl,
                      random
+  Build-tool-depends: HTF:htfpp
   Default-language:  Haskell2010
 
 Test-Suite TestHTF
@@ -202,6 +203,7 @@ Test-Suite TestHTF
                      temporary >= 1.1,
                      text >= 0.11,
                      unordered-containers >= 0.2
+  Build-tool-depends: HTF:htfpp
   Default-language:  Haskell2010
   Other-Modules:
     Foo.A, Foo.B, TestHTFHunitBackwardsCompatible, FailFast, MaxCurTime,
@@ -216,4 +218,5 @@ Test-Suite TestThreadPools
                      base == 4.*,
                      mtl,
                      random
+  Build-tool-depends: HTF:htfpp
   Default-language:  Haskell2010
