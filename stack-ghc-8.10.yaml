@@ -1,6 +1,4 @@
-resolver: nightly-2020-11-04
+resolver: nightly-2021-01-26
 flags: {}
 packages:
 - '.'
-extra-deps:
-- haskell-src-1.0.3.1
