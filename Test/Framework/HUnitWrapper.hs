@@ -41,8 +41,8 @@ at the top of your source file (see the 'Test.Framework.Tutorial').
 module Test.Framework.HUnitWrapper (
 
   -- * Assertions on Bool values
-  assertBool_, assertBoolVerbose_,
-  gassertBool_, gassertBoolVerbose_,
+  assertBool, assertBoolVerbose,
+  gassertBool, gassertBoolVerbose,
 
   -- * Equality assertions
   assertEqual_, assertEqualVerbose_,
@@ -95,15 +95,15 @@ module Test.Framework.HUnitWrapper (
   gassertNothingNoShow_, gassertNothingNoShowVerbose_,
 
   -- * General failure
-  assertFailure_,
-  gassertFailure_,
+  assertFailure,
+  gassertFailure,
 
   -- * Pending unit tests
   unitTestPending, unitTestPending',
 
   -- * Sub assertions
-  subAssert_, subAssertVerbose_,
-  gsubAssert_, gsubAssertVerbose_,
+  subAssert, subAssertVerbose,
+  gsubAssert, gsubAssertVerbose,
 
   -- * HUnit re-exports
   HU.HUnitFailure,
@@ -121,6 +121,7 @@ import qualified Test.HUnit.Lang as HU
 #if !MIN_VERSION_HUnit(1,4,0)
 import qualified Test.HUnit.Base as HU
 #endif
+import GHC.Stack
 
 import Data.List ( (\\) )
 import System.IO.Unsafe (unsafePerformIO)
@@ -141,21 +142,20 @@ import qualified Data.List as List
 {- |
 Fail with the given reason, supplying the error location and the error message.
 -}
-gassertFailure_ :: AssertM m => Location -> String -> m a
-gassertFailure_ loc s =
-    genericAssertFailure__ loc (mkMsg "assertFailure" ""
-                                ("failed at " ++ showLoc loc ++ ": " ++ s))
+gassertFailure :: (HasCallStack, AssertM m) => String -> m a
+gassertFailure s =
+    genericAssertFailure (mkMsg "assertFailure" "" s)
 
 -- | Specialization of 'gassertFailure'.
-assertFailure_ :: Location -> String -> IO a
-assertFailure_ = gassertFailure_
+assertFailure :: HasCallStack => String -> IO a
+assertFailure = gassertFailure
 
 {- |
 Signals that the current unit test is pending.
 -}
 unitTestPending :: String -> IO a
 unitTestPending s =
-    failHTF (FullTestResult Nothing [] (Just $ noColor s) (Just Pending))
+    failHTF (FullTestResult emptyHtfStack (Just $ noColor s) (Just Pending))
 
 {- |
 Use @unitTestPending' msg test@ to mark the given test as pending
@@ -231,13 +231,22 @@ CreateAssertionsGenericNoGVariant(__name__, , __type__, IO __ret__)
 -- Boolean Assertions
 --
 
-_assertBool_ :: AssertM m => String -> Location -> String -> Bool -> m ()
-_assertBool_ name loc s False =
-    genericAssertFailure__ loc (mkMsg name s ("failed at " ++ showLoc loc))
-_assertBool_ _ _ _   True = return ()
+_assertBool :: (HasCallStack, AssertM m) => String -> String -> Bool -> m ()
+_assertBool name s False = genericAssertFailure (mkMsg name s "failed")
+_assertBool _ _ True = return ()
 
-DocAssertion(assertBool, Fail if the 'Bool' value is 'False'.)
-CreateAssertions(assertBool, Bool)
+-- | Fail if the 'Bool' value is 'False'.
+assertBool :: HasCallStack => Bool -> IO ()
+assertBool = _assertBool "assertBool" ""
+
+assertBoolVerbose :: HasCallStack => String -> Bool -> IO ()
+assertBoolVerbose = _assertBool "assertBoolVerbose"
+
+gassertBool :: (HasCallStack, AssertM m) => Bool -> m ()
+gassertBool = _assertBool "gassertBool" ""
+
+gassertBoolVerbose :: (HasCallStack, AssertM m) => String -> Bool -> m ()
+gassertBoolVerbose = _assertBool "gassertBoolVerbose"
 
 --
 -- Equality Assertions
@@ -571,34 +580,19 @@ CreateAssertions(assertNothingNoShow, Maybe a)
 -- Sub assertions
 --
 
--- | Sub assertions are a poor man's way of abstracting over assertions while still propagating location
--- information. Say you want to abstract over the assertion that an 'Int' is positive. You would write
---
--- > assertIsPositive :: Int -> Assertion
--- > assertIsPositive n = assertBool (n > 0)
---
--- You can now use @assertIsPositive i@ for some integer @i@ from your unit tests, but if you call it directly
--- you will lose location information: if @assertIsPositive i@ fails you will only get the location where
--- @assertIsPositive@ is defined but not from where it has been called.
---
--- To recover the location information you simply use @subAssert (assertIsPositive i)@.
--- In this case, if @i@ is not positive, you will get the location of the caller.
---
--- /Note:/ Don't use subAssert_ directly but use the preprocessor macro @subAssert@.
-subAssert_ :: MonadBaseControl IO m => Location -> m a -> m a
-subAssert_ loc ass = subAssertHTF loc Nothing ass
+-- | Use 'subAssert' if you want location information for the call site but the function
+--   being called does not carry a 'HasCallStack' constraint.
+subAssert :: (HasCallStack, MonadBaseControl IO m) => m a -> m a
+subAssert = subAssertHTF Nothing
 
--- | Generic variant of 'subAssert_'.
-gsubAssert_ :: AssertM m => Location -> m a -> m a
-gsubAssert_ loc ass = genericSubAssert loc Nothing ass
+gsubAssert :: (HasCallStack, AssertM m) => m a -> m a
+gsubAssert = genericSubAssert Nothing
 
--- | Same as 'subAssert_' but with an additional error message.
-subAssertVerbose_ :: MonadBaseControl IO m => Location -> String -> m a -> m a
-subAssertVerbose_ loc msg ass = subAssertHTF loc (Just msg) ass
+subAssertVerbose :: (HasCallStack, MonadBaseControl IO m) => String -> m a -> m a
+subAssertVerbose msg = subAssertHTF (Just msg)
 
--- | Generic variant of 'subAssertVerbose_'.
-gsubAssertVerbose_ :: AssertM m => Location -> String -> m a -> m a
-gsubAssertVerbose_ loc msg ass = genericSubAssert loc (Just msg) ass
+gsubAssertVerbose :: (HasCallStack, AssertM m) => String -> m a -> m a
+gsubAssertVerbose msg = genericSubAssert (Just msg)
 
 testEqualityFailedMessage1 :: IO ()
 testEqualityFailedMessage1 =

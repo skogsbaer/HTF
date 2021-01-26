@@ -62,6 +62,7 @@ module Test.Framework.JsonOutput (
 import Test.Framework.TestTypes
 import Test.Framework.Location
 import Test.Framework.Colors
+import Test.Framework.TestInterface
 
 import qualified Data.Aeson as J
 import Data.Aeson ((.=))
@@ -89,8 +90,7 @@ data TestEndEventObj
     = TestEndEventObj
       { te_test :: TestObj
       , te_result :: TestResult
-      , te_location :: Maybe Location
-      , te_callers :: [(Maybe String, Location)]
+      , te_stack :: HtfStack
       , te_message :: T.Text
       , te_wallTimeMs :: Int
       , te_timedOut :: Bool
@@ -100,10 +100,11 @@ instance J.ToJSON TestEndEventObj where
     toJSON te =
         J.object ["type" .= J.String "test-end"
                  ,"test" .= J.toJSON (te_test te)
-                 ,"location" .= J.toJSON (te_location te)
-                 ,"callers" .= J.toJSON (map (\(msg, loc) -> J.object ["message" .= J.toJSON msg
-                                                                      ,"location" .= J.toJSON loc])
-                                             (te_callers te))
+                 ,"location" .= J.toJSON (failureLocationFromStack (te_stack te))
+                 ,"callers" .=
+                    J.toJSON (map (\entry -> J.object ["location" .= J.toJSON (hse_location entry)
+                                                      ,"message" .= J.toJSON (hse_message entry)])
+                              (restCallStack (te_stack te)))
                  ,"result" .= J.toJSON (te_result te)
                  ,"message" .= J.toJSON (te_message te)
                  ,"wallTime" .= J.toJSON (te_wallTimeMs te)
@@ -192,7 +193,7 @@ mkTestEndEventObj :: FlatTestResult -> String -> TestEndEventObj
 mkTestEndEventObj ftr flatName =
     let r = ft_payload ftr
         msg = renderColorString (rr_message r) False
-    in TestEndEventObj (mkTestObj ftr flatName) (rr_result r) (rr_location r) (rr_callers r)
+    in TestEndEventObj (mkTestObj ftr flatName) (rr_result r) (rr_stack r)
                        msg (rr_wallTimeMs r) (rr_timeout r)
 
 mkTestListObj :: [(FlatTest, String)] -> TestListObj

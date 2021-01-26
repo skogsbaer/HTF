@@ -29,6 +29,7 @@ import Test.Framework
 import Test.Framework.Location
 import Test.Framework.TestManager
 import Test.Framework.BlackBoxTest
+import Test.Framework.TestInterface
 
 import System.Environment
 import System.Directory
@@ -57,6 +58,8 @@ import qualified Data.Text.Encoding as T
 import qualified Data.Text.Encoding.Error as T
 import qualified Data.List as List
 import qualified Text.Regex as R
+import GHC.Stack
+
 import {-@ HTF_TESTS @-} qualified TestHTFHunitBackwardsCompatible
 import {-@ HTF_TESTS @-} qualified Foo.A as A
 import {-@ HTF_TESTS @-} Foo.B
@@ -182,18 +185,20 @@ prop_error'_FAIL = withQCArgs changeArgs $ (error "Lisa" :: Bool)
 test_genericAssertions_OK =
     case test1 of
       AssertOk _ -> fail "did not expect AssertOk"
-      AssertFailed stack ->
-          do assertEqual 2 (length stack)
-             let [se1, se2] = stack
-             assertNothing (ase_message se1)
-             loc1 <- assertJust (ase_location se1)
-             _ <- assertJust (ase_message se2)
-             loc2 <- assertJust (ase_location se2)
+      AssertFailed stack msg ->
+          do assertEqualVerbose ("stack=" ++ show stack) 2 (length (htfStackToList stack))
+             let [se1, se2] = htfStackToList stack
+                 loc1 = hse_location se1
+                 loc2 = hse_location se2
              assertEqual (fileName loc1) (fileName loc2)
-             assertEqual (lineNumber loc1 + 1) (lineNumber loc2)
+             assertEqual (lineNumber loc1) (line - 1)
+             assertEqual (lineNumber loc2) (line - 3)
+             assertNotEqual msg ""
     where
-      test1 = gsubAssert test2
-      test2 = gassertEqual 1 (2::Int)
+      test1 = test2
+      test2 :: (HasCallStack) => AssertBool ()
+      test2 = gassertBool False
+      line = __LINE__
 
 -- find . -name '*.hs' | xargs egrep -w -o -h "[a-zA-Z0-9_']+_PENDING" | sed 's/test_//g; s/prop_//g' | sort -u
 pendingTests :: [T.Text]
@@ -297,12 +302,12 @@ checkOutput output =
                                                      ,"line" .= J.toJSON (9::Int)]])
        check jsons (J.object ["type" .= J.String "test-end"
                              ,"test" .= J.object ["flatName" .= J.String "Main:subAssert_FAIL"]])
-                   (J.object ["callers" .= J.toJSON [J.object ["message" .= J.Null
+                   (J.object ["callers" .= J.toJSON [J.object ["message" .= J.String "I'm another sub"
                                                               ,"location" .= J.object ["file" .= J.String "TestHTF.hs"
-                                                                                      ,"line" .= J.toJSON (95+lineOffset)]]
-                                                    ,J.object ["message" .= J.String "I'm another sub"
+                                                                                      ,"line" .= J.toJSON (97+lineOffset)]]
+                                                    ,J.object ["message" .= J.Null
                                                               ,"location" .= J.object ["file" .= J.String "TestHTF.hs"
-                                                                                      ,"line" .= J.toJSON (97+lineOffset)]]]])
+                                                                                      ,"line" .= J.toJSON (95+lineOffset)]]]])
     where
       lineOffset :: Int
       lineOffset = 38

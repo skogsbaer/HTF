@@ -148,24 +148,18 @@ type CallStack = [(Maybe String, Location)]
 data RunResult
     = RunResult
       { rr_result :: TestResult       -- ^ The summary result of the test.
-      , rr_location :: Maybe Location -- ^ The location where the test failed (if applicable).
-      , rr_callers :: CallStack       -- ^ Information about the callers of the location where the test failed
+      , rr_stack :: HtfStack          -- ^ The stack leading to the test failure
       , rr_message :: ColorString     -- ^ A message describing the result.
       , rr_wallTimeMs :: Milliseconds -- ^ Execution time in milliseconds.
       , rr_timeout :: Bool            -- ^ 'True' if the execution took too long
       }
 
-attachCallStack :: ColorString -> CallStack -> ColorString
-attachCallStack msg callStack =
-    case reverse callStack of
-      [] -> msg
-      l -> ensureNewlineColorString msg +++
-           noColor (unlines (map formatCallStackElem l))
-    where
-      formatCallStackElem (mMsg, loc) =
-          "  called from " ++ showLoc loc ++ (case mMsg of
-                                                Nothing -> ""
-                                                Just s -> " (" ++ s ++ ")")
+attachCallStack :: ColorString -> HtfStack -> ColorString
+attachCallStack msg stack =
+    let fstack = formatHtfStack stack
+    in if fstack == ""
+       then msg
+       else ensureNewlineColorString msg +++ noColor fstack
 
 -- | The result of running a 'FlatTest'
 type FlatTestResult = GenFlatTest RunResult

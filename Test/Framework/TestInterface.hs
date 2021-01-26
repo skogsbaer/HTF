@@ -27,7 +27,10 @@ This module defines the API for HTF plugins.
 
 module Test.Framework.TestInterface (
 
-    Assertion, TestResult(..), FullTestResult(..), HTFFailureException(..), failHTF, subAssertHTF
+    Assertion, TestResult(..), FullTestResult(..), HTFFailureException(..)
+  , HtfStackEntry(..), HtfStack, emptyHtfStack, mkHtfStack, formatHtfStack
+  , failureLocationFromStack, restCallStack, htfStackFromLocation, htfStackToList
+  , failHTF, subAssertHTF, addCallerToSubAssertStack
   , mkFullTestResult
 
 ) where
@@ -37,6 +40,8 @@ import Test.Framework.Colors
 
 import Control.Monad.Trans.Control
 import Data.Typeable
+import GHC.Stack
+import qualified Data.List as L
 import qualified Control.Exception as Exc
 import qualified Control.Exception.Lifted as ExcLifted
 
@@ -58,21 +63,88 @@ type Assertion = IO ()
 data TestResult = Pass | Pending | Fail | Error
                 deriving (Show, Read, Eq)
 
+data HtfStackEntry
+    = HtfStackEntry
+    { hse_location :: Location
+    , hse_calledFunction :: String
+    , hse_message :: Maybe String
+    } deriving (Eq, Ord, Show, Read)
+
+-- The first entry in the list is the location of the assertion failure
+data HtfStack
+    = HtfStack
+      { hs_assertStack :: [HtfStackEntry]
+      , hs_subAssertStack :: [HtfStackEntry]
+      }
+    deriving (Eq, Ord, Show, Read)
+
+mkHtfStack :: CallStack -> HtfStack
+mkHtfStack cs = HtfStack (map mkHtfStackEntry (removeHtfPrefix (getCallStack cs))) []
+
+removeHtfPrefix :: [(String, SrcLoc)] -> [(String, SrcLoc)]
+removeHtfPrefix [] = []
+removeHtfPrefix all@((_, srcLoc) : rest) =
+    if "Test.Framework" `L.isPrefixOf` srcLocModule srcLoc
+    then removeHtfPrefix rest
+    else all
+
+mkHtfStackEntry :: (String, SrcLoc) -> HtfStackEntry
+mkHtfStackEntry x = mkHtfStackEntry' x Nothing
+
+mkHtfStackEntry' :: (String, SrcLoc) -> Maybe String -> HtfStackEntry
+mkHtfStackEntry' (funName, srcLoc) mMsg =
+    HtfStackEntry
+    { hse_location = makeLoc (srcLocFile srcLoc) (srcLocStartLine srcLoc)
+    , hse_calledFunction = funName
+    , hse_message = mMsg
+    }
+
+htfStackToList :: HtfStack -> [HtfStackEntry]
+htfStackToList s = hs_assertStack s ++ reverse (hs_subAssertStack s)
+
+-- FIXME: this function should go away
+htfStackFromLocation :: Location -> HtfStack
+htfStackFromLocation loc = HtfStack [HtfStackEntry loc "" Nothing] []
+
+emptyHtfStack :: HtfStack
+emptyHtfStack = HtfStack [] []
+
+failureLocationFromStack :: HtfStack -> Maybe Location
+failureLocationFromStack stack =
+    case htfStackToList stack of
+      [] -> Nothing
+      e:_ -> Just (hse_location e)
+
+restCallStack :: HtfStack -> [HtfStackEntry]
+restCallStack stack =
+    case htfStackToList stack of
+      [] -> []
+      _:rest -> rest
+
+-- | Formats a stack trace.
+formatHtfStack :: HtfStack -> String
+formatHtfStack stack =
+    unlines $ map formatStackElem $ zip [0..] $ htfStackToList stack
+    where
+      formatStackElem (pos, HtfStackEntry loc _ mMsg) =
+          let pref = if pos > 0 then "  called from " else "  at "
+          in pref ++ showLoc loc ++ showMsg mMsg
+      showMsg Nothing = ""
+      showMsg (Just m) = " (" ++ m ++ ")"
+
 -- | The full result of a test, as used by HTF plugins.
 data FullTestResult
     = FullTestResult
-      { ftr_location :: Maybe Location                     -- ^ The location of a possible failure
-      , ftr_callingLocations :: [(Maybe String, Location)] -- ^ The "stack" to the location of a possible failure
-      , ftr_message :: Maybe ColorString                   -- ^ An error message
-      , ftr_result :: Maybe TestResult                     -- ^ The outcome of the test, 'Nothing' means timeout
+      { ftr_stack :: HtfStack                  -- ^ The stack to the location of a possible failure
+      , ftr_message :: Maybe ColorString       -- ^ An error message
+      , ftr_result :: Maybe TestResult         -- ^ The outcome of the test, 'Nothing' means timeout
       } deriving (Eq, Show, Read)
 
 -- | Auxiliary function for contructing a 'FullTestResult'.
 mkFullTestResult :: TestResult -> Maybe String -> FullTestResult
 mkFullTestResult r msg =
     FullTestResult
-    { ftr_location = Nothing
-    , ftr_callingLocations = []
+    { ftr_stack = emptyHtfStack
     , ftr_message = fmap noColor msg
     , ftr_result = Just r
     }
@@ -93,12 +165,23 @@ failHTF :: MonadBaseControl IO m => FullTestResult -> m a
 -- lazily inside the string might escape.
 failHTF r = length (show r) `seq` ExcLifted.throwIO (HTFFailure r)
 
+addCallerToSubAssertStack :: CallStack -> HtfStack -> Maybe String -> HtfStack
+addCallerToSubAssertStack ghcStack stack@(HtfStack s1 s2) mMsg =
+    case removeHtfPrefix (getCallStack ghcStack) of
+      [] -> stack
+      (entry : _) -> HtfStack s1 ((mkHtfStackEntry' entry mMsg) : s2)
+
 {- |
 Opens a new assertion stack frame to allow for sensible location information.
+This function should be used if the function being called does not carry
+a 'HasCallStack' annotation.
 -}
-subAssertHTF :: MonadBaseControl IO m => Location -> Maybe String -> m a -> m a
-subAssertHTF loc mMsg action =
-    action `ExcLifted.catch`
-               (\(HTFFailure res) ->
-                    let newRes = res { ftr_callingLocations = (mMsg, loc) : ftr_callingLocations res }
-                    in failHTF newRes)
+subAssertHTF :: (HasCallStack, MonadBaseControl IO m) => Maybe String -> m a -> m a
+subAssertHTF mMsg action =
+    let stack = callStack
+    in action `ExcLifted.catch`
+                  (\(HTFFailure res) ->
+                       let newRes =
+                               res { ftr_stack =
+                                         addCallerToSubAssertStack stack (ftr_stack res) mMsg }
+                       in failHTF newRes)

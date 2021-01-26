@@ -171,7 +171,7 @@ mkTestCase r =
           , r_message = T.takeWhile (/= '\n') msg
           , r_type = elemName
           , r_textContent = msg }
-      msg = renderColorString (attachCallStack (rr_message payload) (rr_callers payload)) False
+      msg = renderColorString (attachCallStack (rr_message payload) (rr_stack payload)) False
 
 millisToSeconds :: Milliseconds -> Seconds
 millisToSeconds millis =

@@ -271,8 +271,7 @@ mkFlatTestRunner tc ft = (pre, action, post)
                  case excOrResult of
                    Left exc ->
                        (FullTestResult
-                        { ftr_location = Nothing
-                        , ftr_callingLocations = []
+                        { ftr_stack = emptyHtfStack
                         , ftr_message = Just $ noColor ("Running test unexpectedly failed: " ++ show exc)
                         , ftr_result = Just Error
                         }
@@ -281,8 +280,7 @@ mkFlatTestRunner tc ft = (pre, action, post)
                        case res of
                          PrimTestResultTimeout ->
                              (FullTestResult
-                              { ftr_location = Nothing
-                              , ftr_callingLocations = []
+                              { ftr_stack = emptyHtfStack
                               , ftr_message = Just $ colorize warningColor "timeout"
                               , ftr_result = Nothing
                               }
@@ -298,12 +296,10 @@ mkFlatTestRunner tc ft = (pre, action, post)
                     Just x -> (x, False)
                     Nothing -> (if tc_timeoutIsSuccess tc then Pass else Error, True)
               rr = FlatTest
-
                      { ft_sort = ft_sort ft
                      , ft_path = ft_path ft
                      , ft_location = ft_location ft
-                     , ft_payload = RunResult sumRes (ftr_location testResult)
-                                              (ftr_callingLocations testResult)
+                     , ft_payload = RunResult sumRes (ftr_stack testResult)
                                               (fromMaybe emptyColorString (ftr_message testResult))
                                               time isTimeout
                      }

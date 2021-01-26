@@ -91,8 +91,7 @@ nameDefines info =
 
 allAsserts :: [String]
 allAsserts =
-    withGs ["assertBool"
-           ,"assertEqual"
+    withGs ["assertEqual"
            ,"assertEqualPretty"
            ,"assertEqualNoShow"
            ,"assertNotEqual"
@@ -109,8 +108,6 @@ allAsserts =
            ,"assertJust"
            ,"assertNothing"
            ,"assertNothingNoShow"
-           ,"subAssert"
-           ,"subAssertVerbose"
            ] ++ ["assertThrows"
                 ,"assertThrowsSome"
                 ,"assertThrowsIO"
@@ -123,7 +120,7 @@ allAsserts =
 
 assertDefines :: Bool -> String -> [(String, String)]
 assertDefines hunitBackwardsCompat prefix =
-    concatMap fun allAsserts ++ [("assertFailure", expansion "assertFailure" "_")]
+    concatMap fun allAsserts
     where
       fun a =
           if hunitBackwardsCompat

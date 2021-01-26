@@ -144,7 +144,7 @@ reportTestStartHS ft = reportHumanTestStartMessage Debug ft
 reportTestResultHS :: ReportTestResult
 reportTestResultHS ftr =
     let res = rr_result (ft_payload ftr)
-        msg = attachCallStack (rr_message (ft_payload ftr)) (rr_callers (ft_payload ftr))
+        msg = attachCallStack (rr_message (ft_payload ftr)) (rr_stack (ft_payload ftr))
     in case res of
          Pass ->
              reportMessage Debug msg okSuffix
