@@ -1,5 +1,6 @@
-* 0.14.0.3 (2019-11-27)
-  - improve local-htfpp
+* 0.14.0.4 (2021-01-26)
+  - fix #99
+  - hopefully fix #97
 
 * 0.14.0.2 (2019-11-27)
   - use haskell-src from hackage
