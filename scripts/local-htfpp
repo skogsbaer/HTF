@@ -1,6 +1,5 @@
 #!/bin/bash
 
-DEBUG=no
 TOP=$(cd $(dirname ${BASH_SOURCE[0]})/.. > /dev/null && pwd -P)
 dist=$(stack $HTF_TRAVIS_STACK_ARGS path --dist-dir 2> /dev/null)
 find=find
@@ -19,13 +18,11 @@ function find_bin()
 
 find_bin
 
-if [ "$DEBUG" == "yes" ]; then
+if [ -z "$bin" ]; then
     echo "TOP=$TOP" >&2
     echo "dist=$dist" >&2
     echo "bin=$bin" >&2
-fi
-
-if [ -z "$bin" ]; then
     echo "No executable named htfpp found in $TOP/$dist. Aborting!" >&2
+    exit 1
 fi
 "$bin" "$@"

@@ -1,3 +1,6 @@
+* 0.14.0.5 (2021-01-26)
+  - make sure htfpp is available before running the tests
+
 * 0.14.0.4 (2021-01-26)
   - fix #99
   - hopefully fix #97
