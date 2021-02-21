@@ -84,12 +84,20 @@ Extra-Source-Files:
   scripts/run-sample
   scripts/prepare
 
+tested-with:
+  GHC == 8.2.2
+  GHC == 8.4.4
+  GHC == 8.6.5
+  GHC == 8.8.4
+  GHC == 8.10.4
+  GHC == 9.0.1
+
 Source-Repository head
   Type:           git
   Location:       http://github.com/skogsbaer/HTF.git
 
 Custom-Setup
-  Setup-Depends:   base == 4.*,
+  Setup-Depends:   base >= 4.10 && < 5,
                    process,
                    Cabal
 
@@ -97,7 +105,7 @@ Executable htfpp
   Main-Is:          HTFPP.hs
   Build-Depends:    HUnit,
                     array,
-                    base == 4.*,
+                    base >= 4.10 && < 5,
                     cpphs >= 1.19,
                     directory >= 1.0,
                     mtl >= 1.1,
@@ -120,7 +128,7 @@ Library
                     QuickCheck >= 2.3,
                     aeson >= 0.11,
                     array,
-                    base == 4.*,
+                    base >= 4.10 && < 5,
                     base64-bytestring,
                     bytestring >= 0.9,
                     containers >= 0.5,
@@ -179,7 +187,7 @@ Test-Suite MiscTests
   Hs-Source-Dirs:    tests
   Build-depends:     HTF,
                      HUnit,
-                     base == 4.*,
+                     base >= 4.10 && < 5,
                      mtl,
                      random
   Build-tool-depends: HTF:htfpp
@@ -192,7 +200,7 @@ Test-Suite TestHTF
   Build-depends:     HTF,
                      aeson >= 0.6,
                      aeson-pretty,
-                     base == 4.*,
+                     base >= 4.10 && < 5,
                      bytestring >= 0.9,
                      directory >= 1.0,
                      filepath >= 1.1,
@@ -215,7 +223,7 @@ Test-Suite TestThreadPools
   Type:              exitcode-stdio-1.0
   Hs-Source-Dirs:    tests
   Build-depends:     HTF,
-                     base == 4.*,
+                     base >= 4.10 && < 5,
                      mtl,
                      random
   Build-tool-depends: HTF:htfpp

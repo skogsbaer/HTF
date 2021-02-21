@@ -1,4 +1,5 @@
 dist/
+dist-newstyle/
 tests/dist/
 /.dist-buildwrapper
 /.project
@@ -8,5 +9,6 @@ TAGS
 cabal.sandbox.config
 sample/cabal.sandbox.config
 HSFILES_*
+.ghc.environment.*
 .haskell-project
 .stack-work

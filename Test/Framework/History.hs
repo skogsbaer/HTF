@@ -103,6 +103,28 @@ data SerializableTestHistory
 _CURRENT_VERSION_ :: Int
 _CURRENT_VERSION_ = 0
 
+instance ToJSON TestResult where
+    toJSON r = String $
+        case L.lookup r testResultStringMapping of
+          Just s -> s
+          Nothing -> error ("TestResult " ++ show r ++ " not defined in testResultStringMapping")
+
+instance FromJSON TestResult where
+    parseJSON v =
+        case v of
+          String s
+              | Just r <- L.lookup s (map (\(x, y) -> (y, x)) testResultStringMapping)
+                       -> return r
+          _ -> fail ("could not parse JSON value as a test result: " ++ show v)
+
+testResultStringMapping :: [(TestResult, T.Text)]
+testResultStringMapping =
+    [(Pass, "pass"), (Pending, "pending"), (Fail, "fail"), (Error, "error")]
+
+deriveJSON (defaultOptions { fieldLabelModifier = drop 4 }) ''HistoricTestResult
+deriveJSON (defaultOptions { fieldLabelModifier = drop 4 }) ''TestRunHistory
+deriveJSON (defaultOptions { fieldLabelModifier = drop 4 }) ''SerializableTestHistory
+
 serializeTestHistory :: TestHistory -> BS.ByteString
 serializeTestHistory hist =
     let serHist = SerializableTestHistory {
@@ -139,25 +161,3 @@ testCreateIndex =
       mkRes id ms = HistoricTestResult id Pass False ms
 
 historyTests = [("testCreateIndex", testCreateIndex)]
-
-testResultStringMapping :: [(TestResult, T.Text)]
-testResultStringMapping =
-    [(Pass, "pass"), (Pending, "pending"), (Fail, "fail"), (Error, "error")]
-
-instance ToJSON TestResult where
-    toJSON r = String $
-        case L.lookup r testResultStringMapping of
-          Just s -> s
-          Nothing -> error ("TestResult " ++ show r ++ " not defined in testResultStringMapping")
-
-instance FromJSON TestResult where
-    parseJSON v =
-        case v of
-          String s
-              | Just r <- L.lookup s (map (\(x, y) -> (y, x)) testResultStringMapping)
-                       -> return r
-          _ -> fail ("could not parse JSON value as a test result: " ++ show v)
-
-deriveJSON (defaultOptions { fieldLabelModifier = drop 4 }) ''SerializableTestHistory
-deriveJSON (defaultOptions { fieldLabelModifier = drop 4 }) ''TestRunHistory
-deriveJSON (defaultOptions { fieldLabelModifier = drop 4 }) ''HistoricTestResult
