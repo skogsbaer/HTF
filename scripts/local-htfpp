@@ -1,7 +1,7 @@
 #!/bin/bash
 
 TOP=$(cd $(dirname ${BASH_SOURCE[0]})/.. > /dev/null && pwd -P)
-dist=$(stack $HTF_TRAVIS_STACK_ARGS path --dist-dir 2> /dev/null)
+dist=$(stack $HTF_TEST_STACK_ARGS path --dist-dir 2> /dev/null)
 find=find
 if [ "$(uname)" == "Darwin" ]; then
     find=gfind

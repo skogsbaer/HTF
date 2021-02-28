@@ -2,13 +2,21 @@
 
 OUT=$(mktemp /tmp/XXXXXX)
 ERR=$(mktemp /tmp/XXXXXX)
+DIST_DIR_FILE=$(mktemp /tmp/XXXXXX)
 ECODE="undefined"
 
-trap "rm -f $OUT $ERR" EXIT
+trap "rm -f $OUT $ERR $DIST_DIR_FILE" EXIT
 
 BASEDIR=$(cd $(dirname ${BASH_SOURCE[0]}) > /dev/null && pwd -P)
 TOPDIR="$BASEDIR/../.."
-DIST_DIR=$(stack $HTF_TRAVIS_STACK_ARGS path --dist-dir 2> /dev/null)
+
+stack $HTF_TEST_STACK_ARGS path --dist-dir > "$DIST_DIR_FILE"
+if [ $? -ne 0 ]; then
+    echo "Command failed: stack $HTF_TEST_STACK_ARGS path --dist-dir" >&2
+    echo "ERROR: Could not determined dist directory. See above for details. Aborting" >&2
+    exit 1
+fi
+DIST_DIR=$(cat "$DIST_DIR_FILE")
 
 rm -rf $BASEDIR/.HTF
 
@@ -30,9 +38,15 @@ function run_test()
     echo "Running test $@" 2>&1
     bin=$TOPDIR/$DIST_DIR/build/TestHTF/TestHTF
     if [ ! -x "$bin" ]; then
-        echo "Binary $bin does not exist or is not executable" >&2
+        echo "ERROR: Binary $bin does not exist or is not executable. Test will fail!" >&2
+        if [ -z "$HTF_TEST_STACK_ARGS" ]; then
+            echo "Environment variable HTF_TEST_STACK_ARGS is not set. If you run the tests" 2>&1
+            echo "with a custom stack.yml file, you need to set HTF_TEST_STACK_ARGS to something" 2>&1
+            echo "like '--stack-yaml CUSTOM_STACK.yml'" 2>&1
+        fi
         echo "TOPDIR=$TOPDIR" >&2
         echo "DISTDIR=$DISTDIR" >&2
+        echo "HTF_TEST_STACK_ARGS=$HTF_TEST_STACK_ARGS" >&2
         ls -l $TOPDIR/$DIST_DIR/build/TestHTF >&2
         ls -l $TOPDIR/$DIST_DIR/build >&2
         ls -l $TOPDIR/$DIST_DIR >&2
