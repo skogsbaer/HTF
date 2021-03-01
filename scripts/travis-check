@@ -1,5 +1,5 @@
 #!/bin/bash
 
-stack $HTF_TRAVIS_STACK_ARGS --no-terminal --install-ghc build || exit 1
-stack $HTF_TRAVIS_STACK_ARGS --no-terminal --install-ghc test --haddock --cabal-verbose || exit 1
+stack $HTF_TEST_STACK_ARGS --no-terminal --install-ghc build || exit 1
+stack $HTF_TEST_STACK_ARGS --no-terminal --install-ghc test --haddock --cabal-verbose || exit 1
 tests/compile-errors/run-tests.sh || exit 1
