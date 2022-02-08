@@ -48,11 +48,11 @@ instance Functor AssertBool where
     fmap = liftM
 
 instance Applicative AssertBool where
-    pure  = return
+    pure  = AssertOk
     (<*>) = ap
 
 instance Monad AssertBool where
-    return = AssertOk
+    return = pure
     AssertFailed stack >>= _ = AssertFailed stack
     AssertOk x >>= k = k x
 #if !(MIN_VERSION_base(4,13,0))

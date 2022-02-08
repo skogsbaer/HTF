@@ -180,7 +180,9 @@ Library
     Paths_HTF
   Build-tool-depends: cpphs:cpphs >= 1.19
   Default-language:  Haskell2010
-  Ghc-Options: -W -fwarn-unused-imports -fwarn-unused-binds -fwarn-unused-matches -fwarn-unused-do-bind -fwarn-wrong-do-bind
+  Ghc-Options:
+    -W -fwarn-unused-imports -fwarn-unused-binds -fwarn-unused-matches -fwarn-unused-do-bind -fwarn-wrong-do-bind
+    -Wcompat
 
 Test-Suite MiscTests
   Main-is:           MiscTest.hs
