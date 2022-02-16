@@ -13,7 +13,7 @@ function find_bin()
     if [ ! -d "$d" ]; then
         d="$(dirname $d)"
     fi
-    bin=$($find "$d" -name htfpp -type f -executable -printf "%T+\t%p\n" | sort -r | head -1 | gawk '{print $2}')
+    bin=$($find "$d" -name htfpp -type f -executable -printf "%T+\t%p\n" | sort -r | head -1 | cut -f 2)
 }
 
 find_bin

@@ -1,0 +1,50 @@
+#!/bin/bash
+
+if [ -z "$HTF_TEST_STACK_YAML" ]; then
+    echo > /dev/stderr "Environment variable HTF_TEST_STACK_YAML not set"
+    exit 1
+fi
+
+STACK_WORK=$HOME/.HTF-stack-work
+export HTF_TEST_STACK_ARGS="--stack-yaml $HTF_TEST_STACK_YAML"
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+echo "Environment variables:"
+env
+
+STACK_OPTS="$HTF_TEST_STACK_ARGS --allow-different-user"
+
+echo -n "Working directory: "
+pwd
+
+echo -n "Cached ~/.stack directory: "
+ls -l ~/.stack 2> /dev/stdout
+
+echo -n "Cached $STACK_WORK directory: "
+ls -l $STACK_WORK 2> /dev/stdout
+
+echo -n "Local .stack-work directory: "
+ls -l .stack-work 2> /dev/stdout
+
+if [ -d $STACK_WORK -a ! -d .stack-work ]; then
+    echo "Restoring .stack-work from $STACK_WORK ..."
+    cp -r $STACK_WORK .stack-work
+    echo "Done restoring .stack-work from $STACK_WORK"
+fi
+
+echo "Running stack test --only-dependencies ..."
+time stack $STACK_OPTS test --only-dependencies || exit 1
+echo "Done running stack test --only-dependencies"
+
+echo "Saving .stack-work to $STACK_WORK ..."
+rm -rf $STACK_WORK
+cp -r .stack-work $STACK_WORK
+echo "Done saving .stack-work to $STACK_WORK"
+
+echo "Running stack test ..."
+stack $STACK_OPTS test --haddock || exit 1
+echo "Done running stack test"
+
+# echo "Running tests with compile errors ..."
+# tests/compile-errors/run-tests.sh || exit 1
+# echo "Done running tests with compile errors"

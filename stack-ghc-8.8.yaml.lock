@@ -5,22 +5,15 @@
 
 packages:
 - completed:
-    cabal-file:
-      size: 1895
-      sha256: f09fecea6d851a1be83b183f6ab52e6443f0aba713685d9f9d7de8ba5a3e1b76
-    name: haskell-src
-    version: 1.0.3.0
-    git: https://github.com/skogsbaer/haskell-src.git
+    hackage: haskell-src-1.0.3.1@sha256:4ccc5680c692e3eb2d59d5ca57f2779ec703e9505d435a221bebebb0c25d51e1,1648
     pantry-tree:
-      size: 1409
-      sha256: 54c76f3aea0964758465c9eb9386e011839d13d32434de05eef60870595ed937
-    commit: ab0e6f8bf004337792365cdc53dc1068eaf51eda
+      size: 621
+      sha256: fc5d6db01daee03fe6edeb4a7beba57a66911662fcfe43667302016b0459d8d8
   original:
-    git: https://github.com/skogsbaer/haskell-src.git
-    commit: ab0e6f8bf004337792365cdc53dc1068eaf51eda
+    hackage: haskell-src-1.0.3.1
 snapshots:
 - completed:
-    size: 414064
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/nightly/2019/11/5.yaml
-    sha256: 826e8151bcfa9e182798b3dbd28bd4e0705dec723b8ac20123203b0f9c6dbd90
-  original: nightly-2019-11-05
+    size: 532177
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/16/20.yaml
+    sha256: 0e14ba5603f01e8496e8984fd84b545a012ca723f51a098c6c9d3694e404dc6d
+  original: lts-16.20
