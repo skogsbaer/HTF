@@ -1,6 +1,6 @@
 # HTF - The Haskell Test Framework
 
-[![Build Status](https://github.com/skogsbaer/HTF/actions/workflows/haskell-ci.yml/badge.svg)](https://github.com/skogsbaer/HTF/actions/workflows/haskell-ci.yml/badge.svg)
+[![Build Status](https://github.com/skogsbaer/HTF/actions/workflows/haskell-ci.yml/badge.svg)](https://github.com/skogsbaer/HTF/actions/workflows/haskell-ci.yml)
 [![Hackage](https://img.shields.io/hackage/v/HTF.svg)](http://hackage.haskell.org/package/HTF)
 
 * Documentation:     http://hackage.haskell.org/package/HTF
