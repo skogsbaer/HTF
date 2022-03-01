@@ -47,16 +47,19 @@ jobs:
         run: "chown -R $(id -un):$(id -gn) ~"
       - name: Compute cache key
         run: |
-          lsb_release -a > cache-key
+          lsb_release -a > cache-key 2> /dev/null
           cat HTF.cabal $(which stack) "$HTF_TEST_STACK_YAML" scripts/ci-check >> cache-key
+          HTF_CACHE_KEY="$(md5sum cache-key | cut -c 1-32)"
+          echo "HTF_CACHE_KEY=$HTF_CACHE_KEY" >> "$GITHUB_ENV"
+          echo "HTF_CACHE_KEY=$HTF_CACHE_KEY"
       - name: Cache stack dependencies
         uses: actions/cache@v2
         with:
           path: |
             ~/.stack
             ~/.HTF-stack-work
-          key: ${{ runner.OS }}-stack-cache-${{ hashFiles('cache-key') }}
+          key: ${{ runner.OS }}-stack-cache-${{ matrix.compiler }}-${{ env.HTF_CACHE_KEY }}
           restore-keys: |
-            ${{ runner.OS }}-stack-cache
+            ${{ runner.OS }}-stack-cache-${{ matrix.compiler }}
       - name: test
         run: scripts/ci-check
