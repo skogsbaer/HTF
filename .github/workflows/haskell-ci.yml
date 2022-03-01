@@ -58,8 +58,8 @@ jobs:
           path: |
             ~/.stack
             ~/.HTF-stack-work
-          key: ${{ runner.OS }}-stack-cache-${{ matrix.compiler }}-${{ env.HTF_CACHE_KEY }}
+          key: ${{ runner.OS }}-stack-cache-v1-${{ matrix.compiler }}-${{ env.HTF_CACHE_KEY }}
           restore-keys: |
-            ${{ runner.OS }}-stack-cache-${{ matrix.compiler }}
+            ${{ runner.OS }}-stack-cache-v1-${{ matrix.compiler }}
       - name: test
         run: scripts/ci-check
