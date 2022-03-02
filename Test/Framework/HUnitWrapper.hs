@@ -69,12 +69,12 @@ module Test.Framework.HUnitWrapper (
   gassertElem, gassertElemVerbose,
 
   -- * Assertions for exceptions
-  assertThrows_, assertThrowsVerbose_,
-  assertThrowsSome_, assertThrowsSomeVerbose_,
-  assertThrowsIO_, assertThrowsIOVerbose_,
-  assertThrowsSomeIO_, assertThrowsSomeIOVerbose_,
-  assertThrowsM_, assertThrowsMVerbose_,
-  assertThrowsSomeM_, assertThrowsSomeMVerbose_,
+  assertThrows, assertThrowsVerbose,
+  assertThrowsSome, assertThrowsSomeVerbose,
+  assertThrowsIO, assertThrowsIOVerbose,
+  assertThrowsSomeIO, assertThrowsSomeIOVerbose,
+  assertThrowsM, assertThrowsMVerbose,
+  assertThrowsSomeM, assertThrowsSomeMVerbose,
 
   -- * Assertions on Either values
   assertLeft_, assertLeftVerbose_,
@@ -560,60 +560,105 @@ assertElem = _assertElem "assertElem" ""
 -- Assertions for Exceptions
 --
 
-_assertThrowsIO_ :: Exception e
-                 => String -> Location -> String -> IO a -> (e -> Bool) -> IO ()
-_assertThrowsIO_ name loc s x f =
-    _assertThrowsM_ name loc s x f
-{- | Fail if executing the 'IO' action does not
-                       throw an exception satisfying the given predicate @(e -> Bool)@. The 'String' parameter in the @Verbose@       variant can be used to provide extra information about the error.       Do not use the       @assertThrowsIO_@ and @assertThrowsIOVerbose_@       functions directly, use the macros @assertThrowsIO@ and @assertThrowsIOVerbose@       instead. These macros, provided by the @htfpp@ preprocessor,       insert the 'Location' parameter automatically. -}
-assertThrowsIOVerbose_ :: Exception e => Location -> String -> IO a -> (e -> Bool) -> IO (); assertThrowsIOVerbose_ = _assertThrowsIO_ ("assertThrowsIO" ++ "Verbose"); assertThrowsIO_ :: Exception e => Location -> IO a -> (e -> Bool) -> IO (); assertThrowsIO_ loc = _assertThrowsIO_ "assertThrowsIO" loc ""
+assertThrowsIO_ :: (HasCallStack, Exception e)
+                 => String -> String -> IO a -> (e -> Bool) -> IO ()
+assertThrowsIO_ name s x f =
+    assertThrowsM_ name s x f
 
-_assertThrowsSomeIO_ :: String -> Location -> String -> IO a -> IO ()
-_assertThrowsSomeIO_ name loc s x = _assertThrowsIO_ name loc s x (\ (_e::SomeException) -> True)
-{- | Fail if executing the 'IO' action does not
-                       throw an exception. The 'String' parameter in the @Verbose@       variant can be used to provide extra information about the error.       Do not use the       @assertThrowsSomeIO_@ and @assertThrowsSomeIOVerbose_@       functions directly, use the macros @assertThrowsSomeIO@ and @assertThrowsSomeIOVerbose@       instead. These macros, provided by the @htfpp@ preprocessor,       insert the 'Location' parameter automatically. -}
-assertThrowsSomeIOVerbose_ ::  Location -> String -> IO a -> IO (); assertThrowsSomeIOVerbose_ = _assertThrowsSomeIO_ ("assertThrowsSomeIO" ++ "Verbose"); assertThrowsSomeIO_ ::  Location -> IO a -> IO (); assertThrowsSomeIO_ loc = _assertThrowsSomeIO_ "assertThrowsSomeIO" loc ""
+-- | Fail if executing the 'IO' action does not throw an exception satisfying the given predicate
+-- @(e -> Bool)@, supplying an additional error message.
+assertThrowsIOVerbose :: (HasCallStack, Exception e) => String -> IO a -> (e -> Bool) -> IO ()
+assertThrowsIOVerbose = assertThrowsIO_ "assertThrowsIOVerbose"
 
-_assertThrowsM_ :: (MonadBaseControl IO m, MonadIO m, Exception e)
-                => String -> Location -> String -> m a -> (e -> Bool) -> m ()
-_assertThrowsM_ name loc s x f =
+-- | Fail if executing the 'IO' action does not throw an exception satisfying the given predicate
+-- @(e -> Bool)@.
+assertThrowsIO :: (HasCallStack, Exception e) => IO a -> (e -> Bool) -> IO ()
+assertThrowsIO = assertThrowsIO_ "assertThrowsIO" ""
+
+assertThrowsSomeIO_ :: HasCallStack => String -> String -> IO a -> IO ()
+assertThrowsSomeIO_ name s x = assertThrowsIO_ name s x (\ (_e::SomeException) -> True)
+
+-- | Fail if executing the 'IO' action does not throw any exception,
+-- supplying an additional error message.
+assertThrowsSomeIOVerbose ::  HasCallStack => String -> IO a -> IO ()
+assertThrowsSomeIOVerbose = assertThrowsSomeIO_ "assertThrowsSomeIOVerbose"
+
+-- | Fail if executing the 'IO' action does not throw any exception.
+assertThrowsSomeIO :: HasCallStack => IO a -> IO ()
+assertThrowsSomeIO = assertThrowsSomeIO_ "assertThrowsSomeIO" ""
+
+assertThrowsM_ :: (MonadBaseControl IO m, MonadIO m, Exception e, HasCallStack)
+                => String -> String -> m a -> (e -> Bool) -> m ()
+assertThrowsM_ name s x f =
     do res <- ExL.try x
        case res of
          Right _ -> liftIO $
-                    genericAssertFailure__ loc (mkMsg name s
-                                                ("failed at " ++ showLoc loc ++
-                                                 ": no exception was thrown"))
+                    genericAssertFailure (mkMsg name s
+                                           (failedAt ++
+                                             ": no exception was thrown"))
          Left e -> if f e then return ()
                    else liftIO $
-                        genericAssertFailure__ loc (mkMsg name s
-                                                    ("failed at " ++
-                                                     showLoc loc ++
-                                                     ": wrong exception was thrown: " ++
-                                                     show e))
-{- | Fail if executing the 'm' action does not
-                       throw an exception satisfying the given predicate @(e -> Bool)@. The 'String' parameter in the @Verbose@       variant can be used to provide extra information about the error.       Do not use the       @assertThrowsM_@ and @assertThrowsMVerbose_@       functions directly, use the macros @assertThrowsM@ and @assertThrowsMVerbose@       instead. These macros, provided by the @htfpp@ preprocessor,       insert the 'Location' parameter automatically. -}
-assertThrowsMVerbose_ :: (MonadBaseControl IO m, MonadIO m, Exception e) => Location -> String -> m a -> (e -> Bool) -> m (); assertThrowsMVerbose_ = _assertThrowsM_ ("assertThrowsM" ++ "Verbose"); assertThrowsM_ :: (MonadBaseControl IO m, MonadIO m, Exception e) => Location -> m a -> (e -> Bool) -> m (); assertThrowsM_ loc = _assertThrowsM_ "assertThrowsM" loc ""
+                        genericAssertFailure (mkMsg name s
+                                               (failedAt ++
+                                                 ": wrong exception was thrown: " ++
+                                                 show e))
+-- | Fail if executing the @m@ action does not throw an exception satisfying the given predicate
+-- @(e -> Bool)@, supplying an additional error message.
+assertThrowsMVerbose ::
+  (MonadBaseControl IO m, MonadIO m, Exception e, HasCallStack)
+  => String -> m a -> (e -> Bool) -> m ()
+assertThrowsMVerbose = assertThrowsM_ "assertThrowsMVerbose"
 
-_assertThrowsSomeM_ :: (MonadBaseControl IO m, MonadIO m)
-                    => String -> Location -> String -> m a -> m ()
-_assertThrowsSomeM_ name loc s x = _assertThrowsM_ name loc s x (\ (_e::SomeException) -> True)
-{- | Fail if executing the 'm' action does not
-                       throw an exception. The 'String' parameter in the @Verbose@       variant can be used to provide extra information about the error.       Do not use the       @assertThrowsSomeM_@ and @assertThrowsSomeMVerbose_@       functions directly, use the macros @assertThrowsSomeM@ and @assertThrowsSomeMVerbose@       instead. These macros, provided by the @htfpp@ preprocessor,       insert the 'Location' parameter automatically. -}
-assertThrowsSomeMVerbose_ :: (MonadBaseControl IO m, MonadIO m) => Location -> String -> m a -> m (); assertThrowsSomeMVerbose_ = _assertThrowsSomeM_ ("assertThrowsSomeM" ++ "Verbose"); assertThrowsSomeM_ :: (MonadBaseControl IO m, MonadIO m) => Location -> m a -> m (); assertThrowsSomeM_ loc = _assertThrowsSomeM_ "assertThrowsSomeM" loc ""
+-- | Fail if executing the @m@ action does not throw an exception satisfying the given predicate
+-- @(e -> Bool)@.
+assertThrowsM ::
+  (MonadBaseControl IO m, MonadIO m, Exception e, HasCallStack)
+  => m a -> (e -> Bool) -> m ()
+assertThrowsM = assertThrowsM_ "assertThrowsM" ""
 
-_assertThrows_ :: Exception e
-               => String -> Location -> String -> a -> (e -> Bool) -> IO ()
-_assertThrows_ name loc s x f = _assertThrowsIO_ name loc s (evaluate x) f
-{- | Fail if evaluating the expression of type @a@ does not
-                       throw an exception satisfying the given predicate @(e -> Bool)@. The 'String' parameter in the @Verbose@       variant can be used to provide extra information about the error.       Do not use the       @assertThrows_@ and @assertThrowsVerbose_@       functions directly, use the macros @assertThrows@ and @assertThrowsVerbose@       instead. These macros, provided by the @htfpp@ preprocessor,       insert the 'Location' parameter automatically. -}
-assertThrowsVerbose_ :: Exception e => Location -> String -> a -> (e -> Bool) -> IO (); assertThrowsVerbose_ = _assertThrows_ ("assertThrows" ++ "Verbose"); assertThrows_ :: Exception e => Location -> a -> (e -> Bool) -> IO (); assertThrows_ loc = _assertThrows_ "assertThrows" loc ""
+assertThrowsSomeM_ :: (MonadBaseControl IO m, MonadIO m, HasCallStack)
+                    => String -> String -> m a -> m ()
+assertThrowsSomeM_ name s x = assertThrowsM_ name s x (\ (_e::SomeException) -> True)
 
-_assertThrowsSome_ :: String -> Location -> String -> a -> IO ()
-_assertThrowsSome_ name loc s x =
-    _assertThrows_ name loc s x (\ (_e::SomeException) -> True)
-{- | Fail if evaluating the expression of type @a@ does not
-                       throw an exception. The 'String' parameter in the @Verbose@       variant can be used to provide extra information about the error.       Do not use the       @assertThrowsSome_@ and @assertThrowsSomeVerbose_@       functions directly, use the macros @assertThrowsSome@ and @assertThrowsSomeVerbose@       instead. These macros, provided by the @htfpp@ preprocessor,       insert the 'Location' parameter automatically. -}
-assertThrowsSomeVerbose_ ::  Location -> String -> a -> IO (); assertThrowsSomeVerbose_ = _assertThrowsSome_ ("assertThrowsSome" ++ "Verbose"); assertThrowsSome_ ::  Location -> a -> IO (); assertThrowsSome_ loc = _assertThrowsSome_ "assertThrowsSome" loc ""
+-- | Fail if executing the @m@ action does not throw any exception,
+-- supplying an additional error message.
+assertThrowsSomeMVerbose ::
+  (MonadBaseControl IO m, MonadIO m, HasCallStack)
+  => String -> m a -> m ()
+assertThrowsSomeMVerbose = assertThrowsSomeM_ "assertThrowsSomeMVerbose"
+
+-- | Fail if executing the @m@ action does not throw any exception.
+assertThrowsSomeM :: (MonadBaseControl IO m, MonadIO m, HasCallStack) => m a -> m ()
+assertThrowsSomeM = assertThrowsSomeM_ "assertThrowsSomeM" ""
+
+assertThrows_ :: (HasCallStack, Exception e)
+               => String -> String -> a -> (e -> Bool) -> IO ()
+assertThrows_ name s x f = assertThrowsIO_ name s (evaluate x) f
+
+-- | Fail if evaluating the expression of type @a@ does not
+-- throw an exception satisfying the given predicate @(e -> Bool)@,
+-- supplying an additional error message.
+assertThrowsVerbose :: (HasCallStack, Exception e) => String -> a -> (e -> Bool) -> IO ()
+assertThrowsVerbose = assertThrows_ "assertThrowsVerbose"
+
+-- | Fail if evaluating the expression of type @a@ does not
+-- throw an exception satisfying the given predicate @(e -> Bool)@.
+assertThrows :: (HasCallStack, Exception e) => a -> (e -> Bool) -> IO ()
+assertThrows = assertThrows_ "assertThrows" ""
+
+assertThrowsSome_ :: HasCallStack => String -> String -> a -> IO ()
+assertThrowsSome_ name s x =
+    assertThrows_ name s x (\ (_e::SomeException) -> True)
+
+-- | Fail if evaluating the expression of type @a@ does not
+-- throw any exception, supplying an additional error message.
+assertThrowsSomeVerbose :: HasCallStack => String -> a -> IO ()
+assertThrowsSomeVerbose = assertThrowsSome_ "assertThrowsSomeVerbose"
+
+-- | Fail if evaluating the expression of type @a@ does not
+-- throw any exception.
+assertThrowsSome ::  HasCallStack => a -> IO ()
+assertThrowsSome = assertThrowsSome_ "assertThrowsSome" ""
 
 --
 -- Assertions on Either

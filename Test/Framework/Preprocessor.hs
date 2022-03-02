@@ -98,12 +98,7 @@ allAsserts =
            ,"assertJust"
            ,"assertNothing"
            ,"assertNothingNoShow"
-           ] ++ ["assertThrows"
-                ,"assertThrowsSome"
-                ,"assertThrowsIO"
-                ,"assertThrowsSomeIO"
-                ,"assertThrowsM"
-                ,"assertThrowsSomeM"]
+           ]
     where
       withGs l =
           concatMap (\s -> [s, 'g':s]) l
