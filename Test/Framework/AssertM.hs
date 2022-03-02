@@ -16,18 +16,14 @@ import GHC.Stack
 import qualified Data.Text as T
 
 import Test.Framework.TestInterface
-import Test.Framework.Location
 import Test.Framework.Colors
 
 -- | A typeclass for generic assertions.
 class Monad m => AssertM m where
-    genericAssertFailure__ :: Location -> ColorString -> m a
     genericAssertFailure :: HasCallStack => ColorString -> m a
     genericSubAssert :: HasCallStack => Maybe String -> m a -> m a
 
 instance AssertM IO where
-    genericAssertFailure__ loc s = -- FIXME: still needed?
-        failHTF (FullTestResult (htfStackFromLocation loc) (Just s) (Just Fail))
     genericAssertFailure s =
         failHTF (FullTestResult (mkHtfStack callStack) (Just s) (Just Fail))
     genericSubAssert mMsg action = subAssertHTF mMsg action
@@ -56,8 +52,6 @@ instance Monad AssertBool where
 #endif
 
 instance AssertM AssertBool where
-    genericAssertFailure__ loc s =
-        AssertFailed (htfStackFromLocation loc) (T.unpack $ renderColorString s False)
     genericAssertFailure s =
         AssertFailed (mkHtfStack callStack) (T.unpack $ renderColorString s False)
     genericSubAssert subMsg action =

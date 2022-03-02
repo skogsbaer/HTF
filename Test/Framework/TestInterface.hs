@@ -30,7 +30,7 @@ module Test.Framework.TestInterface (
     Assertion, TestResult(..), FullTestResult(..), HTFFailureException(..)
   , HtfStackEntry(..), HtfStack, emptyHtfStack, mkHtfStack, formatHtfStack
   , failureLocationFromStack, failureLocation
-  , restCallStack, htfStackFromLocation, htfStackToList
+  , restCallStack, htfStackToList
   , failHTF, subAssertHTF, addCallerToSubAssertStack
   , mkFullTestResult
 
@@ -102,10 +102,6 @@ mkHtfStackEntry' (funName, srcLoc) mMsg =
 
 htfStackToList :: HtfStack -> [HtfStackEntry]
 htfStackToList s = hs_assertStack s ++ reverse (hs_subAssertStack s)
-
--- FIXME: this function should go away
-htfStackFromLocation :: Location -> HtfStack
-htfStackFromLocation loc = HtfStack [HtfStackEntry loc "" Nothing] []
 
 emptyHtfStack :: HtfStack
 emptyHtfStack = HtfStack [] []
