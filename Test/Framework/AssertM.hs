@@ -48,7 +48,7 @@ instance Monad AssertBool where
     AssertFailed stack msg >>= _ = AssertFailed stack msg
     AssertOk x >>= k = k x
 #if !(MIN_VERSION_base(4,13,0))
-    fail msg = AssertFailed [] msg
+    fail msg = AssertFailed emptyHtfStack msg
 #endif
 
 instance AssertM AssertBool where
