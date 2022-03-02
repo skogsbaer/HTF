@@ -90,18 +90,7 @@ nameDefines info =
      (importedTestListName, importedTestListFullName (mi_moduleNameWithDefault info))]
 
 allAsserts :: [String]
-allAsserts =
-    withGs ["assertLeft"
-           ,"assertLeftNoShow"
-           ,"assertRight"
-           ,"assertRightNoShow"
-           ,"assertJust"
-           ,"assertNothing"
-           ,"assertNothingNoShow"
-           ]
-    where
-      withGs l =
-          concatMap (\s -> [s, 'g':s]) l
+allAsserts = []
 
 assertDefines :: Bool -> String -> [(String, String)]
 assertDefines hunitBackwardsCompat prefix =
