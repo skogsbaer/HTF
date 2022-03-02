@@ -1,3 +1,10 @@
+* 0.15.0.0
+  - Remove macros for assertions, location information is now provided
+    via HasCallStack. For most users, this change is backwards compatible.
+    However, if you imported Test.Framework qualified, then all assert macros
+    where previously in scope unqualified, through macros. In this case, you need to
+    import Test.Framework unqualified or qualify all uses of assert macros.
+
 * 0.14.0.5 (2021-01-26)
   - make sure htfpp is available before running the tests
 
