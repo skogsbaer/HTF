@@ -5,6 +5,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE CPP #-}
 {-# OPTIONS_GHC -F -pgmF ./scripts/local-htfpp #-}
 --
 -- Copyright (c) 2005,2010   Stefan Wehr - http://www.stefanwehr.de
@@ -38,7 +39,12 @@ import System.IO
 import System.IO.Temp
 import Control.Exception
 import Control.Monad
-import qualified Data.HashMap.Strict as M
+
+#if MIN_VERSION_aeson(2,0,0)
+import qualified Data.Aeson.KeyMap as KM
+#else
+import qualified Data.HashMap.Strict as KM
+#endif
 import qualified Data.HashSet as Set
 import qualified Data.Aeson as J
 import qualified Data.Aeson.Encode.Pretty as J
@@ -299,7 +305,7 @@ checkOutput output =
                                                                                       ,"line" .= J.toJSON (97+lineOffset)]]]])
     where
       lineOffset :: Int
-      lineOffset = 32
+      lineOffset = 38
       checkStatus tuple@(pass, fail, error, pending, timedOut) json =
           {-
             {"location":null
@@ -312,11 +318,11 @@ checkOutput output =
             ,"wallTime":11}
            -}
           case json of
-            J.Object objJson | Just (J.Object testObj) <- M.lookup "test" objJson
-                             , Just (J.String flatName) <- M.lookup "flatName" testObj
-                             , Just (J.String "test-end") <- M.lookup "type" objJson
-                             , Just (J.String result) <- M.lookup "result" objJson
-                             , Just (J.Bool to) <- M.lookup "timedOut" objJson ->
+            J.Object objJson | Just (J.Object testObj) <- KM.lookup "test" objJson
+                             , Just (J.String flatName) <- KM.lookup "flatName" testObj
+                             , Just (J.String "test-end") <- KM.lookup "type" objJson
+                             , Just (J.String result) <- KM.lookup "result" objJson
+                             , Just (J.Bool to) <- KM.lookup "timedOut" objJson ->
                 let shortName =
                         let t = T.tail (T.dropWhile (/= ':') flatName)
                         in if "tests/" `T.isPrefixOf` t
@@ -353,8 +359,8 @@ checkOutput output =
       matches json pred =
           case (json, pred) of
             (J.Object objJson, J.Object objPred) ->
-                M.foldrWithKey (\k vPred b ->
-                                    b && case M.lookup k objJson of
+                KM.foldrWithKey (\k vPred b ->
+                                    b && case KM.lookup k objJson of
                                            Just vJson -> matches vJson vPred
                                            Nothing -> False)
                                True objPred

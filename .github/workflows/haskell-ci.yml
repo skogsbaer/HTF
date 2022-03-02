@@ -1,0 +1,51 @@
+name: Haskell-CI
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+jobs:
+  linux:
+    name: Haskell-CI - Linux - ${{ matrix.compiler }}
+    runs-on: ubuntu-18.04
+    timeout-minutes:
+      60
+    container:
+      image: skogsbaer/ubuntu:latest
+    continue-on-error: false
+    strategy:
+      matrix:
+        include:
+          - compiler: ghc-9.0
+          - compiler: ghc-8.10
+          - compiler: ghc-8.8
+          - compiler: ghc-8.6
+          - compiler: ghc-8.4
+          - compiler: ghc-8.2
+      fail-fast: false
+    steps:
+      - name: Set PATH and environment variables
+        run: |
+          echo "HTF_TEST_STACK_YAML=$GITHUB_WORKSPACE/stack-${{ matrix.compiler }}.yaml" >> "$GITHUB_ENV"
+      - name: checkout
+        uses: actions/checkout@v2
+      - name: Permissions bug workaround
+        run: "chown -R $(id -un):$(id -gn) ~"
+      - name: Compute cache key
+        run: |
+          lsb_release -a > cache-key 2> /dev/null
+          cat HTF.cabal $(which stack) "$HTF_TEST_STACK_YAML" scripts/ci-check >> cache-key
+          HTF_CACHE_KEY="$(md5sum cache-key | cut -c 1-32)"
+          echo "HTF_CACHE_KEY=$HTF_CACHE_KEY" >> "$GITHUB_ENV"
+          echo "HTF_CACHE_KEY=$HTF_CACHE_KEY"
+      - name: Cache stack dependencies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.stack
+            ~/.HTF-stack-work
+          key: ${{ runner.OS }}-stack-cache-v1-${{ matrix.compiler }}-${{ env.HTF_CACHE_KEY }}
+          restore-keys: |
+            ${{ runner.OS }}-stack-cache-v1-${{ matrix.compiler }}
+      - name: test
+        run: scripts/ci-check
