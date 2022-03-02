@@ -26,7 +26,7 @@ class Monad m => AssertM m where
     genericSubAssert :: HasCallStack => Maybe String -> m a -> m a
 
 instance AssertM IO where
-    genericAssertFailure__ loc s =
+    genericAssertFailure__ loc s = -- FIXME: still needed?
         failHTF (FullTestResult (htfStackFromLocation loc) (Just s) (Just Fail))
     genericAssertFailure s =
         failHTF (FullTestResult (mkHtfStack callStack) (Just s) (Just Fail))

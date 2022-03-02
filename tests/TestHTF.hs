@@ -60,7 +60,6 @@ import qualified Data.List as List
 import qualified Text.Regex as R
 import GHC.Stack
 
-import {-@ HTF_TESTS @-} qualified TestHTFHunitBackwardsCompatible
 import {-@ HTF_TESTS @-} qualified Foo.A as A
 import {-@ HTF_TESTS @-} Foo.B
 
@@ -209,8 +208,7 @@ pendingTests =
 failedTests :: [T.Text]
 failedTests =
 -- $ find . -name '*.hs' | xargs egrep -w -o -h "[a-zA-Z0-9_']+_FAIL" | sed 's/test_//g; s/prop_//g' | sort -u
-    ["1_FAIL"
-    ,"a_FAIL"
+    ["a_FAIL"
     ,"h_FAIL"
     ,"assertElem_FAIL"
     ,"assertEmpty_FAIL"
@@ -250,8 +248,7 @@ errorTests = ["someError_ERROR"]
 passedTests :: [T.Text]
 passedTests =
     -- $ find . -name '*.hs' | xargs egrep -w -o -h "[a-zA-Z0-9_']+_OK" | sed 's/test_//g; s/prop_//g' | sort -u
-    ["2_OK"
-    ,"assertSetEqualSuccess_OK"
+    ["assertSetEqualSuccess_OK"
     ,"assertThrowsIO2_OK"
     ,"b_OK"
     ,"genericAssertions_OK"
@@ -310,7 +307,7 @@ checkOutput output =
                                                                                       ,"line" .= J.toJSON (95+lineOffset)]]]])
     where
       lineOffset :: Int
-      lineOffset = 41
+      lineOffset = 40
       checkStatus tuple@(pass, fail, error, pending, timedOut) json =
           {-
             {"location":null

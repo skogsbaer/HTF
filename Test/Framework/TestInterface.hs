@@ -29,7 +29,8 @@ module Test.Framework.TestInterface (
 
     Assertion, TestResult(..), FullTestResult(..), HTFFailureException(..)
   , HtfStackEntry(..), HtfStack, emptyHtfStack, mkHtfStack, formatHtfStack
-  , failureLocationFromStack, restCallStack, htfStackFromLocation, htfStackToList
+  , failureLocationFromStack, failureLocation
+  , restCallStack, htfStackFromLocation, htfStackToList
   , failHTF, subAssertHTF, addCallerToSubAssertStack
   , mkFullTestResult
 
@@ -108,6 +109,9 @@ htfStackFromLocation loc = HtfStack [HtfStackEntry loc "" Nothing] []
 
 emptyHtfStack :: HtfStack
 emptyHtfStack = HtfStack [] []
+
+failureLocation :: HasCallStack => Maybe Location
+failureLocation = failureLocationFromStack (mkHtfStack callStack)
 
 failureLocationFromStack :: HtfStack -> Maybe Location
 failureLocationFromStack stack =

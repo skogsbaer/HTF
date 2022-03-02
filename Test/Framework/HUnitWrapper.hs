@@ -45,18 +45,18 @@ module Test.Framework.HUnitWrapper (
   gassertBool, gassertBoolVerbose,
 
   -- * Equality assertions
-  assertEqual_, assertEqualVerbose_,
-  gassertEqual_, gassertEqualVerbose_,
-  assertEqualPretty_, assertEqualPrettyVerbose_,
-  gassertEqualPretty_, gassertEqualPrettyVerbose_,
-  assertEqualNoShow_, assertEqualNoShowVerbose_,
-  gassertEqualNoShow_, gassertEqualNoShowVerbose_,
-  assertNotEqual_, assertNotEqualVerbose_,
-  gassertNotEqual_, gassertNotEqualVerbose_,
-  assertNotEqualPretty_, assertNotEqualPrettyVerbose_,
-  gassertNotEqualPretty_, gassertNotEqualPrettyVerbose_,
-  assertNotEqualNoShow_, assertNotEqualNoShowVerbose_,
-  gassertNotEqualNoShow_, gassertNotEqualNoShowVerbose_,
+  assertEqual, assertEqualVerbose,
+  gassertEqual, gassertEqualVerbose,
+  assertEqualPretty, assertEqualPrettyVerbose,
+  gassertEqualPretty, gassertEqualPrettyVerbose,
+  assertEqualNoShow, assertEqualNoShowVerbose,
+  gassertEqualNoShow, gassertEqualNoShowVerbose,
+  assertNotEqual, assertNotEqualVerbose,
+  gassertNotEqual, gassertNotEqualVerbose,
+  assertNotEqualPretty, assertNotEqualPrettyVerbose,
+  gassertNotEqualPretty, gassertNotEqualPrettyVerbose,
+  assertNotEqualNoShow, assertNotEqualNoShowVerbose,
+  gassertNotEqualNoShow, gassertNotEqualNoShowVerbose,
 
   -- * Assertions on lists
   assertListsEqualAsSets_, assertListsEqualAsSetsVerbose_,
@@ -121,6 +121,7 @@ import qualified Test.HUnit.Lang as HU
 #if !MIN_VERSION_HUnit(1,4,0)
 import qualified Test.HUnit.Base as HU
 #endif
+
 import GHC.Stack
 
 import Data.List ( (\\) )
@@ -140,13 +141,13 @@ import qualified Data.List as List
 -- WARNING: do not forget to add a preprocessor macro for new assertions!!
 
 {- |
-Fail with the given reason, supplying the error location and the error message.
+Fail with the given reason in some @AssertM@ monad.
 -}
 gassertFailure :: (HasCallStack, AssertM m) => String -> m a
 gassertFailure s =
     genericAssertFailure (mkMsg "assertFailure" "" s)
 
--- | Specialization of 'gassertFailure'.
+-- | Specialization of 'gassertFailure' to @IO@.
 assertFailure :: HasCallStack => String -> IO a
 assertFailure = gassertFailure
 
@@ -174,59 +175,6 @@ mkColorMsg fun extraInfo s =
                else fun ++ " (" ++ extraInfo ++ ") "
     in noColor pref +++ s
 
---
--- Dirty macro hackery (I'm too lazy ...)
---
-#define CreateAssertionsGenericNoGVariant(__name__, __ctx__, __type__, __ret__) \
-__name__##Verbose_ :: __ctx__ Location -> String -> __type__ -> __ret__; \
-__name__##Verbose_ = _##__name__##_ (#__name__ ++ "Verbose"); \
-__name__##_ :: __ctx__ Location -> __type__ -> __ret__; \
-__name__##_ loc = _##__name__##_ #__name__ loc ""
-#define CreateAssertionsGeneric(__name__, __ctx__, __ctx2__, __type__, __ret__) \
-g##__name__##Verbose_ :: __ctx2__ Location -> String -> __type__ -> m __ret__; \
-g##__name__##Verbose_ = _##__name__##_ (#__name__ ++ "Verbose"); \
-g##__name__##_ :: __ctx2__ Location -> __type__ -> m __ret__; \
-g##__name__##_ loc = _##__name__##_ #__name__ loc ""; \
-CreateAssertionsGenericNoGVariant(__name__, __ctx__, __type__, IO __ret__)
-
-#define CreateAssertionsCtx(__name__, __ctx__, __ctx2__, __type__) \
-CreateAssertionsGeneric(__name__, __ctx__ =>, __ctx2__ =>, __type__, ())
-#define CreateAssertionsCtxNoGVariant(__name__, __ctx__, __type__) \
-CreateAssertionsGenericNoGVariant(__name__, __ctx__ =>, __type__, IO ())
-
-#define CreateAssertions(__name__, __type__) \
-CreateAssertionsGeneric(__name__, , AssertM m =>, __type__, ())
-#define CreateAssertionsNoGVariant(__name__, __type__) \
-CreateAssertionsGenericNoGVariant(__name__, , __type__, IO ())
-
-#define CreateAssertionsCtxRet(__name__, __ctx__, __ctx2__, __type__, __ret__) \
-CreateAssertionsGeneric(__name__, __ctx__ =>, __ctx2__ =>, __type__, __ret__)
-#define CreateAssertionsCtxRetNoGVariant(__name__, __ctx__, __type__, __ret__) \
-CreateAssertionsGenericNoGVariant(__name__, __ctx__ =>, __type__, IO __ret__)
-
-#define CreateAssertionsRet(__name__, __type__, __ret__) \
-CreateAssertionsGeneric(__name__, , AssertM m =>, __type__, __ret__)
-#define CreateAssertionsRetNoGVariant(__name__, __type__, __ret__) \
-CreateAssertionsGenericNoGVariant(__name__, , __type__, IO __ret__)
-
-#define DocAssertion(__name__, __text__) \
-  {- | __text__ The 'String' parameter in the @Verbose@ \
-      variants can be used to provide extra information about the error. The \
-      variants @g##__name__@ and @g##__name__##Verbose@ are generic assertions: \
-      they run in the IO monad and can be evaluated to a 'Bool' value. \
-      Do not use the \
-      @__name__##_@, @__name__##Verbose_@, @g##__name__##_@, and @g##__name__##Verbose_@ \
-      functions directly, use the macros @__name__@, @__name__##Verbose@, @g##__name__@, and \
-      @g##__name__##Verbose@ instead. These macros, provided by the @htfpp@ preprocessor, \
-      insert the 'Location' parameter automatically. -}
-#define DocAssertionNoGVariant(__name__, __text__) \
-  {- | __text__ The 'String' parameter in the @Verbose@ \
-      variant can be used to provide extra information about the error. \
-      Do not use the \
-      @__name__##_@ and @__name__##Verbose_@ \
-      functions directly, use the macros @__name__@ and @__name__##Verbose@ \
-      instead. These macros, provided by the @htfpp@ preprocessor, \
-      insert the 'Location' parameter automatically. -}
 --
 -- Boolean Assertions
 --
@@ -304,82 +252,191 @@ notEqualityFailedMessage' :: String -> String
 notEqualityFailedMessage' exp =
     (": Objects are equal\n" ++ exp)
 
-_assertEqual_ :: (Eq a, Show a, AssertM m)
-                 => String -> Location -> String -> a -> a -> m ()
-_assertEqual_ name loc s expected actual =
+failedAt :: HasCallStack => String
+failedAt =
+  case failureLocation of
+    Nothing -> "failed"
+    Just loc -> "failed at " ++ showLoc loc
+
+_assertEqual :: (Eq a, Show a, AssertM m, HasCallStack)
+                 => String -> String -> a -> a -> m ()
+_assertEqual name s expected actual =
     if expected /= actual
        then do let x = equalityFailedMessage expected actual
-               genericAssertFailure__ loc (mkColorMsg name s $
-                                           noColor ("failed at " ++ showLoc loc) +++ x)
+               genericAssertFailure (mkColorMsg name s $
+                                      noColor failedAt +++ x)
        else return ()
 
-DocAssertion(assertEqual, Fail if the two values of type @a@ are not equal.
-             The first parameter denotes the expected value. Use these two functions
-             of @a@ is an instance of 'Show' but not of 'Pretty'.)
-CreateAssertionsCtx(assertEqual, (Eq a, Show a), (Eq a, Show a, AssertM m), a -> a)
+-- | Fail in some @AssertM@ monad if the two values of type @a@ are not equal, supplying
+-- an additional message.
+-- Use if @a@ is an instance of 'Show' but not of 'Pretty'.
+gassertEqualVerbose :: (Eq a, Show a, AssertM m, HasCallStack) => String -> a -> a -> m ()
+gassertEqualVerbose = _assertEqual "gassertEqualVerbose"
 
-_assertNotEqual_ :: (Eq a, Show a, AssertM m)
-                 => String -> Location -> String -> a -> a -> m ()
-_assertNotEqual_ name loc s expected actual =
+-- | Fail in some @AssertM@ monad if the two values of type @a@ are not equal.
+-- Use if @a@ is an instance of 'Show' but not of 'Pretty'.
+gassertEqual :: (Eq a, Show a, AssertM m, HasCallStack) => a -> a -> m ()
+gassertEqual = _assertEqual "gassertEqual" ""
+
+-- | Fail if the two values of type @a@ are not equal, supplying
+-- an additional message.
+-- Use if @a@ is an instance of 'Show' but not of 'Pretty'.
+assertEqualVerbose :: (Eq a, Show a, HasCallStack) => String -> a -> a -> IO ()
+assertEqualVerbose = _assertEqual "assertEqualVerbose"
+
+-- | Fail if the two values of type @a@ are not equal.
+-- Use if @a@ is an instance of 'Show' but not of 'Pretty'.
+assertEqual :: (Eq a, Show a, HasCallStack) => a -> a -> IO ()
+assertEqual = _assertEqual "assertEqual" ""
+
+_assertNotEqual :: (Eq a, Show a, AssertM m, HasCallStack)
+                => String -> String -> a -> a -> m ()
+_assertNotEqual name s expected actual =
     if expected == actual
        then do let x = notEqualityFailedMessage expected
-               genericAssertFailure__ loc (mkMsg name s $ "failed at " ++ showLoc loc ++ x)
+               genericAssertFailure (mkMsg name s $ failedAt ++ x)
        else return ()
 
-DocAssertion(assertNotEqual, Fail if the two values of type @a@ are equal.
-             The first parameter denotes the expected value. Use these two functions
-             of @a@ is an instance of 'Show' but not of 'Pretty'.)
-CreateAssertionsCtx(assertNotEqual, (Eq a, Show a), (Eq a, Show a, AssertM m), a -> a)
+-- | Fail in some @AssertM@ monad if the two values of type @a@ are equal, supplying
+-- an additional message.
+-- Use if @a@ is an instance of 'Show' but not of 'Pretty'.
+gassertNotEqualVerbose :: (Eq a, Show a, AssertM m, HasCallStack) => String -> a -> a -> m ()
+gassertNotEqualVerbose = _assertNotEqual "assertNotEqualVerbose"
 
-_assertEqualPretty_ :: (Eq a, Pretty a, AssertM m)
-                       => String -> Location -> String -> a -> a -> m ()
-_assertEqualPretty_ name loc s expected actual =
+-- | Fail in some @AssertM@ monad if the two values of type @a@ are equal.
+-- Use if @a@ is an instance of 'Show' but not of 'Pretty'.
+gassertNotEqual :: (Eq a, Show a, AssertM m, HasCallStack) => a -> a -> m ()
+gassertNotEqual = _assertNotEqual "assertNotEqual" ""
+
+-- | Fail if the two values of type @a@ are equal, supplying
+-- an additional message.
+-- Use if @a@ is an instance of 'Show' but not of 'Pretty'.
+assertNotEqualVerbose :: (Eq a, Show a, HasCallStack) => String -> a -> a -> IO ()
+assertNotEqualVerbose = _assertNotEqual "assertNotEqualVerbose"
+
+-- | Fail if the two values of type @a@ are equal.
+-- Use if @a@ is an instance of 'Show' but not of 'Pretty'.
+assertNotEqual :: (Eq a, Show a, HasCallStack) => a -> a -> IO ()
+assertNotEqual = _assertNotEqual "assertNotEqual" ""
+
+_assertEqualPretty :: (Eq a, Pretty a, AssertM m, HasCallStack)
+                   => String -> String -> a -> a -> m ()
+_assertEqualPretty name s expected actual =
     if expected /= actual
        then do let x = equalityFailedMessage' (showPretty expected) (showPretty actual)
-               genericAssertFailure__ loc (mkColorMsg name s
-                                           (noColor ("failed at " ++ showLoc loc) +++ x))
+               genericAssertFailure (mkColorMsg name s
+                                      (noColor failedAt +++ x))
        else return ()
 
-DocAssertion(assertEqualPretty, Fail if the two values of type @a@ are not equal.
-             The first parameter denotes the expected value. Use these two functions
-             of @a@ is an instance of 'Pretty'.)
-CreateAssertionsCtx(assertEqualPretty, (Eq a, Pretty a), (Eq a, Pretty a, AssertM m), a -> a)
+-- | Fail in some @AssertM@ monad if the two values of type @a@ are not equal, supplying
+-- an additional message.
+-- Use if @a@ is an instance of 'Pretty'.
+gassertEqualPrettyVerbose :: (Eq a, Pretty a, AssertM m, HasCallStack) => String -> a -> a -> m ()
+gassertEqualPrettyVerbose = _assertEqualPretty "assertEqualPrettyVerbose"
 
-_assertNotEqualPretty_ :: (Eq a, Pretty a, AssertM m)
-                       => String -> Location -> String -> a -> a -> m ()
-_assertNotEqualPretty_ name loc s expected actual =
+-- | Fail in some @AssertM@ monad if the two values of type @a@ are not equal.
+-- Use if @a@ is an instance of 'Pretty'.
+gassertEqualPretty :: (Eq a, Pretty a, AssertM m, HasCallStack) => a -> a -> m ()
+gassertEqualPretty = _assertEqualPretty "assertEqualPretty" ""
+
+-- | Fail if the two values of type @a@ are not equal, supplying
+-- an additional message.
+-- Use if @a@ is an instance of 'Pretty'.
+assertEqualPrettyVerbose :: (Eq a, Pretty a, HasCallStack) => String -> a -> a -> IO ()
+assertEqualPrettyVerbose = _assertEqualPretty "assertEqualPrettyVerbose"
+
+-- | Fail if the two values of type @a@ are not equal.
+-- Use if @a@ is an instance of 'Pretty'.
+assertEqualPretty :: (Eq a, Pretty a, HasCallStack) => a -> a -> IO ()
+assertEqualPretty = _assertEqualPretty "assertEqualPretty" ""
+
+_assertNotEqualPretty :: (Eq a, Pretty a, AssertM m, HasCallStack)
+                       => String -> String -> a -> a -> m ()
+_assertNotEqualPretty name s expected actual =
     if expected == actual
        then do let x = notEqualityFailedMessage' (showPretty expected)
-               genericAssertFailure__ loc (mkMsg name s $ "failed at " ++ showLoc loc ++ x)
+               genericAssertFailure (mkMsg name s $ failedAt ++ x)
        else return ()
-DocAssertion(assertNotEqualPretty, Fail if the two values of type @a@ are equal.
-             The first parameter denotes the expected value. Use these two functions
-             of @a@ is an instance of 'Pretty'.)
-CreateAssertionsCtx(assertNotEqualPretty, (Eq a, Pretty a), (Eq a, Pretty a, AssertM m), a -> a)
 
-_assertEqualNoShow_ :: (Eq a, AssertM m)
-                    => String -> Location -> String -> a -> a -> m ()
-_assertEqualNoShow_ name loc s expected actual =
+-- | Fail in some @AssertM@ monad if the two values of type @a@ are equal, supplying
+-- an additional message.
+-- Use if @a@ is an instance of 'Pretty'.
+gassertNotEqualPrettyVerbose :: (Eq a, Pretty a, AssertM m, HasCallStack) => String -> a -> a -> m ()
+gassertNotEqualPrettyVerbose = _assertNotEqualPretty "assertNotEqualPrettyVerbose"
+
+-- | Fail in some @AssertM@ monad if the two values of type @a@ are equal.
+-- Use if @a@ is an instance of 'Pretty'.
+gassertNotEqualPretty :: (Eq a, Pretty a, AssertM m, HasCallStack) => a -> a -> m ()
+gassertNotEqualPretty = _assertNotEqualPretty "assertNotEqualPretty" ""
+
+-- | Fail if the two values of type @a@ are equal, supplying
+-- an additional message.
+-- Use if @a@ is an instance of 'Pretty'.
+assertNotEqualPrettyVerbose :: (Eq a, Pretty a, HasCallStack) => String -> a -> a -> IO ()
+assertNotEqualPrettyVerbose = _assertNotEqualPretty "assertNotEqualPrettyVerbose"
+
+-- | Fail if the two values of type @a@ are equal.
+-- Use if @a@ is an instance of 'Pretty'.
+assertNotEqualPretty :: (Eq a, Pretty a, HasCallStack) => a -> a -> IO ()
+assertNotEqualPretty = _assertNotEqualPretty "assertNotEqualPretty" ""
+
+_assertEqualNoShow :: (Eq a, AssertM m, HasCallStack)
+                    => String -> String -> a -> a -> m ()
+_assertEqualNoShow name s expected actual =
     if expected /= actual
-    then genericAssertFailure__ loc (mkMsg name s ("failed at " ++ showLoc loc))
+    then genericAssertFailure (mkMsg name s failedAt)
     else return ()
-DocAssertion(assertEqualNoShow, Fail if the two values of type @a@ are not equal.
-             The first parameter denotes the expected value. Use these two functions
-             of @a@ is neither an instance of 'Show' nor 'Pretty'. Be aware that in this
-             case the generated error message might not be very helpful.)
-CreateAssertionsCtx(assertEqualNoShow, Eq a, (Eq a, AssertM m), a -> a)
 
-_assertNotEqualNoShow_ :: (Eq a, AssertM m)
-                    => String -> Location -> String -> a -> a -> m ()
-_assertNotEqualNoShow_ name loc s expected actual =
+-- | Fail in some @AssertM@ monad if the two values of type @a@ are not equal, supplying
+-- an additional message.
+-- Use if @a@ is neither an instance of 'Show' nor of 'Pretty'.
+gassertEqualNoShowVerbose :: (Eq a, AssertM m, HasCallStack) => String -> a -> a -> m ()
+gassertEqualNoShowVerbose = _assertEqualNoShow ("assertEqualNoShowVerbose")
+
+-- | Fail in some @AssertM@ monad if the two values of type @a@ are not equal.
+-- Use if @a@ is neither an instance of 'Show' nor of 'Pretty'.
+gassertEqualNoShow :: (Eq a, AssertM m, HasCallStack) => a -> a -> m ()
+gassertEqualNoShow = _assertEqualNoShow "assertEqualNoShow" ""
+
+-- | Fail if the two values of type @a@ are not equal, supplying
+-- an additional message.
+-- Use if @a@ is neither an instance of 'Show' nor of 'Pretty'.
+assertEqualNoShowVerbose :: (Eq a, HasCallStack) => String -> a -> a -> IO ()
+assertEqualNoShowVerbose = _assertEqualNoShow "assertEqualNoShowVerbose"
+
+-- | Fail if the two values of type @a@ are not equal.
+-- Use if @a@ is neither an instance of 'Show' nor of 'Pretty'.
+assertEqualNoShow :: (Eq a, HasCallStack) => a -> a -> IO ()
+assertEqualNoShow = _assertEqualNoShow "assertEqualNoShow" ""
+
+_assertNotEqualNoShow :: (Eq a, AssertM m, HasCallStack)
+                      => String -> String -> a -> a -> m ()
+_assertNotEqualNoShow name s expected actual =
     if expected == actual
-       then genericAssertFailure__ loc (mkMsg name s ("failed at " ++ showLoc loc))
+       then genericAssertFailure (mkMsg name s failedAt)
        else return ()
-DocAssertion(assertNotEqualNoShow, Fail if the two values of type @a@ are equal.
-             The first parameter denotes the expected value. Use these two functions
-             of @a@ is neither an instance of 'Show' nor 'Pretty'. Be aware that in this
-             case the generated error message might not be very helpful.)
-CreateAssertionsCtx(assertNotEqualNoShow, Eq a, (Eq a, AssertM m), a -> a)
+
+-- | Fail in some @AssertM@ monad if the two values of type @a@ are equal, supplying
+-- an additional message.
+-- Use if @a@ is neither an instance of 'Show' nor of 'Pretty'.
+gassertNotEqualNoShowVerbose :: (Eq a, AssertM m, HasCallStack) => String -> a -> a -> m ()
+gassertNotEqualNoShowVerbose = _assertNotEqualNoShow ("assertNotEqualNoShowVerbose")
+
+-- | Fail in some @AssertM@ monad if the two values of type @a@ are equal.
+-- Use if @a@ is neither an instance of 'Show' nor of 'Pretty'.
+gassertNotEqualNoShow :: (Eq a, AssertM m, HasCallStack) => a -> a -> m ()
+gassertNotEqualNoShow = _assertNotEqualNoShow "assertNotEqualNoShow" ""
+
+-- | Fail if the two values of type @a@ are equal, supplying
+-- an additional message.
+-- Use if @a@ is neither an instance of 'Show' nor of 'Pretty'.
+assertNotEqualNoShowVerbose :: (Eq a, HasCallStack) => String -> a -> a -> IO ()
+assertNotEqualNoShowVerbose = _assertNotEqualNoShow "assertNotEqualNoShowVerbose"
+
+-- | Fail if the two values of type @a@ are equal.
+-- Use if @a@ is neither an instance of 'Show' nor of 'Pretty'.
+assertNotEqualNoShow :: (Eq a, HasCallStack) => a -> a -> IO ()
+assertNotEqualNoShow = _assertNotEqualNoShow "assertNotEqualNoShow" ""
 
 --
 -- Assertions on Lists
@@ -407,24 +464,24 @@ _assertListsEqualAsSets_ name loc s expected actual =
              | otherwise -> return ()
     where unorderedEq l1 l2 =
               null (l1 \\ l2) && null (l2 \\ l1)
-DocAssertion(assertListsEqualAsSets, Fail if the two given lists are not equal
+{- | Fail if the two given lists are not equal
                                      when considered as sets. The first list parameter
-                                     denotes the expected value.)
-CreateAssertionsCtx(assertListsEqualAsSets, (Eq a, Show a), (Eq a, Show a, AssertM m), [a] -> [a])
+                                     denotes the expected value. The 'String' parameter in the @Verbose@       variants can be used to provide extra information about the error. The       variants @gassertListsEqualAsSets@ and @gassertListsEqualAsSetsVerbose@ are generic assertions:       they run in the IO monad and can be evaluated to a 'Bool' value.       Do not use the       @assertListsEqualAsSets_@, @assertListsEqualAsSetsVerbose_@, @gassertListsEqualAsSets_@, and @gassertListsEqualAsSetsVerbose_@       functions directly, use the macros @assertListsEqualAsSets@, @assertListsEqualAsSetsVerbose@, @gassertListsEqualAsSets@, and       @gassertListsEqualAsSetsVerbose@ instead. These macros, provided by the @htfpp@ preprocessor,       insert the 'Location' parameter automatically. -}
+gassertListsEqualAsSetsVerbose_ :: (Eq a, Show a, AssertM m) => Location -> String -> [a] -> [a] -> m (); gassertListsEqualAsSetsVerbose_ = _assertListsEqualAsSets_ ("assertListsEqualAsSets" ++ "Verbose"); gassertListsEqualAsSets_ :: (Eq a, Show a, AssertM m) => Location -> [a] -> [a] -> m (); gassertListsEqualAsSets_ loc = _assertListsEqualAsSets_ "assertListsEqualAsSets" loc ""; assertListsEqualAsSetsVerbose_ :: (Eq a, Show a) => Location -> String -> [a] -> [a] -> IO (); assertListsEqualAsSetsVerbose_ = _assertListsEqualAsSets_ ("assertListsEqualAsSets" ++ "Verbose"); assertListsEqualAsSets_ :: (Eq a, Show a) => Location -> [a] -> [a] -> IO (); assertListsEqualAsSets_ loc = _assertListsEqualAsSets_ "assertListsEqualAsSets" loc ""
 
 _assertNotEmpty_ :: AssertM m => String -> Location -> String -> [a] -> m ()
 _assertNotEmpty_ name loc s [] =
     genericAssertFailure__ loc (mkMsg name s ("failed at " ++ showLoc loc))
 _assertNotEmpty_ _ _ _ (_:_) = return ()
-DocAssertion(assertNotEmpty, Fail if the given list is empty.)
-CreateAssertions(assertNotEmpty, [a])
+{- | Fail if the given list is empty. The 'String' parameter in the @Verbose@       variants can be used to provide extra information about the error. The       variants @gassertNotEmpty@ and @gassertNotEmptyVerbose@ are generic assertions:       they run in the IO monad and can be evaluated to a 'Bool' value.       Do not use the       @assertNotEmpty_@, @assertNotEmptyVerbose_@, @gassertNotEmpty_@, and @gassertNotEmptyVerbose_@       functions directly, use the macros @assertNotEmpty@, @assertNotEmptyVerbose@, @gassertNotEmpty@, and       @gassertNotEmptyVerbose@ instead. These macros, provided by the @htfpp@ preprocessor,       insert the 'Location' parameter automatically. -}
+gassertNotEmptyVerbose_ :: AssertM m => Location -> String -> [a] -> m (); gassertNotEmptyVerbose_ = _assertNotEmpty_ ("assertNotEmpty" ++ "Verbose"); gassertNotEmpty_ :: AssertM m => Location -> [a] -> m (); gassertNotEmpty_ loc = _assertNotEmpty_ "assertNotEmpty" loc ""; assertNotEmptyVerbose_ ::  Location -> String -> [a] -> IO (); assertNotEmptyVerbose_ = _assertNotEmpty_ ("assertNotEmpty" ++ "Verbose"); assertNotEmpty_ ::  Location -> [a] -> IO (); assertNotEmpty_ loc = _assertNotEmpty_ "assertNotEmpty" loc ""
 
 _assertEmpty_ :: AssertM m => String -> Location -> String -> [a] -> m ()
 _assertEmpty_ name loc s (_:_) =
     genericAssertFailure__ loc (mkMsg name s ("failed at " ++ showLoc loc))
 _assertEmpty_ _ _ _ [] = return ()
-DocAssertion(assertEmpty, Fail if the given list is a non-empty list.)
-CreateAssertions(assertEmpty, [a])
+{- | Fail if the given list is a non-empty list. The 'String' parameter in the @Verbose@       variants can be used to provide extra information about the error. The       variants @gassertEmpty@ and @gassertEmptyVerbose@ are generic assertions:       they run in the IO monad and can be evaluated to a 'Bool' value.       Do not use the       @assertEmpty_@, @assertEmptyVerbose_@, @gassertEmpty_@, and @gassertEmptyVerbose_@       functions directly, use the macros @assertEmpty@, @assertEmptyVerbose@, @gassertEmpty@, and       @gassertEmptyVerbose@ instead. These macros, provided by the @htfpp@ preprocessor,       insert the 'Location' parameter automatically. -}
+gassertEmptyVerbose_ :: AssertM m => Location -> String -> [a] -> m (); gassertEmptyVerbose_ = _assertEmpty_ ("assertEmpty" ++ "Verbose"); gassertEmpty_ :: AssertM m => Location -> [a] -> m (); gassertEmpty_ loc = _assertEmpty_ "assertEmpty" loc ""; assertEmptyVerbose_ ::  Location -> String -> [a] -> IO (); assertEmptyVerbose_ = _assertEmpty_ ("assertEmpty" ++ "Verbose"); assertEmpty_ ::  Location -> [a] -> IO (); assertEmpty_ loc = _assertEmpty_ "assertEmpty" loc ""
 
 _assertElem_ :: (Eq a, Show a, AssertM m) => String -> Location -> String -> a -> [a] -> m ()
 _assertElem_ name loc s x l =
@@ -434,8 +491,8 @@ _assertElem_ name loc s x l =
                                      ("failed at " ++ showLoc loc ++
                                       "\n element: " ++ show x ++
                                       "\n list:   " ++ show l))
-DocAssertion(assertElem, Fail if the given element is not in the list.)
-CreateAssertionsCtx(assertElem, (Eq a, Show a), (Eq a, Show a, AssertM m), a -> [a])
+{- | Fail if the given element is not in the list. The 'String' parameter in the @Verbose@       variants can be used to provide extra information about the error. The       variants @gassertElem@ and @gassertElemVerbose@ are generic assertions:       they run in the IO monad and can be evaluated to a 'Bool' value.       Do not use the       @assertElem_@, @assertElemVerbose_@, @gassertElem_@, and @gassertElemVerbose_@       functions directly, use the macros @assertElem@, @assertElemVerbose@, @gassertElem@, and       @gassertElemVerbose@ instead. These macros, provided by the @htfpp@ preprocessor,       insert the 'Location' parameter automatically. -}
+gassertElemVerbose_ :: (Eq a, Show a, AssertM m) => Location -> String -> a -> [a] -> m (); gassertElemVerbose_ = _assertElem_ ("assertElem" ++ "Verbose"); gassertElem_ :: (Eq a, Show a, AssertM m) => Location -> a -> [a] -> m (); gassertElem_ loc = _assertElem_ "assertElem" loc ""; assertElemVerbose_ :: (Eq a, Show a) => Location -> String -> a -> [a] -> IO (); assertElemVerbose_ = _assertElem_ ("assertElem" ++ "Verbose"); assertElem_ :: (Eq a, Show a) => Location -> a -> [a] -> IO (); assertElem_ loc = _assertElem_ "assertElem" loc ""
 
 --
 -- Assertions for Exceptions
@@ -445,15 +502,15 @@ _assertThrowsIO_ :: Exception e
                  => String -> Location -> String -> IO a -> (e -> Bool) -> IO ()
 _assertThrowsIO_ name loc s x f =
     _assertThrowsM_ name loc s x f
-DocAssertionNoGVariant(assertThrowsIO, Fail if executing the 'IO' action does not
-                       throw an exception satisfying the given predicate @(e -> Bool)@.)
-CreateAssertionsCtxNoGVariant(assertThrowsIO, Exception e, IO a -> (e -> Bool))
+{- | Fail if executing the 'IO' action does not
+                       throw an exception satisfying the given predicate @(e -> Bool)@. The 'String' parameter in the @Verbose@       variant can be used to provide extra information about the error.       Do not use the       @assertThrowsIO_@ and @assertThrowsIOVerbose_@       functions directly, use the macros @assertThrowsIO@ and @assertThrowsIOVerbose@       instead. These macros, provided by the @htfpp@ preprocessor,       insert the 'Location' parameter automatically. -}
+assertThrowsIOVerbose_ :: Exception e => Location -> String -> IO a -> (e -> Bool) -> IO (); assertThrowsIOVerbose_ = _assertThrowsIO_ ("assertThrowsIO" ++ "Verbose"); assertThrowsIO_ :: Exception e => Location -> IO a -> (e -> Bool) -> IO (); assertThrowsIO_ loc = _assertThrowsIO_ "assertThrowsIO" loc ""
 
 _assertThrowsSomeIO_ :: String -> Location -> String -> IO a -> IO ()
 _assertThrowsSomeIO_ name loc s x = _assertThrowsIO_ name loc s x (\ (_e::SomeException) -> True)
-DocAssertionNoGVariant(assertThrowsSomeIO, Fail if executing the 'IO' action does not
-                       throw an exception.)
-CreateAssertionsNoGVariant(assertThrowsSomeIO, IO a)
+{- | Fail if executing the 'IO' action does not
+                       throw an exception. The 'String' parameter in the @Verbose@       variant can be used to provide extra information about the error.       Do not use the       @assertThrowsSomeIO_@ and @assertThrowsSomeIOVerbose_@       functions directly, use the macros @assertThrowsSomeIO@ and @assertThrowsSomeIOVerbose@       instead. These macros, provided by the @htfpp@ preprocessor,       insert the 'Location' parameter automatically. -}
+assertThrowsSomeIOVerbose_ ::  Location -> String -> IO a -> IO (); assertThrowsSomeIOVerbose_ = _assertThrowsSomeIO_ ("assertThrowsSomeIO" ++ "Verbose"); assertThrowsSomeIO_ ::  Location -> IO a -> IO (); assertThrowsSomeIO_ loc = _assertThrowsSomeIO_ "assertThrowsSomeIO" loc ""
 
 _assertThrowsM_ :: (MonadBaseControl IO m, MonadIO m, Exception e)
                 => String -> Location -> String -> m a -> (e -> Bool) -> m ()
@@ -471,31 +528,30 @@ _assertThrowsM_ name loc s x f =
                                                      showLoc loc ++
                                                      ": wrong exception was thrown: " ++
                                                      show e))
-DocAssertionNoGVariant(assertThrowsM, Fail if executing the 'm' action does not
-                       throw an exception satisfying the given predicate @(e -> Bool)@.)
-CreateAssertionsGenericNoGVariant(assertThrowsM, (MonadBaseControl IO m, MonadIO m, Exception e) =>,
-                                  m a -> (e -> Bool), m ())
+{- | Fail if executing the 'm' action does not
+                       throw an exception satisfying the given predicate @(e -> Bool)@. The 'String' parameter in the @Verbose@       variant can be used to provide extra information about the error.       Do not use the       @assertThrowsM_@ and @assertThrowsMVerbose_@       functions directly, use the macros @assertThrowsM@ and @assertThrowsMVerbose@       instead. These macros, provided by the @htfpp@ preprocessor,       insert the 'Location' parameter automatically. -}
+assertThrowsMVerbose_ :: (MonadBaseControl IO m, MonadIO m, Exception e) => Location -> String -> m a -> (e -> Bool) -> m (); assertThrowsMVerbose_ = _assertThrowsM_ ("assertThrowsM" ++ "Verbose"); assertThrowsM_ :: (MonadBaseControl IO m, MonadIO m, Exception e) => Location -> m a -> (e -> Bool) -> m (); assertThrowsM_ loc = _assertThrowsM_ "assertThrowsM" loc ""
 
 _assertThrowsSomeM_ :: (MonadBaseControl IO m, MonadIO m)
                     => String -> Location -> String -> m a -> m ()
 _assertThrowsSomeM_ name loc s x = _assertThrowsM_ name loc s x (\ (_e::SomeException) -> True)
-DocAssertionNoGVariant(assertThrowsSomeM, Fail if executing the 'm' action does not
-                       throw an exception.)
-CreateAssertionsGenericNoGVariant(assertThrowsSomeM, (MonadBaseControl IO m, MonadIO m) =>, m a, m ())
+{- | Fail if executing the 'm' action does not
+                       throw an exception. The 'String' parameter in the @Verbose@       variant can be used to provide extra information about the error.       Do not use the       @assertThrowsSomeM_@ and @assertThrowsSomeMVerbose_@       functions directly, use the macros @assertThrowsSomeM@ and @assertThrowsSomeMVerbose@       instead. These macros, provided by the @htfpp@ preprocessor,       insert the 'Location' parameter automatically. -}
+assertThrowsSomeMVerbose_ :: (MonadBaseControl IO m, MonadIO m) => Location -> String -> m a -> m (); assertThrowsSomeMVerbose_ = _assertThrowsSomeM_ ("assertThrowsSomeM" ++ "Verbose"); assertThrowsSomeM_ :: (MonadBaseControl IO m, MonadIO m) => Location -> m a -> m (); assertThrowsSomeM_ loc = _assertThrowsSomeM_ "assertThrowsSomeM" loc ""
 
 _assertThrows_ :: Exception e
                => String -> Location -> String -> a -> (e -> Bool) -> IO ()
 _assertThrows_ name loc s x f = _assertThrowsIO_ name loc s (evaluate x) f
-DocAssertionNoGVariant(assertThrows, Fail if evaluating the expression of type @a@ does not
-                       throw an exception satisfying the given predicate @(e -> Bool)@.)
-CreateAssertionsCtxNoGVariant(assertThrows, Exception e, a -> (e -> Bool))
+{- | Fail if evaluating the expression of type @a@ does not
+                       throw an exception satisfying the given predicate @(e -> Bool)@. The 'String' parameter in the @Verbose@       variant can be used to provide extra information about the error.       Do not use the       @assertThrows_@ and @assertThrowsVerbose_@       functions directly, use the macros @assertThrows@ and @assertThrowsVerbose@       instead. These macros, provided by the @htfpp@ preprocessor,       insert the 'Location' parameter automatically. -}
+assertThrowsVerbose_ :: Exception e => Location -> String -> a -> (e -> Bool) -> IO (); assertThrowsVerbose_ = _assertThrows_ ("assertThrows" ++ "Verbose"); assertThrows_ :: Exception e => Location -> a -> (e -> Bool) -> IO (); assertThrows_ loc = _assertThrows_ "assertThrows" loc ""
 
 _assertThrowsSome_ :: String -> Location -> String -> a -> IO ()
 _assertThrowsSome_ name loc s x =
     _assertThrows_ name loc s x (\ (_e::SomeException) -> True)
-DocAssertionNoGVariant(assertThrowsSome, Fail if evaluating the expression of type @a@ does not
-                       throw an exception.)
-CreateAssertionsNoGVariant(assertThrowsSome, a)
+{- | Fail if evaluating the expression of type @a@ does not
+                       throw an exception. The 'String' parameter in the @Verbose@       variant can be used to provide extra information about the error.       Do not use the       @assertThrowsSome_@ and @assertThrowsSomeVerbose_@       functions directly, use the macros @assertThrowsSome@ and @assertThrowsSomeVerbose@       instead. These macros, provided by the @htfpp@ preprocessor,       insert the 'Location' parameter automatically. -}
+assertThrowsSomeVerbose_ ::  Location -> String -> a -> IO (); assertThrowsSomeVerbose_ = _assertThrowsSome_ ("assertThrowsSome" ++ "Verbose"); assertThrowsSome_ ::  Location -> a -> IO (); assertThrowsSome_ loc = _assertThrowsSome_ "assertThrowsSome" loc ""
 
 --
 -- Assertions on Either
@@ -509,9 +565,9 @@ _assertLeft_ name loc s (Right x) =
                                 ("failed at " ++ showLoc loc ++
                                  ": expected a Left value, given " ++
                                  show (Right x :: Either b b)))
-DocAssertion(assertLeft, Fail if the given @Either a b@ value is a 'Right'.
-             Use this function if @b@ is an instance of 'Show')
-CreateAssertionsCtxRet(assertLeft, Show b, (Show b, AssertM m), Either a b, a)
+{- | Fail if the given @Either a b@ value is a 'Right'.
+             Use this function if @b@ is an instance of 'Show' The 'String' parameter in the @Verbose@       variants can be used to provide extra information about the error. The       variants @gassertLeft@ and @gassertLeftVerbose@ are generic assertions:       they run in the IO monad and can be evaluated to a 'Bool' value.       Do not use the       @assertLeft_@, @assertLeftVerbose_@, @gassertLeft_@, and @gassertLeftVerbose_@       functions directly, use the macros @assertLeft@, @assertLeftVerbose@, @gassertLeft@, and       @gassertLeftVerbose@ instead. These macros, provided by the @htfpp@ preprocessor,       insert the 'Location' parameter automatically. -}
+gassertLeftVerbose_ :: (Show b, AssertM m) => Location -> String -> Either a b -> m a; gassertLeftVerbose_ = _assertLeft_ ("assertLeft" ++ "Verbose"); gassertLeft_ :: (Show b, AssertM m) => Location -> Either a b -> m a; gassertLeft_ loc = _assertLeft_ "assertLeft" loc ""; assertLeftVerbose_ :: Show b => Location -> String -> Either a b -> IO a; assertLeftVerbose_ = _assertLeft_ ("assertLeft" ++ "Verbose"); assertLeft_ :: Show b => Location -> Either a b -> IO a; assertLeft_ loc = _assertLeft_ "assertLeft" loc ""
 
 _assertLeftNoShow_ :: AssertM m => String -> Location -> String -> Either a b -> m a
 _assertLeftNoShow_ _ _ _ (Left x) = return x
@@ -519,8 +575,8 @@ _assertLeftNoShow_ name loc s (Right _) =
     genericAssertFailure__ loc (mkMsg name s
                                 ("failed at " ++ showLoc loc ++
                                  ": expected a Left value, given a Right value"))
-DocAssertion(assertLeftNoShow, Fail if the given @Either a b@ value is a 'Right'.)
-CreateAssertionsRet(assertLeftNoShow, Either a b, a)
+{- | Fail if the given @Either a b@ value is a 'Right'. The 'String' parameter in the @Verbose@       variants can be used to provide extra information about the error. The       variants @gassertLeftNoShow@ and @gassertLeftNoShowVerbose@ are generic assertions:       they run in the IO monad and can be evaluated to a 'Bool' value.       Do not use the       @assertLeftNoShow_@, @assertLeftNoShowVerbose_@, @gassertLeftNoShow_@, and @gassertLeftNoShowVerbose_@       functions directly, use the macros @assertLeftNoShow@, @assertLeftNoShowVerbose@, @gassertLeftNoShow@, and       @gassertLeftNoShowVerbose@ instead. These macros, provided by the @htfpp@ preprocessor,       insert the 'Location' parameter automatically. -}
+gassertLeftNoShowVerbose_ :: AssertM m => Location -> String -> Either a b -> m a; gassertLeftNoShowVerbose_ = _assertLeftNoShow_ ("assertLeftNoShow" ++ "Verbose"); gassertLeftNoShow_ :: AssertM m => Location -> Either a b -> m a; gassertLeftNoShow_ loc = _assertLeftNoShow_ "assertLeftNoShow" loc ""; assertLeftNoShowVerbose_ ::  Location -> String -> Either a b -> IO a; assertLeftNoShowVerbose_ = _assertLeftNoShow_ ("assertLeftNoShow" ++ "Verbose"); assertLeftNoShow_ ::  Location -> Either a b -> IO a; assertLeftNoShow_ loc = _assertLeftNoShow_ "assertLeftNoShow" loc ""
 
 _assertRight_ :: forall a b m . (Show a, AssertM m)
               => String -> Location -> String -> Either a b -> m b
@@ -530,9 +586,9 @@ _assertRight_ name loc s (Left x) =
                                 ("failed at " ++ showLoc loc ++
                                  ": expected a Right value, given " ++
                                  show (Left x :: Either a a)))
-DocAssertion(assertRight, Fail if the given @Either a b@ value is a 'Left'.
-             Use this function if @a@ is an instance of 'Show')
-CreateAssertionsCtxRet(assertRight, Show a, (Show a, AssertM m), Either a b, b)
+{- | Fail if the given @Either a b@ value is a 'Left'.
+             Use this function if @a@ is an instance of 'Show' The 'String' parameter in the @Verbose@       variants can be used to provide extra information about the error. The       variants @gassertRight@ and @gassertRightVerbose@ are generic assertions:       they run in the IO monad and can be evaluated to a 'Bool' value.       Do not use the       @assertRight_@, @assertRightVerbose_@, @gassertRight_@, and @gassertRightVerbose_@       functions directly, use the macros @assertRight@, @assertRightVerbose@, @gassertRight@, and       @gassertRightVerbose@ instead. These macros, provided by the @htfpp@ preprocessor,       insert the 'Location' parameter automatically. -}
+gassertRightVerbose_ :: (Show a, AssertM m) => Location -> String -> Either a b -> m b; gassertRightVerbose_ = _assertRight_ ("assertRight" ++ "Verbose"); gassertRight_ :: (Show a, AssertM m) => Location -> Either a b -> m b; gassertRight_ loc = _assertRight_ "assertRight" loc ""; assertRightVerbose_ :: Show a => Location -> String -> Either a b -> IO b; assertRightVerbose_ = _assertRight_ ("assertRight" ++ "Verbose"); assertRight_ :: Show a => Location -> Either a b -> IO b; assertRight_ loc = _assertRight_ "assertRight" loc ""
 
 _assertRightNoShow_ :: AssertM m => String -> Location -> String -> Either a b -> m b
 _assertRightNoShow_ _ _ _ (Right x) = return x
@@ -540,8 +596,8 @@ _assertRightNoShow_ name loc s (Left _) =
     genericAssertFailure__ loc (mkMsg name s
                                 ("failed at " ++ showLoc loc ++
                                  ": expected a Right value, given a Left value"))
-DocAssertion(assertRightNoShow, Fail if the given @Either a b@ value is a 'Left'.)
-CreateAssertionsRet(assertRightNoShow, Either a b, b)
+{- | Fail if the given @Either a b@ value is a 'Left'. The 'String' parameter in the @Verbose@       variants can be used to provide extra information about the error. The       variants @gassertRightNoShow@ and @gassertRightNoShowVerbose@ are generic assertions:       they run in the IO monad and can be evaluated to a 'Bool' value.       Do not use the       @assertRightNoShow_@, @assertRightNoShowVerbose_@, @gassertRightNoShow_@, and @gassertRightNoShowVerbose_@       functions directly, use the macros @assertRightNoShow@, @assertRightNoShowVerbose@, @gassertRightNoShow@, and       @gassertRightNoShowVerbose@ instead. These macros, provided by the @htfpp@ preprocessor,       insert the 'Location' parameter automatically. -}
+gassertRightNoShowVerbose_ :: AssertM m => Location -> String -> Either a b -> m b; gassertRightNoShowVerbose_ = _assertRightNoShow_ ("assertRightNoShow" ++ "Verbose"); gassertRightNoShow_ :: AssertM m => Location -> Either a b -> m b; gassertRightNoShow_ loc = _assertRightNoShow_ "assertRightNoShow" loc ""; assertRightNoShowVerbose_ ::  Location -> String -> Either a b -> IO b; assertRightNoShowVerbose_ = _assertRightNoShow_ ("assertRightNoShow" ++ "Verbose"); assertRightNoShow_ ::  Location -> Either a b -> IO b; assertRightNoShow_ loc = _assertRightNoShow_ "assertRightNoShow" loc ""
 
 --
 -- Assertions on Maybe
@@ -553,8 +609,8 @@ _assertJust_ name loc s Nothing =
     genericAssertFailure__ loc (mkMsg name s
                                 ("failed at " ++ showLoc loc ++
                                  ": expected a Just value, given Nothing"))
-DocAssertion(assertJust, Fail is the given @Maybe a@ value is a 'Nothing'.)
-CreateAssertionsRet(assertJust, Maybe a, a)
+{- | Fail is the given @Maybe a@ value is a 'Nothing'. The 'String' parameter in the @Verbose@       variants can be used to provide extra information about the error. The       variants @gassertJust@ and @gassertJustVerbose@ are generic assertions:       they run in the IO monad and can be evaluated to a 'Bool' value.       Do not use the       @assertJust_@, @assertJustVerbose_@, @gassertJust_@, and @gassertJustVerbose_@       functions directly, use the macros @assertJust@, @assertJustVerbose@, @gassertJust@, and       @gassertJustVerbose@ instead. These macros, provided by the @htfpp@ preprocessor,       insert the 'Location' parameter automatically. -}
+gassertJustVerbose_ :: AssertM m => Location -> String -> Maybe a -> m a; gassertJustVerbose_ = _assertJust_ ("assertJust" ++ "Verbose"); gassertJust_ :: AssertM m => Location -> Maybe a -> m a; gassertJust_ loc = _assertJust_ "assertJust" loc ""; assertJustVerbose_ ::  Location -> String -> Maybe a -> IO a; assertJustVerbose_ = _assertJust_ ("assertJust" ++ "Verbose"); assertJust_ ::  Location -> Maybe a -> IO a; assertJust_ loc = _assertJust_ "assertJust" loc ""
 
 _assertNothing_ :: (Show a, AssertM m)
                 => String -> Location -> String -> Maybe a -> m ()
@@ -563,9 +619,9 @@ _assertNothing_ name loc s jx =
     genericAssertFailure__ loc (mkMsg name s
                                 ("failed at " ++ showLoc loc ++
                                  ": expected Nothing, given " ++ show jx))
-DocAssertion(assertNothing, Fail is the given @Maybe a@ value is a 'Just'.
-             Use this function if @a@ is an instance of 'Show'.)
-CreateAssertionsCtx(assertNothing, Show a, (Show a, AssertM m), Maybe a)
+{- | Fail is the given @Maybe a@ value is a 'Just'.
+             Use this function if @a@ is an instance of 'Show'. The 'String' parameter in the @Verbose@       variants can be used to provide extra information about the error. The       variants @gassertNothing@ and @gassertNothingVerbose@ are generic assertions:       they run in the IO monad and can be evaluated to a 'Bool' value.       Do not use the       @assertNothing_@, @assertNothingVerbose_@, @gassertNothing_@, and @gassertNothingVerbose_@       functions directly, use the macros @assertNothing@, @assertNothingVerbose@, @gassertNothing@, and       @gassertNothingVerbose@ instead. These macros, provided by the @htfpp@ preprocessor,       insert the 'Location' parameter automatically. -}
+gassertNothingVerbose_ :: (Show a, AssertM m) => Location -> String -> Maybe a -> m (); gassertNothingVerbose_ = _assertNothing_ ("assertNothing" ++ "Verbose"); gassertNothing_ :: (Show a, AssertM m) => Location -> Maybe a -> m (); gassertNothing_ loc = _assertNothing_ "assertNothing" loc ""; assertNothingVerbose_ :: Show a => Location -> String -> Maybe a -> IO (); assertNothingVerbose_ = _assertNothing_ ("assertNothing" ++ "Verbose"); assertNothing_ :: Show a => Location -> Maybe a -> IO (); assertNothing_ loc = _assertNothing_ "assertNothing" loc ""
 
 _assertNothingNoShow_ :: AssertM m => String -> Location -> String -> Maybe a -> m ()
 _assertNothingNoShow_ _ _ _ Nothing = return ()
@@ -573,8 +629,8 @@ _assertNothingNoShow_ name loc s _ =
     genericAssertFailure__ loc (mkMsg name s
                                 ("failed at " ++ showLoc loc ++
                                  ": expected Nothing, given a Just value"))
-DocAssertion(assertNothingNoShow, Fail is the given @Maybe a@ value is a 'Just'.)
-CreateAssertions(assertNothingNoShow, Maybe a)
+{- | Fail is the given @Maybe a@ value is a 'Just'. The 'String' parameter in the @Verbose@       variants can be used to provide extra information about the error. The       variants @gassertNothingNoShow@ and @gassertNothingNoShowVerbose@ are generic assertions:       they run in the IO monad and can be evaluated to a 'Bool' value.       Do not use the       @assertNothingNoShow_@, @assertNothingNoShowVerbose_@, @gassertNothingNoShow_@, and @gassertNothingNoShowVerbose_@       functions directly, use the macros @assertNothingNoShow@, @assertNothingNoShowVerbose@, @gassertNothingNoShow@, and       @gassertNothingNoShowVerbose@ instead. These macros, provided by the @htfpp@ preprocessor,       insert the 'Location' parameter automatically. -}
+gassertNothingNoShowVerbose_ :: AssertM m => Location -> String -> Maybe a -> m (); gassertNothingNoShowVerbose_ = _assertNothingNoShow_ ("assertNothingNoShow" ++ "Verbose"); gassertNothingNoShow_ :: AssertM m => Location -> Maybe a -> m (); gassertNothingNoShow_ loc = _assertNothingNoShow_ "assertNothingNoShow" loc ""; assertNothingNoShowVerbose_ ::  Location -> String -> Maybe a -> IO (); assertNothingNoShowVerbose_ = _assertNothingNoShow_ ("assertNothingNoShow" ++ "Verbose"); assertNothingNoShow_ ::  Location -> Maybe a -> IO (); assertNothingNoShow_ loc = _assertNothingNoShow_ "assertNothingNoShow" loc ""
 
 --
 -- Sub assertions
