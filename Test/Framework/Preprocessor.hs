@@ -91,11 +91,7 @@ nameDefines info =
 
 allAsserts :: [String]
 allAsserts =
-    withGs ["assertListsEqualAsSets"
-           ,"assertElem"
-           ,"assertEmpty"
-           ,"assertNotEmpty"
-           ,"assertLeft"
+    withGs ["assertLeft"
            ,"assertLeftNoShow"
            ,"assertRight"
            ,"assertRightNoShow"
