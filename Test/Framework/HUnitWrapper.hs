@@ -179,22 +179,22 @@ mkColorMsg fun extraInfo s =
 -- Boolean Assertions
 --
 
-_assertBool :: (HasCallStack, AssertM m) => String -> String -> Bool -> m ()
-_assertBool name s False = genericAssertFailure (mkMsg name s "failed")
-_assertBool _ _ True = return ()
+assertBool_ :: (HasCallStack, AssertM m) => String -> String -> Bool -> m ()
+assertBool_ name s False = genericAssertFailure (mkMsg name s "failed")
+assertBool_ _ _ True = return ()
 
 -- | Fail if the 'Bool' value is 'False'.
 assertBool :: HasCallStack => Bool -> IO ()
-assertBool = _assertBool "assertBool" ""
+assertBool = assertBool_ "assertBool" ""
 
 assertBoolVerbose :: HasCallStack => String -> Bool -> IO ()
-assertBoolVerbose = _assertBool "assertBoolVerbose"
+assertBoolVerbose = assertBool_ "assertBoolVerbose"
 
 gassertBool :: (HasCallStack, AssertM m) => Bool -> m ()
-gassertBool = _assertBool "gassertBool" ""
+gassertBool = assertBool_ "gassertBool" ""
 
 gassertBoolVerbose :: (HasCallStack, AssertM m) => String -> Bool -> m ()
-gassertBoolVerbose = _assertBool "gassertBoolVerbose"
+gassertBoolVerbose = assertBool_ "gassertBoolVerbose"
 
 --
 -- Equality Assertions
@@ -258,9 +258,9 @@ failedAt =
     Nothing -> "failed"
     Just loc -> "failed at " ++ showLoc loc
 
-_assertEqual :: (Eq a, Show a, AssertM m, HasCallStack)
+assertEqual_ :: (Eq a, Show a, AssertM m, HasCallStack)
                  => String -> String -> a -> a -> m ()
-_assertEqual name s expected actual =
+assertEqual_ name s expected actual =
     if expected /= actual
        then do let x = equalityFailedMessage expected actual
                genericAssertFailure (mkColorMsg name s $
@@ -271,27 +271,27 @@ _assertEqual name s expected actual =
 -- an additional message.
 -- Use if @a@ is an instance of 'Show' but not of 'Pretty'.
 gassertEqualVerbose :: (Eq a, Show a, AssertM m, HasCallStack) => String -> a -> a -> m ()
-gassertEqualVerbose = _assertEqual "gassertEqualVerbose"
+gassertEqualVerbose = assertEqual_ "gassertEqualVerbose"
 
 -- | Fail in some 'AssertM' monad if the two values of type @a@ are not equal.
 -- Use if @a@ is an instance of 'Show' but not of 'Pretty'.
 gassertEqual :: (Eq a, Show a, AssertM m, HasCallStack) => a -> a -> m ()
-gassertEqual = _assertEqual "gassertEqual" ""
+gassertEqual = assertEqual_ "gassertEqual" ""
 
 -- | Fail if the two values of type @a@ are not equal, supplying
 -- an additional message.
 -- Use if @a@ is an instance of 'Show' but not of 'Pretty'.
 assertEqualVerbose :: (Eq a, Show a, HasCallStack) => String -> a -> a -> IO ()
-assertEqualVerbose = _assertEqual "assertEqualVerbose"
+assertEqualVerbose = assertEqual_ "assertEqualVerbose"
 
 -- | Fail if the two values of type @a@ are not equal.
 -- Use if @a@ is an instance of 'Show' but not of 'Pretty'.
 assertEqual :: (Eq a, Show a, HasCallStack) => a -> a -> IO ()
-assertEqual = _assertEqual "assertEqual" ""
+assertEqual = assertEqual_ "assertEqual" ""
 
-_assertNotEqual :: (Eq a, Show a, AssertM m, HasCallStack)
+assertNotEqual_ :: (Eq a, Show a, AssertM m, HasCallStack)
                 => String -> String -> a -> a -> m ()
-_assertNotEqual name s expected actual =
+assertNotEqual_ name s expected actual =
     if expected == actual
        then do let x = notEqualityFailedMessage expected
                genericAssertFailure (mkMsg name s $ failedAt ++ x)
@@ -301,27 +301,27 @@ _assertNotEqual name s expected actual =
 -- an additional message.
 -- Use if @a@ is an instance of 'Show' but not of 'Pretty'.
 gassertNotEqualVerbose :: (Eq a, Show a, AssertM m, HasCallStack) => String -> a -> a -> m ()
-gassertNotEqualVerbose = _assertNotEqual "gassertNotEqualVerbose"
+gassertNotEqualVerbose = assertNotEqual_ "gassertNotEqualVerbose"
 
 -- | Fail in some 'AssertM' monad if the two values of type @a@ are equal.
 -- Use if @a@ is an instance of 'Show' but not of 'Pretty'.
 gassertNotEqual :: (Eq a, Show a, AssertM m, HasCallStack) => a -> a -> m ()
-gassertNotEqual = _assertNotEqual "gassertNotEqual" ""
+gassertNotEqual = assertNotEqual_ "gassertNotEqual" ""
 
 -- | Fail if the two values of type @a@ are equal, supplying
 -- an additional message.
 -- Use if @a@ is an instance of 'Show' but not of 'Pretty'.
 assertNotEqualVerbose :: (Eq a, Show a, HasCallStack) => String -> a -> a -> IO ()
-assertNotEqualVerbose = _assertNotEqual "assertNotEqualVerbose"
+assertNotEqualVerbose = assertNotEqual_ "assertNotEqualVerbose"
 
 -- | Fail if the two values of type @a@ are equal.
 -- Use if @a@ is an instance of 'Show' but not of 'Pretty'.
 assertNotEqual :: (Eq a, Show a, HasCallStack) => a -> a -> IO ()
-assertNotEqual = _assertNotEqual "assertNotEqual" ""
+assertNotEqual = assertNotEqual_ "assertNotEqual" ""
 
-_assertEqualPretty :: (Eq a, Pretty a, AssertM m, HasCallStack)
+assertEqualPretty_ :: (Eq a, Pretty a, AssertM m, HasCallStack)
                    => String -> String -> a -> a -> m ()
-_assertEqualPretty name s expected actual =
+assertEqualPretty_ name s expected actual =
     if expected /= actual
        then do let x = equalityFailedMessage' (showPretty expected) (showPretty actual)
                genericAssertFailure (mkColorMsg name s
@@ -332,27 +332,27 @@ _assertEqualPretty name s expected actual =
 -- an additional message.
 -- Use if @a@ is an instance of 'Pretty'.
 gassertEqualPrettyVerbose :: (Eq a, Pretty a, AssertM m, HasCallStack) => String -> a -> a -> m ()
-gassertEqualPrettyVerbose = _assertEqualPretty "gassertEqualPrettyVerbose"
+gassertEqualPrettyVerbose = assertEqualPretty_ "gassertEqualPrettyVerbose"
 
 -- | Fail in some 'AssertM' monad if the two values of type @a@ are not equal.
 -- Use if @a@ is an instance of 'Pretty'.
 gassertEqualPretty :: (Eq a, Pretty a, AssertM m, HasCallStack) => a -> a -> m ()
-gassertEqualPretty = _assertEqualPretty "gassertEqualPretty" ""
+gassertEqualPretty = assertEqualPretty_ "gassertEqualPretty" ""
 
 -- | Fail if the two values of type @a@ are not equal, supplying
 -- an additional message.
 -- Use if @a@ is an instance of 'Pretty'.
 assertEqualPrettyVerbose :: (Eq a, Pretty a, HasCallStack) => String -> a -> a -> IO ()
-assertEqualPrettyVerbose = _assertEqualPretty "assertEqualPrettyVerbose"
+assertEqualPrettyVerbose = assertEqualPretty_ "assertEqualPrettyVerbose"
 
 -- | Fail if the two values of type @a@ are not equal.
 -- Use if @a@ is an instance of 'Pretty'.
 assertEqualPretty :: (Eq a, Pretty a, HasCallStack) => a -> a -> IO ()
-assertEqualPretty = _assertEqualPretty "assertEqualPretty" ""
+assertEqualPretty = assertEqualPretty_ "assertEqualPretty" ""
 
-_assertNotEqualPretty :: (Eq a, Pretty a, AssertM m, HasCallStack)
+assertNotEqualPretty_ :: (Eq a, Pretty a, AssertM m, HasCallStack)
                        => String -> String -> a -> a -> m ()
-_assertNotEqualPretty name s expected actual =
+assertNotEqualPretty_ name s expected actual =
     if expected == actual
        then do let x = notEqualityFailedMessage' (showPretty expected)
                genericAssertFailure (mkMsg name s $ failedAt ++ x)
@@ -362,27 +362,27 @@ _assertNotEqualPretty name s expected actual =
 -- an additional message.
 -- Use if @a@ is an instance of 'Pretty'.
 gassertNotEqualPrettyVerbose :: (Eq a, Pretty a, AssertM m, HasCallStack) => String -> a -> a -> m ()
-gassertNotEqualPrettyVerbose = _assertNotEqualPretty "gassertNotEqualPrettyVerbose"
+gassertNotEqualPrettyVerbose = assertNotEqualPretty_ "gassertNotEqualPrettyVerbose"
 
 -- | Fail in some 'AssertM' monad if the two values of type @a@ are equal.
 -- Use if @a@ is an instance of 'Pretty'.
 gassertNotEqualPretty :: (Eq a, Pretty a, AssertM m, HasCallStack) => a -> a -> m ()
-gassertNotEqualPretty = _assertNotEqualPretty "gassertNotEqualPretty" ""
+gassertNotEqualPretty = assertNotEqualPretty_ "gassertNotEqualPretty" ""
 
 -- | Fail if the two values of type @a@ are equal, supplying
 -- an additional message.
 -- Use if @a@ is an instance of 'Pretty'.
 assertNotEqualPrettyVerbose :: (Eq a, Pretty a, HasCallStack) => String -> a -> a -> IO ()
-assertNotEqualPrettyVerbose = _assertNotEqualPretty "assertNotEqualPrettyVerbose"
+assertNotEqualPrettyVerbose = assertNotEqualPretty_ "assertNotEqualPrettyVerbose"
 
 -- | Fail if the two values of type @a@ are equal.
 -- Use if @a@ is an instance of 'Pretty'.
 assertNotEqualPretty :: (Eq a, Pretty a, HasCallStack) => a -> a -> IO ()
-assertNotEqualPretty = _assertNotEqualPretty "assertNotEqualPretty" ""
+assertNotEqualPretty = assertNotEqualPretty_ "assertNotEqualPretty" ""
 
-_assertEqualNoShow :: (Eq a, AssertM m, HasCallStack)
+assertEqualNoShow_ :: (Eq a, AssertM m, HasCallStack)
                     => String -> String -> a -> a -> m ()
-_assertEqualNoShow name s expected actual =
+assertEqualNoShow_ name s expected actual =
     if expected /= actual
     then genericAssertFailure (mkMsg name s failedAt)
     else return ()
@@ -391,27 +391,27 @@ _assertEqualNoShow name s expected actual =
 -- an additional message.
 -- Use if @a@ is neither an instance of 'Show' nor of 'Pretty'.
 gassertEqualNoShowVerbose :: (Eq a, AssertM m, HasCallStack) => String -> a -> a -> m ()
-gassertEqualNoShowVerbose = _assertEqualNoShow "gassertEqualNoShowVerbose"
+gassertEqualNoShowVerbose = assertEqualNoShow_ "gassertEqualNoShowVerbose"
 
 -- | Fail in some 'AssertM' monad if the two values of type @a@ are not equal.
 -- Use if @a@ is neither an instance of 'Show' nor of 'Pretty'.
 gassertEqualNoShow :: (Eq a, AssertM m, HasCallStack) => a -> a -> m ()
-gassertEqualNoShow = _assertEqualNoShow "gassertEqualNoShow" ""
+gassertEqualNoShow = assertEqualNoShow_ "gassertEqualNoShow" ""
 
 -- | Fail if the two values of type @a@ are not equal, supplying
 -- an additional message.
 -- Use if @a@ is neither an instance of 'Show' nor of 'Pretty'.
 assertEqualNoShowVerbose :: (Eq a, HasCallStack) => String -> a -> a -> IO ()
-assertEqualNoShowVerbose = _assertEqualNoShow "assertEqualNoShowVerbose"
+assertEqualNoShowVerbose = assertEqualNoShow_ "assertEqualNoShowVerbose"
 
 -- | Fail if the two values of type @a@ are not equal.
 -- Use if @a@ is neither an instance of 'Show' nor of 'Pretty'.
 assertEqualNoShow :: (Eq a, HasCallStack) => a -> a -> IO ()
-assertEqualNoShow = _assertEqualNoShow "assertEqualNoShow" ""
+assertEqualNoShow = assertEqualNoShow_ "assertEqualNoShow" ""
 
-_assertNotEqualNoShow :: (Eq a, AssertM m, HasCallStack)
+assertNotEqualNoShow_ :: (Eq a, AssertM m, HasCallStack)
                       => String -> String -> a -> a -> m ()
-_assertNotEqualNoShow name s expected actual =
+assertNotEqualNoShow_ name s expected actual =
     if expected == actual
        then genericAssertFailure (mkMsg name s failedAt)
        else return ()
@@ -420,31 +420,31 @@ _assertNotEqualNoShow name s expected actual =
 -- an additional message.
 -- Use if @a@ is neither an instance of 'Show' nor of 'Pretty'.
 gassertNotEqualNoShowVerbose :: (Eq a, AssertM m, HasCallStack) => String -> a -> a -> m ()
-gassertNotEqualNoShowVerbose = _assertNotEqualNoShow "gassertNotEqualNoShowVerbose"
+gassertNotEqualNoShowVerbose = assertNotEqualNoShow_ "gassertNotEqualNoShowVerbose"
 
 -- | Fail in some 'AssertM' monad if the two values of type @a@ are equal.
 -- Use if @a@ is neither an instance of 'Show' nor of 'Pretty'.
 gassertNotEqualNoShow :: (Eq a, AssertM m, HasCallStack) => a -> a -> m ()
-gassertNotEqualNoShow = _assertNotEqualNoShow "gassertNotEqualNoShow" ""
+gassertNotEqualNoShow = assertNotEqualNoShow_ "gassertNotEqualNoShow" ""
 
 -- | Fail if the two values of type @a@ are equal, supplying
 -- an additional message.
 -- Use if @a@ is neither an instance of 'Show' nor of 'Pretty'.
 assertNotEqualNoShowVerbose :: (Eq a, HasCallStack) => String -> a -> a -> IO ()
-assertNotEqualNoShowVerbose = _assertNotEqualNoShow "assertNotEqualNoShowVerbose"
+assertNotEqualNoShowVerbose = assertNotEqualNoShow_ "assertNotEqualNoShowVerbose"
 
 -- | Fail if the two values of type @a@ are equal.
 -- Use if @a@ is neither an instance of 'Show' nor of 'Pretty'.
 assertNotEqualNoShow :: (Eq a, HasCallStack) => a -> a -> IO ()
-assertNotEqualNoShow = _assertNotEqualNoShow "assertNotEqualNoShow" ""
+assertNotEqualNoShow = assertNotEqualNoShow_ "assertNotEqualNoShow" ""
 
 --
 -- Assertions on Lists
 --
 
-_assertListsEqualAsSets :: (Eq a, Show a, AssertM m, HasCallStack)
+assertListsEqualAsSets_ :: (Eq a, Show a, AssertM m, HasCallStack)
                    => String -> String -> [a] -> [a] -> m ()
-_assertListsEqualAsSets name s expected actual =
+assertListsEqualAsSets_ name s expected actual =
     let ne = length expected
         na = length actual
         in case () of
@@ -468,69 +468,69 @@ _assertListsEqualAsSets name s expected actual =
 -- | Fail in some 'AssertM' monad if the two given lists are not equal when considered as sets,
 -- supplying an additional error message.
 gassertListsEqualAsSetsVerbose :: (Eq a, Show a, AssertM m, HasCallStack) => String -> [a] -> [a] -> m ()
-gassertListsEqualAsSetsVerbose = _assertListsEqualAsSets "gassertListsEqualAsSetsVerbose"
+gassertListsEqualAsSetsVerbose = assertListsEqualAsSets_ "gassertListsEqualAsSetsVerbose"
 
 -- | Fail in some 'AssertM' monad if the two given lists are not equal when considered as sets.
 gassertListsEqualAsSets :: (Eq a, Show a, AssertM m, HasCallStack) => [a] -> [a] -> m ()
-gassertListsEqualAsSets= _assertListsEqualAsSets "gassertListsEqualAsSets" ""
+gassertListsEqualAsSets= assertListsEqualAsSets_ "gassertListsEqualAsSets" ""
 
 -- | Fail if the two given lists are not equal when considered as sets,
 -- supplying an additional error message.
 assertListsEqualAsSetsVerbose :: (Eq a, Show a, HasCallStack) => String -> [a] -> [a] -> IO ()
-assertListsEqualAsSetsVerbose = _assertListsEqualAsSets "assertListsEqualAsSetsVerbose"
+assertListsEqualAsSetsVerbose = assertListsEqualAsSets_ "assertListsEqualAsSetsVerbose"
 
 -- | Fail if the two given lists are not equal when considered as sets.
 assertListsEqualAsSets :: (Eq a, Show a, HasCallStack) => [a] -> [a] -> IO ()
-assertListsEqualAsSets = _assertListsEqualAsSets "assertListsEqualAsSets" ""
+assertListsEqualAsSets = assertListsEqualAsSets_ "assertListsEqualAsSets" ""
 
-_assertNotEmpty :: (AssertM m, HasCallStack) => String -> String -> [a] -> m ()
-_assertNotEmpty name s [] =
+assertNotEmpty_ :: (AssertM m, HasCallStack) => String -> String -> [a] -> m ()
+assertNotEmpty_ name s [] =
     genericAssertFailure (mkMsg name s failedAt)
-_assertNotEmpty _ _ (_:_) = return ()
+assertNotEmpty_ _ _ (_:_) = return ()
 
 -- | Fail in some 'AssertM' monad if the given list is empty, supplying an
 -- additional error message.
 gassertNotEmptyVerbose :: (AssertM m, HasCallStack) => String -> [a] -> m ()
-gassertNotEmptyVerbose = _assertNotEmpty "gassertNotEmptyVerbose"
+gassertNotEmptyVerbose = assertNotEmpty_ "gassertNotEmptyVerbose"
 
 -- | Fail in some 'AssertM' monad if the given list is empty.
 gassertNotEmpty :: (HasCallStack, AssertM m) => [a] -> m ()
-gassertNotEmpty = _assertNotEmpty "gassertNotEmpty" ""
+gassertNotEmpty = assertNotEmpty_ "gassertNotEmpty" ""
 
 -- | Fail if the given list is empty, supplying an
 -- additional error message.
 assertNotEmptyVerbose ::  HasCallStack => String -> [a] -> IO ()
-assertNotEmptyVerbose = _assertNotEmpty "assertNotEmptyVerbose"
+assertNotEmptyVerbose = assertNotEmpty_ "assertNotEmptyVerbose"
 
 -- | Fail if the given list is empty.
 assertNotEmpty ::  HasCallStack => [a] -> IO ()
-assertNotEmpty = _assertNotEmpty "assertNotEmpty" ""
+assertNotEmpty = assertNotEmpty_ "assertNotEmpty" ""
 
-_assertEmpty :: (AssertM m, HasCallStack) => String -> String -> [a] -> m ()
-_assertEmpty name s (_:_) =
+assertEmpty_ :: (AssertM m, HasCallStack) => String -> String -> [a] -> m ()
+assertEmpty_ name s (_:_) =
     genericAssertFailure (mkMsg name s failedAt)
-_assertEmpty _ _ [] = return ()
+assertEmpty_ _ _ [] = return ()
 
 -- | Fail in some 'AssertM' monad if the given list is not empty, supplying an
 -- additional error message.
 gassertEmptyVerbose :: (AssertM m, HasCallStack) => String -> [a] -> m ()
-gassertEmptyVerbose = _assertEmpty "gassertEmptyVerbose"
+gassertEmptyVerbose = assertEmpty_ "gassertEmptyVerbose"
 
 -- | Fail in some 'AssertM' monad if the given list is not empty.
 gassertEmpty :: (HasCallStack, AssertM m) => [a] -> m ()
-gassertEmpty = _assertEmpty "gassertEmpty" ""
+gassertEmpty = assertEmpty_ "gassertEmpty" ""
 
 -- | Fail if the given list is not empty, supplying an
 -- additional error message.
 assertEmptyVerbose ::  HasCallStack => String -> [a] -> IO ()
-assertEmptyVerbose = _assertEmpty "assertEmptyVerbose"
+assertEmptyVerbose = assertEmpty_ "assertEmptyVerbose"
 
 -- | Fail if the given list is not empty.
 assertEmpty ::  HasCallStack => [a] -> IO ()
-assertEmpty = _assertEmpty "assertEmpty" ""
+assertEmpty = assertEmpty_ "assertEmpty" ""
 
-_assertElem :: (Eq a, Show a, AssertM m, HasCallStack) => String -> String -> a -> [a] -> m ()
-_assertElem name s x l =
+assertElem_ :: (Eq a, Show a, AssertM m, HasCallStack) => String -> String -> a -> [a] -> m ()
+assertElem_ name s x l =
     if x `elem` l
     then return ()
     else genericAssertFailure (mkMsg name s
@@ -541,20 +541,20 @@ _assertElem name s x l =
 -- | Fail in some 'AssertM' monad if the element given is not contained in the list, supplying
 -- an additional error message.
 gassertElemVerbose :: (Eq a, Show a, AssertM m, HasCallStack) => String -> a -> [a] -> m ()
-gassertElemVerbose = _assertElem "gassertElemVerbose"
+gassertElemVerbose = assertElem_ "gassertElemVerbose"
 
 -- | Fail in some 'AssertM' monad if the element given is not contained in the list.
 gassertElem :: (Eq a, Show a, AssertM m, HasCallStack) => a -> [a] -> m ()
-gassertElem = _assertElem "gassertElem" ""
+gassertElem = assertElem_ "gassertElem" ""
 
 -- | Fail if the element given is not contained in the list, supplying
 -- an additional error message.
 assertElemVerbose :: (Eq a, Show a, HasCallStack) => String -> a -> [a] -> IO ()
-assertElemVerbose = _assertElem "assertElemVerbose"
+assertElemVerbose = assertElem_ "assertElemVerbose"
 
 -- | Fail if the element given is not contained in the list.
 assertElem :: (Eq a, Show a, HasCallStack) => a -> [a] -> IO ()
-assertElem = _assertElem "assertElem" ""
+assertElem = assertElem_ "assertElem" ""
 
 --
 -- Assertions for Exceptions
