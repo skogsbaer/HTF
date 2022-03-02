@@ -89,20 +89,6 @@ nameDefines info =
     [(thisModulesTestsName, thisModulesTestsFullName (mi_moduleNameWithDefault info)),
      (importedTestListName, importedTestListFullName (mi_moduleNameWithDefault info))]
 
-allAsserts :: [String]
-allAsserts = []
-
-assertDefines :: Bool -> String -> [(String, String)]
-assertDefines hunitBackwardsCompat prefix =
-    concatMap fun allAsserts
-    where
-      fun a =
-          if hunitBackwardsCompat
-             then [(a, expansion a "Verbose_"), (a ++ "HTF", expansion a "_")]
-             else [(a, expansion a "_"), (a ++ "Verbose", expansion a "Verbose_")]
-      expansion a suffix = "(" ++ prefix ++ a ++ suffix ++ " (" ++
-                           prefix ++ "makeLoc __FILE__ __LINE__))"
-
 data ModuleInfo = ModuleInfo { mi_htfPrefix  :: String
                              , mi_htfImports :: [ImportDecl]
                              , mi_defs       :: [Definition]
@@ -367,12 +353,11 @@ cpphsOptions =
       boolopts = (boolopts defaultCpphsOptions) { lang = True } -- lex as haskell
     }
 
-data TransformOptions = TransformOptions { hunitBackwardsCompat :: Bool
-                                         , debug :: Bool
+data TransformOptions = TransformOptions { debug :: Bool
                                          , literateTex :: Bool }
 
 transform :: TransformOptions -> FilePath -> String -> IO String
-transform (TransformOptions hunitBackwardsCompat debug literateTex) originalFileName input =
+transform (TransformOptions debug literateTex) originalFileName input =
     do (info, toks, pass1) <- analyze originalFileName fixedInput
        preprocess info toks pass1
     where
@@ -399,7 +384,6 @@ transform (TransformOptions hunitBackwardsCompat debug literateTex) originalFile
       mkOptionsForModule info =
           defaultCpphsOptions { defines =
                                     defines defaultCpphsOptions ++
-                                    assertDefines hunitBackwardsCompat (mi_htfPrefix info) ++
                                     nameDefines info
                               , boolopts = (boolopts defaultCpphsOptions) { lang = True } -- lex as haskell
                               }
