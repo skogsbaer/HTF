@@ -101,19 +101,19 @@ Source-Repository head
 Custom-Setup
   Setup-Depends:   base >= 4.10 && < 5,
                    process,
-                   Cabal < 4
+                   Cabal
 
 Executable htfpp
   Main-Is:          HTFPP.hs
   Build-Depends:    HUnit,
                     array,
-                    base,
-                    cpphs,
-                    directory,
-                    mtl,
-                    old-time,
-                    random,
-                    text,
+                    base >= 4.10 && < 5,
+                    cpphs >= 1.19,
+                    directory >= 1.0,
+                    mtl >= 1.1,
+                    old-time >= 1.0,
+                    random >= 1.0,
+                    text >= 0.11,
                     HTF
   Build-tool-depends: cpphs:cpphs >= 1.19
   Other-Modules:
@@ -191,7 +191,7 @@ Test-Suite MiscTests
   Hs-Source-Dirs:    tests
   Build-depends:     HTF,
                      HUnit,
-                     base,
+                     base >= 4.10 && < 5,
                      mtl,
                      random
   Build-tool-depends: HTF:htfpp
@@ -202,18 +202,18 @@ Test-Suite TestHTF
   Hs-Source-Dirs:    tests, tests/real-bbt
   Type:              exitcode-stdio-1.0
   Build-depends:     HTF,
-                     aeson,
+                     aeson >= 0.11,
                      aeson-pretty,
-                     base,
-                     bytestring,
-                     directory,
+                     base >= 4.10 && < 5,
+                     bytestring >= 0.9,
+                     directory >= 1.0,
                      filepath >= 1.1,
-                     process,
+                     process >= 1.0,
                      random,
-                     regex-compat,
+                     regex-compat >= 0.92,
                      template-haskell,
                      temporary >= 1.1,
-                     text,
+                     text >= 0.11,
                      unordered-containers >= 0.2
   Build-tool-depends: HTF:htfpp
   Default-language:  Haskell2010
@@ -227,7 +227,7 @@ Test-Suite TestThreadPools
   Type:              exitcode-stdio-1.0
   Hs-Source-Dirs:    tests
   Build-depends:     HTF,
-                     base,
+                     base >= 4.10 && < 5,
                      mtl,
                      random
   Build-tool-depends: HTF:htfpp
