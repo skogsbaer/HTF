@@ -1,6 +1,14 @@
 #!/bin/bash
 
 TOP=$(cd $(dirname ${BASH_SOURCE[0]})/.. > /dev/null && pwd -P)
+
+if [ -z "$HTF_TEST_STACK_ARGS" -a ! -z "$HTF_TEST_STACK_YAML" ]; then
+    HTF_TEST_STACK_ARGS="--stack-yaml $HTF_TEST_STACK_YAML"
+fi
+if [ -z "$HTF_TEST_STACK_ARGS" -a ! -z "$HTF_STACK_YAML" ]; then
+    HTF_TEST_STACK_ARGS="--stack-yaml $HTF_STACK_YAML"
+fi
+
 dist=$(stack $HTF_TEST_STACK_ARGS path --dist-dir 2> /dev/null)
 find=find
 if [ "$(uname)" == "Darwin" ]; then

@@ -1,3 +1,7 @@
+* 0.14.0.7 (2022-03-03)
+  - several upper bounds for packages
+  - minor improvements
+
 * 0.14.0.5 (2021-01-26)
   - make sure htfpp is available before running the tests
 
@@ -10,6 +14,7 @@
 
 * 0.14.0.1 (2019-11-27)
   - find cpphs
+
 * 0.14.0.0 (2019-11-26)
   - support for GHC 8.8
   - fix for performance problem with long strings
