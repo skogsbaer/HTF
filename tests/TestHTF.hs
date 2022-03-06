@@ -153,6 +153,28 @@ test_diff_FAIL =
                              (Literal 581))
                    (Variable "egg")
 
+test_diff2_FAIL =
+  assertEqual s1 s2
+  where
+    n = 100000
+    s1 = mk [0..n]
+    s2 = mk ([0..4999] ++ [5001..n])
+    mk :: [Int] -> String
+    mk [] = ""
+    mk (x:[]) = "line " ++ show x
+    mk (x:xs) = "line " ++ show x ++ "\n" ++ mk xs
+
+test_diff3_FAIL =
+  assertEqual s1 s2
+  where
+    n = 100000
+    s1 = mk [0..n]
+    s2 = mk [0..(n+1)]
+    mk :: [Int] -> String
+    mk [] = ""
+    mk (x:[]) = "line " ++ show x
+    mk (x:xs) = "line " ++ show x ++ "\n" ++ mk xs
+
 prop_ok_OK :: [Int] -> Property
 prop_ok_OK xs = classify (null xs) "trivial" $ xs == (reverse (reverse xs))
 
@@ -227,6 +249,8 @@ failedTests =
     ,"assertThrowsIO1_FAIL"
     ,"assertThrows_FAIL"
     ,"diff_FAIL"
+    ,"diff2_FAIL"
+    ,"diff3_FAIL"
     ,"error'_FAIL"
     ,"error_FAIL"
     ,"exhaust_FAIL"
@@ -292,6 +316,12 @@ checkOutput output =
                                                                          ,"line" .= J.toJSON (106+lineOffset)]]
                              ,"location" .= J.object ["file" .= J.String "TestHTF.hs"
                                                      ,"line" .= J.toJSON (107+lineOffset)]])
+       check jsons (J.object ["type" .= J.String "test-end"
+                             ,"test" .= J.object ["flatName" .= J.String "Main:diff2_FAIL"]])
+                   (J.object ["message" .= J.String "NOT:No newline at end of file"])
+       check jsons (J.object ["type" .= J.String "test-end"
+                             ,"test" .= J.object ["flatName" .= J.String "Main:diff3_FAIL"]])
+                   (J.object ["message" .= J.String "NOT:No newline at end of file"])
        check jsons (J.object ["type" .= J.String "test-end"
                              ,"test" .= J.object ["flatName" .= J.String "Foo.A:a_FAIL"]])
                    (J.object ["test" .= J.object ["location" .= J.object ["file" .= J.String "Foo/A.hs"
@@ -374,14 +404,18 @@ checkOutput output =
                                            Nothing -> False)
                                True objPred
             (J.String strJson, J.String strPred) ->
-                regexMatches (mkRegex strPred) strJson
+                regexMatches strPred strJson
             (arrJson@(J.Array _), arrPred@(J.Array _)) ->
                 let J.Success (listJson :: [J.Value]) = J.fromJSON arrJson
                     J.Success (listPred :: [J.Value]) = J.fromJSON arrPred
                 in length listJson == length listPred &&
                    all (\(x, y) -> matches x y) (zip listJson listPred)
             _ -> json == pred
-      regexMatches r s = isJust $ R.matchRegex r (T.unpack s)
+      regexMatches pred t =
+        let s = T.unpack t
+        in case T.unpack pred of
+             'N':'O':'T':':':rest -> isNothing $ R.matchRegex (mkRegex (T.pack rest)) s
+             _ -> isJust $ R.matchRegex (mkRegex pred) s
       mkRegex s = R.mkRegexWithOpts (T.unpack s) True False
       splitJson bsl =
           if BSL.null bsl

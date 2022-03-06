@@ -148,6 +148,7 @@ import Test.Framework.Colors
 import Test.Framework.Pretty
 import Test.Framework.AssertM
 import Test.Framework.PrettyHaskell
+import Test.Framework.Utils
 
 import qualified Data.Text as T
 import qualified Data.List as List
@@ -242,21 +243,27 @@ equalityFailedMessage' exp act =
             (_, []) -> s
             (prefix, rest) ->
                 prefix ++ " (removed " ++ show (length rest) ++ " trailing chars)"
-      maxLen = 100000
+      maxLen = 10000
 
+asString :: Show a => a -> Maybe String
+asString x = readM (show x)
 
 equalityFailedMessage :: (Show a) => a -> a -> ColorString
 equalityFailedMessage exp act =
     equalityFailedMessage' expP actP
     where
       (expP, actP) =
-          case (prettyHaskell' exp, prettyHaskell' act) of
-            (Nothing, _) -> (show exp, show act)
-            (_, Nothing) -> (show exp, show act)
-            (Just expP, Just actP)
-                | expP == actP ->
-                    (show exp, show act)
-                | otherwise -> (expP, actP)
+        case (asString exp, asString act) of
+          (Just expS, Just actS)
+            | expS /= actS -> (expS, actS)
+          _ ->
+            case (prettyHaskell' exp, prettyHaskell' act) of
+              (Nothing, _) -> (show exp, show act)
+              (_, Nothing) -> (show exp, show act)
+              (Just expP, Just actP)
+                  | expP == actP ->
+                      (show exp, show act)
+                  | otherwise -> (expP, actP)
 
 notEqualityFailedMessage :: Show a => a -> String
 notEqualityFailedMessage exp =
