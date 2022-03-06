@@ -91,10 +91,11 @@ the following snippet to your @.cabal@ file:
 
 @
 Test-Suite example
-  Type:              exitcode-stdio-1.0
-  Main-is:           Main.hs
-  Build-depends:     base, HTF
-  Default-language:  Haskell2010
+  Type:               exitcode-stdio-1.0
+  Main-is:            Main.hs
+  Build-depends:      base, HTF
+  Build-tool-depends: HTF:htfpp
+  Default-language:   Haskell2010
 @
 
 Several commandline options are available for HTF tests. Use
@@ -171,10 +172,11 @@ Cabal-Version: >= 1.10
 Build-type:    Simple
 
 Test-Suite tutorial
-  Type:              exitcode-stdio-1.0
-  Main-is:           Tutorial.hs
-  Build-depends:     base, HTF
-  Default-language:  Haskell2010
+  Type:               exitcode-stdio-1.0
+  Main-is:            Tutorial.hs
+  Build-depends:      base, HTF
+  Build-tool-depends: HTF:htfpp
+  Default-language:   Haskell2010
 @
 
 Compiling the program just shown (you must include the code for
