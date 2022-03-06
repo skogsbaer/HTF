@@ -164,6 +164,11 @@ prop_pendingProp_PENDING x = qcPending "This property is pending" (x == 0)
 
 prop_exhaust_FAIL = False ==> True
 
+prop_implies :: Int -> Property
+prop_implies n = n <= 10 ==> (\i -> i + n <= i + 10)
+
+prop_forAll = forAll (choose (0::Int, 10::Int)) (\i -> i < 11)
+
 prop_error_FAIL :: Bool
 prop_error_FAIL = error "Lisa"
 
@@ -255,6 +260,8 @@ passedTests =
     ,"ok'_OK"
     ,"ok_OK"
     ,"stringGap_OK"
+    ,"implies"
+    ,"forAll"
 -- $ find bbt -name '*ok*.x' | grep -v not_ok
     ,"bbt/should_fail/ok1.x"
     ,"bbt/should_fail/ok2.x"
