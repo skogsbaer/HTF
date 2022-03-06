@@ -30,7 +30,8 @@ Description:
     .
 
     The documentation of the "Test.Framework.Tutorial" module
-    provides a tutorial for HTF. The /sample/ provides a good starting point for
+    provides a tutorial for HTF. The /sample/ directory in
+    the HTF repo provides a good starting point for
     a project using HTF.
 
 Build-Type:       Custom
