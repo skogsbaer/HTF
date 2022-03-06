@@ -1,11 +1,11 @@
--- 
+--
 -- Copyright (c) 2005,2009   Stefan Wehr - http://www.stefanwehr.de
 --
 -- This library is free software; you can redistribute it and/or
 -- modify it under the terms of the GNU Lesser General Public
 -- License as published by the Free Software Foundation; either
 -- version 2.1 of the License, or (at your option) any later version.
--- 
+--
 -- This library is distributed in the hope that it will be useful,
 -- but WITHOUT ANY WARRANTY; without even the implied warranty of
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
@@ -21,8 +21,10 @@
 Top-level module that re-exports functionality from sub-modules.
 Modules that only define unit tests and quickcheck properties typically
 only need to import this module.
-Your test driver should additionally import 'Test.Framework.TestManager' and,
+Test drivers should additionally import 'Test.Framework.TestManager' and,
 if needed, 'Test.Framework.BlackBoxTest'.
+
+See "Test.Framework.Tutorial" for a description how to use HTF.
 
 -}
 module Test.Framework (

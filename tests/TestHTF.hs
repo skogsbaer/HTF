@@ -29,6 +29,7 @@ import Test.Framework
 import Test.Framework.Location
 import Test.Framework.TestManager
 import Test.Framework.BlackBoxTest
+import Test.Framework.TestInterface
 
 import System.Environment
 import System.Directory
@@ -57,7 +58,8 @@ import qualified Data.Text.Encoding as T
 import qualified Data.Text.Encoding.Error as T
 import qualified Data.List as List
 import qualified Text.Regex as R
-import {-@ HTF_TESTS @-} qualified TestHTFHunitBackwardsCompatible
+import GHC.Stack
+
 import {-@ HTF_TESTS @-} qualified Foo.A as A
 import {-@ HTF_TESTS @-} Foo.B
 
@@ -151,6 +153,28 @@ test_diff_FAIL =
                              (Literal 581))
                    (Variable "egg")
 
+test_diff2_FAIL =
+  assertEqual s1 s2
+  where
+    n = 100000
+    s1 = mk [0..n]
+    s2 = mk ([0..4999] ++ [5001..n])
+    mk :: [Int] -> String
+    mk [] = ""
+    mk (x:[]) = "line " ++ show x
+    mk (x:xs) = "line " ++ show x ++ "\n" ++ mk xs
+
+test_diff3_FAIL =
+  assertEqual s1 s2
+  where
+    n = 100000
+    s1 = mk [0..n]
+    s2 = mk [0..(n+1)]
+    mk :: [Int] -> String
+    mk [] = ""
+    mk (x:[]) = "line " ++ show x
+    mk (x:xs) = "line " ++ show x ++ "\n" ++ mk xs
+
 prop_ok_OK :: [Int] -> Property
 prop_ok_OK xs = classify (null xs) "trivial" $ xs == (reverse (reverse xs))
 
@@ -161,6 +185,11 @@ prop_pendingProp_PENDING :: Int -> Bool
 prop_pendingProp_PENDING x = qcPending "This property is pending" (x == 0)
 
 prop_exhaust_FAIL = False ==> True
+
+prop_implies :: Int -> Property
+prop_implies n = n <= 10 ==> (\i -> i + n <= i + 10)
+
+prop_forAll = forAll (choose (0::Int, 10::Int)) (\i -> i < 11)
 
 prop_error_FAIL :: Bool
 prop_error_FAIL = error "Lisa"
@@ -182,18 +211,20 @@ prop_error'_FAIL = withQCArgs changeArgs $ (error "Lisa" :: Bool)
 test_genericAssertions_OK =
     case test1 of
       AssertOk _ -> fail "did not expect AssertOk"
-      AssertFailed stack ->
-          do assertEqual 2 (length stack)
-             let [se1, se2] = stack
-             assertNothing (ase_message se1)
-             loc1 <- assertJust (ase_location se1)
-             _ <- assertJust (ase_message se2)
-             loc2 <- assertJust (ase_location se2)
+      AssertFailed stack msg ->
+          do assertEqualVerbose ("stack=" ++ show stack) 2 (length (htfStackToList stack))
+             let [se1, se2] = htfStackToList stack
+                 loc1 = hse_location se1
+                 loc2 = hse_location se2
              assertEqual (fileName loc1) (fileName loc2)
-             assertEqual (lineNumber loc1 + 1) (lineNumber loc2)
+             assertEqual (lineNumber loc1) (line - 1)
+             assertEqual (lineNumber loc2) (line - 3)
+             assertNotEqual msg ""
     where
-      test1 = gsubAssert test2
-      test2 = gassertEqual 1 (2::Int)
+      test1 = test2
+      test2 :: (HasCallStack) => AssertBool ()
+      test2 = gassertBool False
+      line = __LINE__
 
 -- find . -name '*.hs' | xargs egrep -w -o -h "[a-zA-Z0-9_']+_PENDING" | sed 's/test_//g; s/prop_//g' | sort -u
 pendingTests :: [T.Text]
@@ -204,8 +235,7 @@ pendingTests =
 failedTests :: [T.Text]
 failedTests =
 -- $ find . -name '*.hs' | xargs egrep -w -o -h "[a-zA-Z0-9_']+_FAIL" | sed 's/test_//g; s/prop_//g' | sort -u
-    ["1_FAIL"
-    ,"a_FAIL"
+    ["a_FAIL"
     ,"h_FAIL"
     ,"assertElem_FAIL"
     ,"assertEmpty_FAIL"
@@ -219,6 +249,8 @@ failedTests =
     ,"assertThrowsIO1_FAIL"
     ,"assertThrows_FAIL"
     ,"diff_FAIL"
+    ,"diff2_FAIL"
+    ,"diff3_FAIL"
     ,"error'_FAIL"
     ,"error_FAIL"
     ,"exhaust_FAIL"
@@ -245,14 +277,15 @@ errorTests = ["someError_ERROR"]
 passedTests :: [T.Text]
 passedTests =
     -- $ find . -name '*.hs' | xargs egrep -w -o -h "[a-zA-Z0-9_']+_OK" | sed 's/test_//g; s/prop_//g' | sort -u
-    ["2_OK"
-    ,"assertSetEqualSuccess_OK"
+    ["assertSetEqualSuccess_OK"
     ,"assertThrowsIO2_OK"
     ,"b_OK"
     ,"genericAssertions_OK"
     ,"ok'_OK"
     ,"ok_OK"
     ,"stringGap_OK"
+    ,"implies"
+    ,"forAll"
 -- $ find bbt -name '*ok*.x' | grep -v not_ok
     ,"bbt/should_fail/ok1.x"
     ,"bbt/should_fail/ok2.x"
@@ -284,6 +317,12 @@ checkOutput output =
                              ,"location" .= J.object ["file" .= J.String "TestHTF.hs"
                                                      ,"line" .= J.toJSON (107+lineOffset)]])
        check jsons (J.object ["type" .= J.String "test-end"
+                             ,"test" .= J.object ["flatName" .= J.String "Main:diff2_FAIL"]])
+                   (J.object ["message" .= J.String "NOT:No newline at end of file"])
+       check jsons (J.object ["type" .= J.String "test-end"
+                             ,"test" .= J.object ["flatName" .= J.String "Main:diff3_FAIL"]])
+                   (J.object ["message" .= J.String "NOT:No newline at end of file"])
+       check jsons (J.object ["type" .= J.String "test-end"
                              ,"test" .= J.object ["flatName" .= J.String "Foo.A:a_FAIL"]])
                    (J.object ["test" .= J.object ["location" .= J.object ["file" .= J.String "Foo/A.hs"
                                                                          ,"line" .= J.toJSON (10::Int)]]
@@ -297,15 +336,15 @@ checkOutput output =
                                                      ,"line" .= J.toJSON (9::Int)]])
        check jsons (J.object ["type" .= J.String "test-end"
                              ,"test" .= J.object ["flatName" .= J.String "Main:subAssert_FAIL"]])
-                   (J.object ["callers" .= J.toJSON [J.object ["message" .= J.Null
+                   (J.object ["callers" .= J.toJSON [J.object ["message" .= J.String "I'm another sub"
                                                               ,"location" .= J.object ["file" .= J.String "TestHTF.hs"
-                                                                                      ,"line" .= J.toJSON (95+lineOffset)]]
-                                                    ,J.object ["message" .= J.String "I'm another sub"
+                                                                                      ,"line" .= J.toJSON (97+lineOffset)]]
+                                                    ,J.object ["message" .= J.Null
                                                               ,"location" .= J.object ["file" .= J.String "TestHTF.hs"
-                                                                                      ,"line" .= J.toJSON (97+lineOffset)]]]])
+                                                                                      ,"line" .= J.toJSON (95+lineOffset)]]]])
     where
       lineOffset :: Int
-      lineOffset = 38
+      lineOffset = 40
       checkStatus tuple@(pass, fail, error, pending, timedOut) json =
           {-
             {"location":null
@@ -365,14 +404,18 @@ checkOutput output =
                                            Nothing -> False)
                                True objPred
             (J.String strJson, J.String strPred) ->
-                regexMatches (mkRegex strPred) strJson
+                regexMatches strPred strJson
             (arrJson@(J.Array _), arrPred@(J.Array _)) ->
                 let J.Success (listJson :: [J.Value]) = J.fromJSON arrJson
                     J.Success (listPred :: [J.Value]) = J.fromJSON arrPred
                 in length listJson == length listPred &&
                    all (\(x, y) -> matches x y) (zip listJson listPred)
             _ -> json == pred
-      regexMatches r s = isJust $ R.matchRegex r (T.unpack s)
+      regexMatches pred t =
+        let s = T.unpack t
+        in case T.unpack pred of
+             'N':'O':'T':':':rest -> isNothing $ R.matchRegex (mkRegex (T.pack rest)) s
+             _ -> isJust $ R.matchRegex (mkRegex pred) s
       mkRegex s = R.mkRegexWithOpts (T.unpack s) True False
       splitJson bsl =
           if BSL.null bsl

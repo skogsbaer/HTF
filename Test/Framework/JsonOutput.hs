@@ -1,3 +1,21 @@
+{-# LANGUAGE OverloadedStrings #-}
+--
+-- Copyright (c) 2005-2022   Stefan Wehr - http://www.stefanwehr.de
+--
+-- This library is free software; you can redistribute it and/or
+-- modify it under the terms of the GNU Lesser General Public
+-- License as published by the Free Software Foundation; either
+-- version 2.1 of the License, or (at your option) any later version.
+--
+-- This library is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+-- Lesser General Public License for more details.
+--
+-- You should have received a copy of the GNU Lesser General Public
+-- License along with this library; if not, write to the Free Software
+-- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
+--
 {- |
 
 HTF's machine-readable output is a sequence of JSON messages. Each message is terminated
@@ -47,8 +65,6 @@ Their haskell representations are 'TestStartEventObj', 'TestEndEventObj', 'TestL
 
 For an exact specification, please have a look at the code of this module.
 -}
-
-{-# LANGUAGE OverloadedStrings #-}
 module Test.Framework.JsonOutput (
 
     TestStartEventObj, TestEndEventObj, TestListObj, TestObj, TestResultsObj,
@@ -62,6 +78,7 @@ module Test.Framework.JsonOutput (
 import Test.Framework.TestTypes
 import Test.Framework.Location
 import Test.Framework.Colors
+import Test.Framework.TestInterface
 
 import qualified Data.Aeson as J
 import Data.Aeson ((.=))
@@ -89,8 +106,7 @@ data TestEndEventObj
     = TestEndEventObj
       { te_test :: TestObj
       , te_result :: TestResult
-      , te_location :: Maybe Location
-      , te_callers :: [(Maybe String, Location)]
+      , te_stack :: HtfStack
       , te_message :: T.Text
       , te_wallTimeMs :: Int
       , te_timedOut :: Bool
@@ -100,10 +116,11 @@ instance J.ToJSON TestEndEventObj where
     toJSON te =
         J.object ["type" .= J.String "test-end"
                  ,"test" .= J.toJSON (te_test te)
-                 ,"location" .= J.toJSON (te_location te)
-                 ,"callers" .= J.toJSON (map (\(msg, loc) -> J.object ["message" .= J.toJSON msg
-                                                                      ,"location" .= J.toJSON loc])
-                                             (te_callers te))
+                 ,"location" .= J.toJSON (failureLocationFromStack (te_stack te))
+                 ,"callers" .=
+                    J.toJSON (map (\entry -> J.object ["location" .= J.toJSON (hse_location entry)
+                                                      ,"message" .= J.toJSON (hse_message entry)])
+                              (restCallStack (te_stack te)))
                  ,"result" .= J.toJSON (te_result te)
                  ,"message" .= J.toJSON (te_message te)
                  ,"wallTime" .= J.toJSON (te_wallTimeMs te)
@@ -192,7 +209,7 @@ mkTestEndEventObj :: FlatTestResult -> String -> TestEndEventObj
 mkTestEndEventObj ftr flatName =
     let r = ft_payload ftr
         msg = renderColorString (rr_message r) False
-    in TestEndEventObj (mkTestObj ftr flatName) (rr_result r) (rr_location r) (rr_callers r)
+    in TestEndEventObj (mkTestObj ftr flatName) (rr_result r) (rr_stack r)
                        msg (rr_wallTimeMs r) (rr_timeout r)
 
 mkTestListObj :: [(FlatTest, String)] -> TestListObj

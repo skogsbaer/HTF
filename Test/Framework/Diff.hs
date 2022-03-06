@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP, ScopedTypeVariables #-}
 --
--- Copyright (c) 2011, 2012   Stefan Wehr - http://www.stefanwehr.de
+-- Copyright (c) 2011-2022   Stefan Wehr - http://www.stefanwehr.de
 --
 -- This library is free software; you can redistribute it and/or
 -- modify it under the terms of the GNU Lesser General Public
@@ -166,12 +166,20 @@ singleLineDiff' dc s1 s2
 multiLineDiff :: DiffConfig -> String -> String -> IO ColorString
 multiLineDiff cfg left right =
     withTempFiles $ \(fpLeft, hLeft) (fpRight, hRight) ->
-        do write hLeft left
-           write hRight right
+        do write hLeft leftForFile
+           write hRight rightForFile
            doDiff fpLeft fpRight
     where
+      (leftForFile, rightForFile) =
+        if lastChar left /= Just '\n' && lastChar right /= Just '\n'
+        then (left ++ "\n", right ++ "\n") -- avoid "No newline at end of file" error messages
+        else (left, right)
+      lastChar s =
+        case reverse s of
+          [] -> Nothing
+          (c:_) -> Just c
       doDiff leftFile rightFile =
-          (do (ecode, out, _err) <- readProcessWithExitCode "diff" [leftFile, rightFile] ""
+          (do (ecode, out, _err) <- readProcessWithExitCode "diff" ["-u", leftFile, rightFile] ""
               case ecode of
                 ExitSuccess -> return (format out)
                 ExitFailure 1 -> return (format out)
@@ -183,8 +191,8 @@ multiLineDiff cfg left right =
           removeFile fp `catch` (\e -> hPutStrLn stderr (show (e::IOException)))
       withTempFiles action =
           do dir <- getTemporaryDirectory
-             left@(fpLeft, _) <- openTempFile dir "HTF-diff-left.txt"
-             (do right@(fpRight, _) <- openTempFile dir "HTF-diff-right.txt"
+             left@(fpLeft, _) <- openTempFile dir "HTF-diff-EXPECTED_.txt"
+             (do right@(fpRight, _) <- openTempFile dir "HTF-diff-ACTUAL_.txt"
                  action left right `finally` saveRemove fpRight
               `finally` saveRemove fpLeft)
       write h s =
@@ -208,12 +216,12 @@ multiLineDiff cfg left right =
             fromSecond s = dc_fromSecond cfg s
 
 diff :: DiffConfig -> String -> String -> IO ColorString
-diff cfg left right =
+diff cfg left right = do
     case (lines left, lines right) of
       ([], []) -> return emptyColorString
-      ([], [_]) -> return $ singleLineDiff cfg left right
-      ([_], []) -> return $ singleLineDiff cfg left right
-      ([_], [_]) -> return $ singleLineDiff cfg left right
+      ([], [_]) -> return (singleLineDiff cfg left right)
+      ([_], []) -> return (singleLineDiff cfg left right)
+      ([_], [_]) -> return (singleLineDiff cfg left right)
       _ -> multiLineDiff cfg left right
 
 diffWithSensibleConfig :: String -> String -> IO ColorString

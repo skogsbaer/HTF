@@ -35,7 +35,7 @@ usage :: IO ()
 usage =
     hPutStrLn stderr
       ("Preprocessor for the Haskell Test Framework\n\n" ++
-       "Usage: " ++ progName ++ " [--hunit|--debug|--version|--literate-tex] [FILE1 [FILE2 [FILE3]]]\n\n" ++
+       "Usage: " ++ progName ++ " [--debug|--version|--literate-tex] [FILE1 [FILE2 [FILE3]]]\n\n" ++
        "* If no argument is given, input is read from stdin and\n" ++
        "  output is written to stdout.\n" ++
        "* If only FILE1 is given, input is read from this file\n" ++
@@ -45,9 +45,7 @@ usage =
        "* If FILE1, FILE2, and FILE3 are given, input is read\n" ++
        "  from FILE2, output is written to FILE3, and\n" ++
        "  FILE1 serves as the original input filename.\n\n" ++
-       "The `--hunit' flag causes assert-like macros to be expanded in a way\n" ++
-       "that is backwards-compatible with the corresponding functions of the\n" ++
-       "HUnit library.\n" ++
+       "The `--hunit' flag has been deprecated starting with version 0.15." ++
        "The `--literate-tex` flag causes the additional generated code to be wrapped\n" ++
        "in TeX-style literate code blocks.")
 
@@ -75,8 +73,7 @@ main =
        when ("--version" `elem` args) $
             do outputVersion
                exitWith ExitSuccess
-       let transformOpts = TransformOptions { hunitBackwardsCompat = "--hunit" `elem` args
-                                            , debug = "--debug" `elem` args
+       let transformOpts = TransformOptions { debug = "--debug" `elem` args
                                             , literateTex = "--literate-tex" `elem` args }
            restArgs = flip filter args $ \x -> not $ x `elem` ["--hunit", "--debug", "--literate-tex"]
        (origInputFilename, hIn, hOut) <-

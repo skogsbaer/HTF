@@ -16,6 +16,7 @@ executable sample
   other-modules:     MyPkg.A MyPkg.B
   build-depends:     base, HTF
   default-language:  Haskell2010
+  build-tool-depends: HTF:htfpp
 
 test-suite sample-tests
   type:              exitcode-stdio-1.0
@@ -23,3 +24,4 @@ test-suite sample-tests
   other-modules:     MyPkg.A MyPkg.B
   build-depends:     base, HTF
   default-language:  Haskell2010
+  build-tool-depends: HTF:htfpp
