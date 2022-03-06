@@ -155,30 +155,30 @@ Library
     Build-Depends:   unix >= 2.4
   Exposed-Modules:
     Test.Framework
-    Test.Framework.HUnitWrapper
-    Test.Framework.TestManager
-    Test.Framework.TestInterface
-    Test.Framework.TestTypes
-    Test.Framework.TestReporter
-    Test.Framework.History
-    Test.Framework.CmdlineOptions
-    Test.Framework.QuickCheckWrapper
-    Test.Framework.BlackBoxTest
-    Test.Framework.Location
-    Test.Framework.Tutorial
-    Test.Framework.Pretty
-    Test.Framework.JsonOutput
-    Test.Framework.XmlOutput
-    Test.Framework.ThreadPool
     Test.Framework.AssertM
-    Test.Framework.Colors
-    Test.Framework.PrettyHaskell
-    Test.Framework.Preprocessor
+    Test.Framework.BlackBoxTest
+    Test.Framework.HUnitWrapper
+    Test.Framework.JsonOutput
+    Test.Framework.Pretty
+    Test.Framework.QuickCheckWrapper
+    Test.Framework.TestInterface
+    Test.Framework.TestManager
+    Test.Framework.TestReporter
+    Test.Framework.TestTypes
+    Test.Framework.Tutorial
+    Test.Framework.XmlOutput
   Other-Modules:
     Paths_HTF
-    Test.Framework.Utils
+    Test.Framework.CmdlineOptions
+    Test.Framework.Colors
     Test.Framework.Diff
+    Test.Framework.History
+    Test.Framework.Location
+    Test.Framework.Preprocessor
+    Test.Framework.PrettyHaskell
     Test.Framework.Process
+    Test.Framework.ThreadPool
+    Test.Framework.Utils
   Autogen-modules:
     Paths_HTF
   Build-tool-depends: cpphs:cpphs >= 1.19
