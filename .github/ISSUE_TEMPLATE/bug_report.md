@@ -2,7 +2,7 @@
 name: Bug report
 about: Fill a bug report to help us improve HTF
 title: ''
-labels: ''
+labels: 'bug'
 assignees: ''
 
 ---
