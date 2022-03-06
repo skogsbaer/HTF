@@ -7,7 +7,7 @@ as ordinary unit tests or to evaluate them as pure functions.
 -}
 module Test.Framework.AssertM (
 
-    AssertM(..), AssertBool(..), boolValue, eitherValue, formatHtfStack
+    AssertM(..), AssertBool(..), boolValue, eitherValue
 
 ) where
 

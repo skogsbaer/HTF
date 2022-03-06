@@ -5,18 +5,89 @@ possible to use the HTF with other Haskell environments, only the steps
 taken to invoke the custom preprocessor of the HTF may differ in
 this case.)
 
-We start with a simple example. Then we show how to use HTF to easily
-collect test definitions from multiple modules and discuss
-backwards-compatibility for projects already using `HUnit`. Finally,
-we give a brief cookbook-like summary on how to setup your tests with HTF.
-
 -}
 
 module Test.Framework.Tutorial (
 
+-- * Quickstart
+
+{- |
+
+For the impatient, we start with a brief cookbook-like summary and then go into details.
+You should also have a look at the sample project at
+<https://github.com/skogsbaer/HTF/tree/master/sample>.
+
+-}
+
+-- ** Writing tests
+
+{- |
+
+You should use the following skeleton for each module defining test cases:
+
+@
+&#x7b;-&#x23; OPTIONS_GHC -F -pgmF htfpp &#x23;-&#x7d;
+module MyModule (
+    -- some more exports here
+
+    htf_thisModulesTests -- all test cases are automatically collected in htf_thisModulesTests
+
+) where
+
+import Test.Framework
+
+-- Each top-level definition whose name starts with 'test_' defines a unit test.
+test_nonEmpty :: Assertion
+test_nonEmpty = do
+  assertEqual [1] (reverse [1])
+  assertEqual [3,2,1] (reverse [1,2,3])
+
+
+-- Each top-level definition whose name starts with 'prop_' defines a quickcheck property.
+prop_reverse :: [Int] -> Bool
+prop_reverse xs = xs == (reverse (reverse xs))
+@
+
+For unit tests, see "Test.Framework.HUnitWrapper" for the assertions provided.
+
+-}
+
+-- ** Collecting and executing tests
+
+{- |
+
+Your main module collecting all tests should look like this:
+
+@
+&#x7b;-&#x23; OPTIONS_GHC -F -pgmF htfpp &#x23;-&#x7d;
+module Main ( main ) where
+
+-- Import modules defining HTF tests like this:
+import &#x7b;-&#x40; HTF_TESTS &#x40;-&#x7d; MyModule
+
+main :: IO ()
+main = htfMain htf_importedTests -- all tests in modules imported via &#x7b;-&#x40; HTF_TESTS &#x40;-&#x7d; are available in htf_importedTests
+@
+
+Tests are then executed via @cabal test@ or @stack test@. You only need to add
+the following snippet to your @.cabal@ file:
+
+@
+Test-Suite example
+  Type:              exitcode-stdio-1.0
+  Main-is:           Main.hs
+  Build-depends:     base, HTF
+  Default-language:  Haskell2010
+@
+
+Several commandline options are available for HTF tests. Use
+@stack test --ta --help@ or @cabal test --test-options --help@ to see the list of options.
+-}
+
 -- * A simple example
 {- |
 
+We now explain everything in more detail.
 Suppose you are trying to write a function for reversing lists :
 
 @
@@ -54,13 +125,8 @@ prop_reverse :: [Int] -> Bool
 prop_reverse xs = xs == (myReverse (myReverse xs))
 @
 
-When @htfpp@ consumes the source file, it replaces the @assertEqual@
-tokens (and other @assert@-like tokens, see
-"Test.Framework.HUnitWrapper") with calls to
-'assertEqual_', passing
-the current location in the file as the first argument.
-Moreover, the
-preprocessor collects all top-level definitions starting with @test_@
+When @htfpp@ consumes the source file, it
+collects all top-level definitions starting with @test_@
 or @prop_@ in a test suite of type 'TestSuite' and name @htf_@/M/@_thisModulesTests@,
 where /M/ is the name of the current module with dots @.@ replaced by underscores @_@.
 For your convenience, the preprocessor also defines the token @htf_thisModulesTests@
@@ -273,10 +339,14 @@ main = htfMain htf_importedTests
 
 -- * Machine-readable output
 
+-- ** JSON
+
 {- |
 
 For better integration with your testing environment, HTF provides the ability to produce
-machine-readable output in JSON format. Here is a short example how the JSON output looks like,
+machine-readable output in JSON format. The output is produced incrementally, line by line.
+
+Here is a short example how the JSON output looks like,
 for details see "Test.Framework.JsonOutput":
 
 
@@ -308,62 +378,44 @@ appending an index (starting at 0) that is incremented for every message.
 
 -}
 
--- * Backwards-compatibility with HUnit
+-- ** XML
 
-{- |
-The types of the various @assert@-like macros of the HTF are not backwards-compatible
-with the corresponding functions of HUnit. This incompatibility is intentional, of course:
-with HUnit, the programmer has to provide suitable location information by explicitly
-passing a string argument to the @assert@-like functions, whereas HTF provides
-location information implicitly through its pre-processor @htfpp@.
-
-To simplify transition from HUnit to HTF, @htfpp@ provides a commandline flag
-@--hunit@. This flag causes @htfpp@ to exand the assertion macros in a way compatible
-with the types of the corresponding HUnit functions. For example, with the @--hunit@
-flag being present, @assertEqual@ is exanded to
-@'assertEqualVerbose_' ('makeLoc' \"filename\" line)@, whose type
-@(Show a, Eq a) => String -> a -> a -> IO ()@ is compatible with
-the type of HUnit's 'Test.HUnit.Base.assertEqual' function.
+{- | Machine-readable output is also available as XML, following the specification of the JUnit
+output format. XML-output is requested by the @--xml=OUTPUT_FILE@ flag.
+See "Test.Framework.XmlOutput" for details.
 
 -}
-
--- * Summary
+-- * Commandline options
 
 {- |
 
-Here is a quick summary of how to write, collect, and execute your tests.
-You should also have a look at the sample project at
-<https://github.com/skogsbaer/HTF/tree/master/sample>.
+Here is the list of commandline options for programs using @htfMain@:
 
+@
+USAGE: COMMAND [OPTION ...] PATTERN ...
+
+  where PATTERN is a posix regular expression matching
+  the names of the tests to run.
+
+  -q          --quiet                     Only display errors.
+  -n PATTERN  --not=PATTERN               Tests to exclude.
+  -l          --list                      List all matching tests.
+  -j[N]       --threads[=N]               Run N tests in parallel, default N=1.
+              --shuffle=BOOL              Shuffle test order. Default: false
+  -o FILE     --output-file=FILE          Name of output file.
+              --json                      Output results in machine-readable JSON format (incremental).
+              --xml=FILE                  Output results in junit-style XML format.
+              --split                     Splits results in separate files to avoid file locking (requires -o/--output-file).
+              --colors=BOOL               Use colors or not.
+              --history=FILE              Path to the history file. Default: ./.HTF/<ProgramName>.history
+              --fail-fast                 Fail and abort test run as soon as the first test fails.
+              --sort-by-prev-time         Sort tests ascending by their execution of the previous test run (if available). Default: false
+              --max-prev-ms=MILLISECONDS  Do not try to execute tests that had a execution time greater than MILLISECONDS in a previous test run.
+              --max-cur-ms=MILLISECONDS   Abort a test that runs more than MILLISECONDS.
+              --prev-factor=DOUBLE        Abort a test that runs more than DOUBLE times slower than in a previous run.
+              --timeout-is-success        Do not regard a test timeout as an error.
+              --repeat=NUMBER             Execute the tests selected on the command line NUMBER times.
+  -h          --help                      Display this message.
+@
 -}
-
--- ** Writing tests
-
-{- |
-
-* Place @&#x7b;-&#x23; OPTIONS_GHC -F -pgmF htfpp &#x23;-&#x7d;@ at the top of your module.
-
-* Put @htf_thisModulesTests@ into the export list of your module.
-
-* Import @Test.Framework@.
-
-* Prefix your unit tests with @test_@, see "Test.Framework.HUnitWrapper" for the assertions provided.
-
-* Prefix your QuickCheck properties with @prop_@.
-
--}
-
--- ** Collecting and executing tests
-
-{- |
-* Place @&#x7b;-&#x23; OPTIONS_GHC -F -pgmF htfpp &#x23;-&#x7d;@ at the top of your module.
-
-* Import @Test.Framework@.
-
-* Import modules defining HTF tests with @import &#x7b;-&#x40; HTF_TESTS &#x40;-&#x7d; MyPkg.A@.
-
-* Use @main = htfMain htf_importedTests@ to run all imported tests.
-
--}
-
 ) where

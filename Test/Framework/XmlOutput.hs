@@ -1,17 +1,48 @@
 {-# LANGUAGE CPP #-}
 {- |
 
-See <http://pzolee.blogs.balabit.com/2012/11/jenkins-vs-junit-xml-format/>
-for a description of the format used.
+XML-output following the JUnit output format.
 
-The source code of this module also contains a rough specification of
-the output format in terms of Haskell data types.
+The data types exposed by this module give a rough specification of
+the output format.
+
+Here is a sample ouput:
+
+@
+\<?xml version="1.0" encoding="UTF-8" standalone="yes"?\>
+\<testsuites tests="6" failures="2" errors="0" time="0.705"\>
+  \<testsuite id="0" tests="2" failures="0" errors="0" time="0.000" name="MyPkg.A" package="MyPkg.A"\>
+    \<testcase classname="MyPkg.A" name="test_funA2" time="0.000"/\>
+    \<testcase classname="MyPkg.A" name="test_funA1" time="0.000"/\>
+  \</testsuite\>
+  \<testsuite id="1" tests="2" failures="0" errors="0" time="0.000" name="MyPkg.B" package="MyPkg.B"\>
+    \<testcase classname="MyPkg.B" name="test_funB2" time="0.000"/\>
+    \<testcase classname="MyPkg.B" name="test_funB1" time="0.000"/\>
+  \</testsuite\>
+  \<testsuite id="2" tests="2" failures="2" errors="0" time="0.703" name="bbts" package="bbts"\>
+    \<testcase classname="bbts" name="bbt_bbt-dir/should-pass/x.num" time="0.230"\>
+      \<failure type="failure" message="test is supposed to succeed but failed with exit code 255"\>test is supposed to succeed but failed with exit code 255\</failure\>
+    \</testcase\>
+    \<testcase classname="bbts" name="bbt_bbt-dir/should-fail/z.num" time="0.473"\>
+      \<failure type="failure" message="Mismatch on stderr:"\>Mismatch on stderr:
+--- bbt-dir/should-fail/z.err	2015-09-05 18:37:30.000000000 +0200
++++ -	2022-03-06 09:49:55.480265000 +0100
+\@\@ -1 +1 \@\@
+-invalid input
++sample[88331]: [fatal] unable to read input graph: The data couldn’t be read because it isn’t in the correct format.
+[end of diff output]
+\</failure\>
+    \</testcase\>
+  \</testsuite\>
+\</testsuites\>
+@
 
 -}
 {-# LANGUAGE OverloadedStrings #-}
 module Test.Framework.XmlOutput (
 
-    mkGlobalResultsXml
+  JunitXmlOutput(..), Testsuites(..), Testsuite(..), Testcase(..), Result(..)
+  , mkGlobalResultsXml
 
 ) where
 
@@ -35,11 +66,13 @@ import Text.XML.Generator
 import Test.Framework.TestTypes
 import Test.Framework.Colors
 
--- A "specification" of the output format in terms of haskell data types
--- * The name of each data type corresponds to the name of an XML element
---   (lowercase first letter)
--- * The name of a field with a primitive corresponds to an attribute with
---   then same name as the field (without the prefix)
+-- | A "specification" of the output format in terms of haskell data types:
+-- The name of each data type corresponds to the name of an XML element
+-- (lowercase first letter).
+-- The name of a field with a primitive corresponds to an attribute with
+-- then same name as the field (without the prefix up to the first @_@).
+--
+-- The root element is @testsuites@
 data JunitXmlOutput = JunitXmlOutput Testsuites
 
 type Seconds = Double

@@ -1,5 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE BangPatterns #-}
+{- |
+Utility module dealing with ANSI colors.
+-}
 --
 -- Copyright (c) 2011, 2012   Stefan Wehr - http://www.stefanwehr.de
 --

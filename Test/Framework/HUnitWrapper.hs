@@ -26,47 +26,28 @@
 
 This module provides assert-like functions for writing unit tests.
 
-/Hint:/ Do not use the @assertXXX_@ functions
-directly. Instead, for each function @assertXXX_@,
-there exist a preprocessor macro @assertXXX@, which provides
-the "Location" parameter automatically. Use these macros, which
-are available automatically if you add
-
-@&#x7b;-&#x23; OPTIONS_GHC -F -pgmF htfpp &#x23;-&#x7d;@
-
-at the top of your source file (see the 'Test.Framework.Tutorial').
-
 -}
 
 module Test.Framework.HUnitWrapper (
 
   -- * Assertions on Bool values
   assertBool, assertBoolVerbose,
-  gassertBool, gassertBoolVerbose,
 
   -- * Equality assertions
   assertEqual, assertEqualVerbose,
-  gassertEqual, gassertEqualVerbose,
   assertEqualPretty, assertEqualPrettyVerbose,
-  gassertEqualPretty, gassertEqualPrettyVerbose,
   assertEqualNoShow, assertEqualNoShowVerbose,
-  gassertEqualNoShow, gassertEqualNoShowVerbose,
+
+  -- * Inequality assertions
   assertNotEqual, assertNotEqualVerbose,
-  gassertNotEqual, gassertNotEqualVerbose,
   assertNotEqualPretty, assertNotEqualPrettyVerbose,
-  gassertNotEqualPretty, gassertNotEqualPrettyVerbose,
   assertNotEqualNoShow, assertNotEqualNoShowVerbose,
-  gassertNotEqualNoShow, gassertNotEqualNoShowVerbose,
 
   -- * Assertions on lists
   assertListsEqualAsSets, assertListsEqualAsSetsVerbose,
-  gassertListsEqualAsSets, gassertListsEqualAsSetsVerbose,
   assertNotEmpty, assertNotEmptyVerbose,
-  gassertNotEmpty, gassertNotEmptyVerbose,
   assertEmpty, assertEmptyVerbose,
-  gassertEmpty, gassertEmptyVerbose,
   assertElem, assertElemVerbose,
-  gassertElem, gassertElemVerbose,
 
   -- * Assertions for exceptions
   assertThrows, assertThrowsVerbose,
@@ -78,31 +59,64 @@ module Test.Framework.HUnitWrapper (
 
   -- * Assertions on Either values
   assertLeft, assertLeftVerbose,
-  gassertLeft, gassertLeftVerbose,
   assertLeftNoShow, assertLeftNoShowVerbose,
-  gassertLeftNoShow, gassertLeftNoShowVerbose,
   assertRight, assertRightVerbose,
-  gassertRight, gassertRightVerbose,
   assertRightNoShow, assertRightNoShowVerbose,
-  gassertRightNoShow, gassertRightNoShowVerbose,
 
   -- * Assertions on Just values
   assertJust, assertJustVerbose,
-  gassertJust, gassertJustVerbose,
   assertNothing, assertNothingVerbose,
-  gassertNothing, gassertNothingVerbose,
   assertNothingNoShow, assertNothingNoShowVerbose,
-  gassertNothingNoShow, gassertNothingNoShowVerbose,
 
   -- * General failure
   assertFailure,
-  gassertFailure,
 
   -- * Pending unit tests
   unitTestPending, unitTestPending',
 
   -- * Sub assertions
   subAssert, subAssertVerbose,
+
+  -- * Generalized assertions and failures in AssertM
+  {- |
+       The following definitions generalize the the monad in which assertions are executed.
+       Usually, assertions are executed in the @IO@ monad. The @AssertM@ monad
+       (see "Test.Framework.AssertM") allows you to evaluate assertions also as pure functions.
+   -}
+  -- ** Assertions on Bool values
+  gassertBool, gassertBoolVerbose,
+
+  -- ** Equality assertions
+  gassertEqual, gassertEqualVerbose,
+  gassertEqualPretty, gassertEqualPrettyVerbose,
+  gassertEqualNoShow, gassertEqualNoShowVerbose,
+
+  -- ** Inequality assertions
+  gassertNotEqual, gassertNotEqualVerbose,
+  gassertNotEqualPretty, gassertNotEqualPrettyVerbose,
+  gassertNotEqualNoShow, gassertNotEqualNoShowVerbose,
+
+  -- ** Assertions on lists
+  gassertListsEqualAsSets, gassertListsEqualAsSetsVerbose,
+  gassertNotEmpty, gassertNotEmptyVerbose,
+  gassertEmpty, gassertEmptyVerbose,
+  gassertElem, gassertElemVerbose,
+
+  -- ** Assertions on Either values
+  gassertLeft, gassertLeftVerbose,
+  gassertLeftNoShow, gassertLeftNoShowVerbose,
+  gassertRight, gassertRightVerbose,
+  gassertRightNoShow, gassertRightNoShowVerbose,
+
+  -- ** Assertions on Just values
+  gassertJust, gassertJustVerbose,
+  gassertNothing, gassertNothingVerbose,
+  gassertNothingNoShow, gassertNothingNoShowVerbose,
+
+  -- ** General failure
+  gassertFailure,
+
+  -- ** Sub assertions
   gsubAssert, gsubAssertVerbose,
 
   -- * HUnit re-exports
