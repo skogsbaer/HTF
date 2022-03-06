@@ -4,7 +4,7 @@
 Utility module dealing with ANSI colors.
 -}
 --
--- Copyright (c) 2011, 2012   Stefan Wehr - http://www.stefanwehr.de
+-- Copyright (c) 2011-2022   Stefan Wehr - http://www.stefanwehr.de
 --
 -- This library is free software; you can redistribute it and/or
 -- modify it under the terms of the GNU Lesser General Public
