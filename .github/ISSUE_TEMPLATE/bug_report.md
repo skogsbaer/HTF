@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Create a report to help us improve
+about: Fill a bug report to help us improve HTF
 title: ''
 labels: ''
 assignees: ''
