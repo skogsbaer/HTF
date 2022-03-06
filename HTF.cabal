@@ -163,7 +163,6 @@ Library
     Test.Framework.QuickCheckWrapper
     Test.Framework.TestInterface
     Test.Framework.TestManager
-    Test.Framework.TestReporter
     Test.Framework.TestTypes
     Test.Framework.Tutorial
     Test.Framework.XmlOutput
@@ -177,6 +176,7 @@ Library
     Test.Framework.Preprocessor
     Test.Framework.PrettyHaskell
     Test.Framework.Process
+    Test.Framework.TestReporter
     Test.Framework.ThreadPool
     Test.Framework.Utils
   Autogen-modules:
