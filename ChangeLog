@@ -5,9 +5,7 @@
     where previously in scope unqualified, through macros. In this case, you need to
     import Test.Framework unqualified or qualify all uses of assert macros.
   - The modules Test.Framework.CmdlineOptions, Test.Framework.Colors,
-    Test.Framework.History, Test.Framework.Location, Test.Framework.Preprocessor,
-    Test.Framework.PrettyHaskell, Test.Framework.TestReportert and
-    Test.Framework.ThreadPool are no longer exposed. I don't think that
+    and Test.Framework.TestReporter are no longer exposed. I don't think that
     anyone depends on these internal modules. Let me know I am wrong.
 
 * 0.14.0.7 (2022-03-03)

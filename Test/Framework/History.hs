@@ -1,6 +1,9 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
+{- |
+Internal module for retaining a history of test runs.
+-}
 module Test.Framework.History (
 
     TestHistory, HistoricTestResult(..), emptyTestHistory, Milliseconds, TestResult(..)

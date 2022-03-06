@@ -1,6 +1,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{- |
+Internal module providing a pool of threads.
+-}
 --
--- Copyright (c) 2013   Stefan Wehr - http://www.stefanwehr.de
+-- Copyright (c) 2022   Stefan Wehr - http://www.stefanwehr.de
 --
 -- This library is free software; you can redistribute it and/or
 -- modify it under the terms of the GNU Lesser General Public

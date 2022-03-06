@@ -18,7 +18,7 @@
 
 {- |
 
-This module defines types and functions dealing with source code locations.
+Internal module for types and functions dealing with source code locations.
 
 -}
 

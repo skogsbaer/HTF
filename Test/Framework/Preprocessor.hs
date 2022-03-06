@@ -3,7 +3,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE PackageImports #-}
-
+{- |
+Internal module providing access to some functionality of cpphs.
+-}
 --
 -- Copyright (c) 2009-2014 Stefan Wehr - http://www.stefanwehr.de
 --

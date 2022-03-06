@@ -158,12 +158,17 @@ Library
     Test.Framework.AssertM
     Test.Framework.BlackBoxTest
     Test.Framework.HUnitWrapper
+    Test.Framework.History
     Test.Framework.JsonOutput
+    Test.Framework.Location
+    Test.Framework.Preprocessor
     Test.Framework.Pretty
+    Test.Framework.PrettyHaskell
     Test.Framework.QuickCheckWrapper
     Test.Framework.TestInterface
     Test.Framework.TestManager
     Test.Framework.TestTypes
+    Test.Framework.ThreadPool
     Test.Framework.Tutorial
     Test.Framework.XmlOutput
   Other-Modules:
@@ -171,13 +176,8 @@ Library
     Test.Framework.CmdlineOptions
     Test.Framework.Colors
     Test.Framework.Diff
-    Test.Framework.History
-    Test.Framework.Location
-    Test.Framework.Preprocessor
-    Test.Framework.PrettyHaskell
     Test.Framework.Process
     Test.Framework.TestReporter
-    Test.Framework.ThreadPool
     Test.Framework.Utils
   Autogen-modules:
     Paths_HTF
