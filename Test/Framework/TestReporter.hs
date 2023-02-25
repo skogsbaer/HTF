@@ -39,6 +39,7 @@ import Test.Framework.JsonOutput
 import Test.Framework.XmlOutput
 
 import System.IO
+import Control.Monad
 import Control.Monad.RWS
 import Text.PrettyPrint
 
