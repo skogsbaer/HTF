@@ -16,6 +16,8 @@ jobs:
     strategy:
       matrix:
         include:
+          - compiler: ghc-9.4
+          - compiler: ghc-9.2
           - compiler: ghc-9.0
           - compiler: ghc-8.10
           - compiler: ghc-8.8
