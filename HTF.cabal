@@ -38,15 +38,16 @@ Build-Type:       Custom
 
 Extra-Source-Files:
   README.md
-  TODO.org
   ChangeLog
-  .travis.yml
   stack.yaml
-  stack-ghc-8.0.yaml
   stack-ghc-8.2.yaml
   stack-ghc-8.4.yaml
   stack-ghc-8.6.yaml
   stack-ghc-8.8.yaml
+  stack-ghc-8.10.yaml
+  stack-ghc-9.0.yaml
+  stack-ghc-9.2.yaml
+  stack-ghc-9.4.yaml
   tests/bbt/should_fail/BBTArgs
   tests/bbt/should_fail/*.err
   tests/bbt/should_fail/*.out
