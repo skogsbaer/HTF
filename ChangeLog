@@ -1,3 +1,6 @@
+* 0.15.0.1
+  - Fix build for mtl-2.3 #118
+
 * 0.15.0.0
   - Remove macros for assertions, location information is now provided
     via HasCallStack. For most users, this change should be backwards compatible.
