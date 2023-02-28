@@ -7,13 +7,13 @@ packages:
 - completed:
     hackage: haskell-src-1.0.3.1@sha256:4f17c7a8c3989cbbe5a07facf7ee1080c7688c33fd6e8b8d8c9693a2d96726d2,1680
     pantry-tree:
-      size: 621
       sha256: 1ad12f023a5c4c4f3053f15519355166f1a6eb05ec639d7b32f8fcd587e28bea
+      size: 621
   original:
     hackage: haskell-src-1.0.3.1
 snapshots:
 - completed:
-    size: 532177
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/16/20.yaml
-    sha256: 0e14ba5603f01e8496e8984fd84b545a012ca723f51a098c6c9d3694e404dc6d
-  original: lts-16.20
+    sha256: 637fb77049b25560622a224845b7acfe81a09fdb6a96a3c75997a10b651667f6
+    size: 534126
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/16/31.yaml
+  original: lts-16.31

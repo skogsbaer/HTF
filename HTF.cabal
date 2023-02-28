@@ -1,6 +1,6 @@
 Cabal-Version:    2.0
 Name:             HTF
-Version:          0.15.0.0
+Version:          0.15.0.1
 License:          LGPL-2.1
 License-File:     LICENSE
 Copyright:        (c) 2005-2015 Stefan Wehr
@@ -38,15 +38,16 @@ Build-Type:       Custom
 
 Extra-Source-Files:
   README.md
-  TODO.org
   ChangeLog
-  .travis.yml
   stack.yaml
-  stack-ghc-8.0.yaml
   stack-ghc-8.2.yaml
   stack-ghc-8.4.yaml
   stack-ghc-8.6.yaml
   stack-ghc-8.8.yaml
+  stack-ghc-8.10.yaml
+  stack-ghc-9.0.yaml
+  stack-ghc-9.2.yaml
+  stack-ghc-9.4.yaml
   tests/bbt/should_fail/BBTArgs
   tests/bbt/should_fail/*.err
   tests/bbt/should_fail/*.out
@@ -89,7 +90,8 @@ Extra-Source-Files:
   scripts/prepare
 
 tested-with:
-  GHC == 9.2.1
+  GHC == 9.4.4
+  GHC == 9.2.6
   GHC == 9.0.2
   GHC == 8.10.7
   GHC == 8.8.4
