@@ -34,7 +34,7 @@ Description:
     the HTF repo provides a good starting point for
     a project using HTF.
 
-Build-Type:       Custom
+Build-Type:       Simple
 
 Extra-Source-Files:
   README.md
@@ -102,11 +102,6 @@ tested-with:
 Source-Repository head
   Type:           git
   Location:       http://github.com/skogsbaer/HTF.git
-
-Custom-Setup
-  Setup-Depends:   base >= 4.10 && < 5,
-                   process,
-                   Cabal < 4
 
 Executable htfpp
   Main-Is:          HTFPP.hs
