@@ -1,9 +1,9 @@
 Cabal-Version:    2.0
 Name:             HTF
-Version:          0.15.0.1
+Version:          0.15.0.2
 License:          LGPL-2.1
 License-File:     LICENSE
-Copyright:        (c) 2005-2023 Stefan Wehr
+Copyright:        (c) 2005-2024 Stefan Wehr
 Author:           Stefan Wehr
 Maintainer:       Stefan Wehr
 Stability:        Beta
