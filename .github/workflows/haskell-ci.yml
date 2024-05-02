@@ -11,7 +11,7 @@ jobs:
     timeout-minutes:
       60
     container:
-      image: skogsbaer/ubuntu:latest
+      image: skogsbaer/ubuntu:20240502222638
     continue-on-error: false
     strategy:
       matrix:
