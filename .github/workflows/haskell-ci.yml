@@ -11,11 +11,12 @@ jobs:
     timeout-minutes:
       60
     container:
-      image: skogsbaer/ubuntu:latest
+      image: skogsbaer/ubuntu:20240502224354
     continue-on-error: false
     strategy:
       matrix:
         include:
+          - compiler: ghc-9.6
           - compiler: ghc-9.4
           - compiler: ghc-9.2
           - compiler: ghc-9.0
