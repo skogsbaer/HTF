@@ -1,3 +1,6 @@
+* 0.15.0.2
+  - Remove custom Setup.hs
+
 * 0.15.0.1
   - Fix build for mtl-2.3 #118
 
