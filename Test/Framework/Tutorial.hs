@@ -79,6 +79,8 @@ Your main module collecting all tests should look like this:
 &#x7b;-&#x23; OPTIONS_GHC -F -pgmF htfpp &#x23;-&#x7d;
 module Main ( main ) where
 
+import Test.Framework
+
 -- Import modules defining HTF tests like this:
 import &#x7b;-&#x40; HTF_TESTS &#x40;-&#x7d; MyModule
 
