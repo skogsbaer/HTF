@@ -25,7 +25,9 @@ function find_bin()
 }
 
 find_bin
-
+if [ -z "$bin" ]; then
+    bin=$(cd "$TOP" && cabal list-bin htfpp)
+fi
 if [ -z "$bin" ]; then
     echo "TOP=$TOP" >&2
     echo "dist=$dist" >&2
