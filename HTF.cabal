@@ -112,9 +112,9 @@ Executable htfpp
                     cpphs >= 1.19,
                     directory >= 1.0,
                     mtl >= 1.1,
-                    old-time >= 1.0,
                     random >= 1.0,
                     text >= 0.11,
+                    time >= 1.8 && < 1.15,
                     HTF
   Build-tool-depends: cpphs:cpphs >= 1.19
   Other-Modules:
@@ -141,12 +141,12 @@ Library
                     lifted-base >= 0.1,
                     monad-control >= 0.3,
                     mtl >= 1.1,
-                    old-time >= 1.0,
                     pretty >= 1.0,
                     process >= 1.0,
                     random >= 1.0,
                     regex-compat >= 0.92,
                     text >= 0.11,
+                    time >= 1.8 && < 1.15,
                     time,
                     vector,
                     xmlgen >= 0.6

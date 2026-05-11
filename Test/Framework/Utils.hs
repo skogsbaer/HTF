@@ -22,7 +22,7 @@ module Test.Framework.Utils where
 
 import System.Directory
 import Data.Char
-import System.Time hiding (diffClockTimes)
+import Data.Time.Clock.POSIX (getPOSIXTime)
 import System.Random
 import Data.Array.IO
 import Control.Monad
@@ -143,20 +143,15 @@ strip = reverse . dropWhile isSpace . reverse . dropWhile isSpace
 -- Measures execution time of the given IO action in milliseconds
 measure :: IO a -> IO (a, Int)
 measure ma =
-    do t0 <- getClockTime
+    do t0 <- getMicroTime
        a <- ma
-       t1 <- a `seq` getClockTime
-       let diffMicro = t1 `diffClockTimes` t0
+       t1 <- a `seq` getMicroTime
+       let diffMicro = t1 - t0
        return (a, fromInteger (diffMicro `div` 1000))
 
-diffClockTimes :: ClockTime -> ClockTime -> Integer
-diffClockTimes (TOD s1 p1) (TOD s0 p0) =
-    (picoseconds p1 + seconds s1) -
-    (picoseconds p0 + seconds s0)
-    where
-      -- bring all into microseconds
-      picoseconds i = i `div` (1000 * 1000)
-      seconds i = i * 1000000
+getMicroTime :: IO Integer
+getMicroTime =
+    floor . (* 1000000) <$> getPOSIXTime
 
 -- | Randomly shuffle a list
 --   /O(N)/
