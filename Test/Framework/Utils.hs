@@ -22,7 +22,11 @@ module Test.Framework.Utils where
 
 import System.Directory
 import Data.Char
+#if MIN_VERSION_base(4,11,0)
 import GHC.Clock (getMonotonicTimeNSec)
+#else
+import Data.Time.Clock.POSIX (getPOSIXTime)
+#endif
 import System.Random
 import Data.Array.IO
 import Control.Monad
@@ -150,7 +154,13 @@ measure ma =
        return (a, fromInteger (diffMicro `div` 1000))
 
 getMicroTime :: IO Integer
-getMicroTime = (`div` 1000) . fromIntegral <$> getMonotonicTimeNSec
+#if MIN_VERSION_base(4,11,0)
+getMicroTime =
+    (`div` 1000) . fromIntegral <$> getMonotonicTimeNSec
+#else
+getMicroTime =
+    floor . (* 1000000) <$> getPOSIXTime
+#endif
 
 -- | Randomly shuffle a list
 --   /O(N)/
