@@ -131,7 +131,7 @@ Library
                     QuickCheck >= 2.3,
                     aeson >= 0.11,
                     array,
-                    base >= 4.10 && < 5,
+                    base >= 4.11 && < 5,
                     base64-bytestring,
                     bytestring >= 0.9,
                     containers >= 0.5,
@@ -146,7 +146,6 @@ Library
                     random >= 1.0,
                     regex-compat >= 0.92,
                     text >= 0.11,
-                    time >= 1.8 && < 1.15,
                     time,
                     vector,
                     xmlgen >= 0.6

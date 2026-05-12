@@ -22,7 +22,7 @@ module Test.Framework.Utils where
 
 import System.Directory
 import Data.Char
-import Data.Time.Clock.POSIX (getPOSIXTime)
+import GHC.Clock (getMonotonicTimeNSec)
 import System.Random
 import Data.Array.IO
 import Control.Monad
@@ -150,8 +150,7 @@ measure ma =
        return (a, fromInteger (diffMicro `div` 1000))
 
 getMicroTime :: IO Integer
-getMicroTime =
-    floor . (* 1000000) <$> getPOSIXTime
+getMicroTime = (`div` 1000) . fromIntegral <$> getMonotonicTimeNSec
 
 -- | Randomly shuffle a list
 --   /O(N)/
