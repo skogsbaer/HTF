@@ -146,7 +146,6 @@ Library
                     random >= 1.0,
                     regex-compat >= 0.92,
                     text >= 0.11,
-                    time >= 1.8 && < 1.15,
                     time,
                     vector,
                     xmlgen >= 0.6
